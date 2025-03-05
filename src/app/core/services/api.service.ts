@@ -1,9 +1,13 @@
+// src/app/core/services/api.service.ts
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../../environments/environment';
+import { Topic } from '../../models/topic'; // Import interfaces
+import { SubTopic } from '../../models/subTopic';
+import { Lesson } from '../../models/lesson';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +15,7 @@ import { environment } from '../../../environments/environment';
 export class ApiService {
   private baseUrl = environment.apiUrl + '/api';
 
-  constructor(private http: HttpClient, private toastr: ToastrService) { }
+  constructor(private http: HttpClient, private toastr: ToastrService) {}
 
   get<T>(endpoint: string): Observable<T> {
     return this.http.get<T>(`${this.baseUrl}/${endpoint}`).pipe(
@@ -20,8 +24,6 @@ export class ApiService {
         if (response && typeof response === 'object' && '$values' in response) {
           data = (response as any).$values;
         }
-
-        // Transform PascalCase to camelCase recursively and ensure arrays
         const transformedData = this.transformKeysToCamelCaseAndEnsureArrays(data);
         return transformedData as T;
       }),
@@ -32,34 +34,39 @@ export class ApiService {
     );
   }
 
-  // Recursive function to transform PascalCase to camelCase and ensure arrays
-  private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {
-    if (Array.isArray(obj)) {
-      return obj.map(item => this.transformKeysToCamelCaseAndEnsureArrays(item));
+  // Determine endpoint by type T using type guards
+  private getEndpoint<T>(entity: T): string {
+    if (this.isTopic(entity)) {
+      return `topic/${(entity as Topic).id}`;
+    } else if (this.isSubTopic(entity)) {
+      return `subTopic/${(entity as SubTopic).id}`;
+    } else if (this.isLesson(entity)) {
+      return `lesson/${(entity as Lesson).id}`;
     }
-    if (obj && typeof obj === 'object') {
-      return Object.keys(obj).reduce((acc, key) => {
-        const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
-        let value = obj[key];
-
-        // Ensure nested arrays are unwrapped and always arrays
-        if (value && typeof value === 'object' && '$values' in value) {
-          value = value.$values || [];
-        }
-        // Ensure value is an array if it should be (based on context or model expectations)
-        if (camelKey === 'subTopics' || camelKey === 'lessons' || camelKey === 'topics' || camelKey === 'documents') {
-          value = Array.isArray(value) ? value : [];
-        }
-
-        acc[camelKey] = this.transformKeysToCamelCaseAndEnsureArrays(value);
-        return acc;
-      }, {} as any);
-    }
-    return obj; // Return primitives (string, number, etc.) unchanged
+    throw new Error('Unsupported entity type');
   }
 
-  post<T>(endpoint: string, body: any): Observable<T> {
-    return this.http.post<T>(`${this.baseUrl}/${endpoint}`, body).pipe(
+  private isTopic(entity: any): entity is Topic {
+    return entity && typeof entity.id === 'number' && typeof entity.nodeId === 'string' && 
+           typeof entity.title === 'string' && typeof entity.description === 'string' && 
+           Array.isArray(entity.subTopics);
+  }
+
+  private isSubTopic(entity: any): entity is SubTopic {
+    return entity && typeof entity.id === 'number' && typeof entity.nodeId === 'string' && 
+           typeof entity.title === 'string' && (entity.description === undefined || typeof entity.description === 'string') && 
+           Array.isArray(entity.lessons);
+  }
+
+  private isLesson(entity: any): entity is Lesson {
+    return entity && typeof entity.id === 'number' && typeof entity.nodeId === 'string' && 
+           typeof entity.title === 'string' && typeof entity.content === 'string' && 
+           typeof entity.subTopicId === 'number' && Array.isArray(entity.documents);
+  }
+
+  put<T>(entity: T): Observable<T> {
+    const endpoint = this.getEndpoint(entity);
+    return this.http.put<T>(`${this.baseUrl}/${endpoint}`, entity).pipe(
       catchError(error => {
         this.handleError(error);
         return throwError(() => error);
@@ -67,8 +74,8 @@ export class ApiService {
     );
   }
 
-  put<T>(endpoint: string, body: any): Observable<T> {
-    return this.http.put<T>(`${this.baseUrl}/${endpoint}`, body).pipe(
+  post<T>(endpoint: string, body: any): Observable<T> {
+    return this.http.post<T>(`${this.baseUrl}/${endpoint}`, body).pipe(
       catchError(error => {
         this.handleError(error);
         return throwError(() => error);
@@ -83,6 +90,29 @@ export class ApiService {
         return throwError(() => error);
       })
     );
+  }
+
+  private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.transformKeysToCamelCaseAndEnsureArrays(item));
+    }
+    if (obj && typeof obj === 'object') {
+      return Object.keys(obj).reduce((acc, key) => {
+        const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
+        let value = obj[key];
+
+        if (value && typeof value === 'object' && '$values' in value) {
+          value = value.$values || [];
+        }
+        if (camelKey === 'subTopics' || camelKey === 'lessons' || camelKey === 'topics' || camelKey === 'documents') {
+          value = Array.isArray(value) ? value : [];
+        }
+
+        acc[camelKey] = this.transformKeysToCamelCaseAndEnsureArrays(value);
+        return acc;
+      }, {} as any);
+    }
+    return obj;
   }
 
   private handleError(error: any) {

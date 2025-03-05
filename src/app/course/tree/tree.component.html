@@ -3,7 +3,9 @@
       id="treeview"
       [fields]="treeFields"
       [enablePersistence]="true"
+      [allowDragAndDrop]="true"
+      (nodeDragStop)="onNodeDragStop($event)"
     ></ejs-treeview>
-  } @else {
+} @else {
     <p>No tree data available. Check console logs for details.</p>
-  }
+}

@@ -1,29 +1,19 @@
-.custom-tree {
-    .e-treeview {
-      width: 100%;
-      display: block;
-      border: 1px solid red; /* Debug border */
-      min-height: 100px; /* Ensure visible height */
-    }
-  
-    .e-treeview .e-list-item {
-      padding: 8px 16px;
-      border-bottom: 1px solid #e0e0e0;
-    }
-  
-    .e-treeview .e-list-text {
-      font-size: 14px;
-      font-weight: 500;
-    }
-  
-    .e-treeview .e-icon-collapsible::before,
-    .e-treeview .e-icon-expandable::before {
-      font-size: 16px;
-    }
+// src/app/course/tree/tree.component.scss
+.material-icons {
+    font-family: 'Material Icons'; // Ensure Material Icons font is loaded
+    font-size: 16px; // Adjust as needed
+    vertical-align: middle;
+    margin-right: 5px;
   }
   
-  .tree-view-container {
-    border: 2px solid blue; /* Debug border */
-    min-height: 200px; /* Ensure enough space */
-    overflow: auto; /* Allow scrolling if needed */
+  .topic-icon::before {
+    content: 'school';
+  }
+  
+  .subtopic-icon::before {
+    content: 'book';
+  }
+  
+  .lesson-icon::before {
+    content: 'assignment';
   }
