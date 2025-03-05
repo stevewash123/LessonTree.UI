@@ -1,0 +1,27 @@
+<div>
+    <h2>Lessons</h2>
+    <form [formGroup]="lessonForm" (ngSubmit)="addLesson()">
+      <mat-form-field>
+        <mat-label>Title</mat-label>
+        <input matInput formControlName="title">
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Content</mat-label>
+        <input matInput formControlName="content">
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>SubTopic ID</mat-label>
+        <input matInput type="number" formControlName="subTopicId">
+      </mat-form-field>
+      <button mat-raised-button color="primary" type="submit" [disabled]="lessonForm.invalid">Add Lesson</button>
+    </form>
+  
+    <mat-list>
+      @for (lesson of lessons; track lesson.id) {
+        <mat-list-item>
+          {{ lesson.title }} - {{ lesson.content }}
+          <button mat-raised-button color="warn" (click)="deleteLesson(lesson.id)">Delete</button>
+        </mat-list-item>
+      }
+    </mat-list>
+  </div>

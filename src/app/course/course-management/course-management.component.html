@@ -1,0 +1,40 @@
+<div>
+    <h2 class="courses-header">Courses</h2>
+    @for (course of courses; track $index) { <!-- Use $index as a fallback for unique tracking -->        
+      <mat-card class="course-card">
+        <mat-list-item>
+          <div class="course-item">
+            <mat-icon 
+              class="expand-icon" 
+              (click)="toggleCourse(course.nodeId)"
+            >
+              {{ expandedCourseId === course.nodeId ? 'expand_more' : 'chevron_right' }}
+            </mat-icon>
+            <span class="course-title">{{ course.title }}</span>
+            <span class="course-description">{{ course.description }}</span>
+            <span class="course-actions">
+              <button mat-icon-button (click)="editCourse(course)" matTooltip="Edit Course">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button (click)="deleteCourse(course.id)" matTooltip="Delete Course">
+                <mat-icon>delete</mat-icon>
+              </button>
+              <button mat-icon-button (click)="addTopic(course.id)" matTooltip="Add Topic">
+                <mat-icon>add_circle</mat-icon>
+              </button>
+            </span>
+          </div>
+        </mat-list-item>
+        @if (expandedCourseId === course.nodeId) {  <!-- Updated to use course.nodeId -->
+          <div class="tree-view-container">
+            
+            <app-tree [topics]="course.topics"></app-tree>
+            
+          </div>
+        } 
+      </mat-card>
+    }
+    <div class="add-course-button">
+      <button mat-raised-button color="primary" (click)="openAddCourseDialog()">Add Course</button>
+    </div>
+</div>

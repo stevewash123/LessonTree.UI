@@ -1,0 +1,23 @@
+<div>
+    <h2>Account Management (Admin Only)</h2>
+    <form [formGroup]="userForm" (ngSubmit)="addUser()">
+      <mat-form-field>
+        <mat-label>Username</mat-label>
+        <input matInput formControlName="username">
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password">
+      </mat-form-field>
+      <button mat-raised-button color="primary" type="submit" [disabled]="userForm.invalid">Add User</button>
+    </form>
+  
+    <mat-list>
+      @for (user of users; track user.id) {
+        <mat-list-item>
+          {{ user.username }}
+          <button mat-raised-button color="warn" (click)="deleteUser(user.id)">Delete</button>
+        </mat-list-item>
+      }
+    </mat-list>
+  </div>

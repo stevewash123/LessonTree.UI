@@ -1,0 +1,9 @@
+@if (topics.length > 0) {
+    <ejs-treeview
+      id="treeview"
+      [fields]="treeFields"
+      [enablePersistence]="true"
+    ></ejs-treeview>
+  } @else {
+    <p>No tree data available. Check console logs for details.</p>
+  }

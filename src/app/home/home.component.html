@@ -1,0 +1,22 @@
+<mat-toolbar color="primary">
+    <button mat-icon-button [matMenuTriggerFor]="navMenu">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <span>LessonTree</span>
+    <span class="spacer"></span>
+    <button mat-icon-button [matMenuTriggerFor]="accountMenu">
+      <mat-icon>account_circle</mat-icon>
+    </button>
+    <mat-menu #navMenu="matMenu">
+      <button mat-menu-item routerLink="/home/courses">CoursesXXX</button>
+      <button mat-menu-item routerLink="/home/lessons">Lessons</button>
+      @if (authService.hasRole('Admin')) {
+        <button mat-menu-item routerLink="/home/account">Account</button>
+      }
+    </mat-menu>
+    <mat-menu #accountMenu="matMenu">
+      <button mat-menu-item routerLink="/home/user-config">User Configuration</button>
+      <button mat-menu-item (click)="logout()">Logout</button>
+    </mat-menu>
+  </mat-toolbar>
+  <router-outlet></router-outlet>

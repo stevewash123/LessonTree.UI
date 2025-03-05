@@ -1,13 +1,28 @@
 import { Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatListModule } from '@angular/material/list';
+import { MatButtonModule } from '@angular/material/button';
+import { RouterOutlet, RouterLink } from '@angular/router';
+import { AuthService } from './core/services/auth.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet],
+  imports: [
+    MatSidenavModule,
+    MatToolbarModule,
+    MatListModule,
+    MatButtonModule,
+    RouterOutlet
+  ],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  title = 'LessonTreeUI';
+  constructor(public authService: AuthService) { }
+
+  logout() {
+    this.authService.logout();
+  }
 }

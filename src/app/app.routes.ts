@@ -1,3 +1,26 @@
 import { Routes } from '@angular/router';
+import { LandingComponent } from './landing/landing.component';
+import { HomeComponent } from './home/home.component';
+import { CourseManagementComponent } from './course/course-management/course-management.component';
+import { LessonManagementComponent } from './lesson/lesson-management/lesson-management.component';
+import { AccountManagementComponent } from './account/account-management/account-management.component';
+import { UserConfigComponent } from './home/user-config/user-config.component';
+import { authGuard } from './core/guards/auth.guard';
+import { adminGuard } from './core/guards/admin.guard';
 
-export const routes: Routes = [];
+export const routes: Routes = [
+  { path: '', component: LandingComponent },
+  {
+    path: 'home',
+    component: HomeComponent,
+    canActivate: [authGuard],
+    children: [
+      { path: '', redirectTo: 'courses', pathMatch: 'full' },
+      { path: 'courses', component: CourseManagementComponent },
+      { path: 'lessons', component: LessonManagementComponent },
+      { path: 'account', component: AccountManagementComponent, canActivate: [adminGuard] },
+      { path: 'user-config', component: UserConfigComponent }
+    ]
+  },
+  { path: '**', redirectTo: '' }
+];

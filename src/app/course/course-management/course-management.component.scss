@@ -1,0 +1,53 @@
+.courses-header {
+    margin-left: 40px;
+}
+  
+.course-card {
+    margin: 8px 40px;
+    background-color: #f5f5f5;
+    padding: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+  
+.course-item {
+    display: flex;
+    align-items: center;
+    height: 48px;
+}
+  
+.expand-icon {
+    cursor: pointer;
+    margin-right: 8px;
+}
+  
+.course-title {
+    flex: 1;
+    font-weight: bold;
+    margin-left: 16px;
+}
+  
+.course-description {
+    flex: 2;
+    margin-left: 16px;
+}
+  
+.course-actions {
+    display: flex;
+    gap: 8px;
+}
+  
+.add-course-button {
+    display: flex;
+    justify-content: flex-end;
+    margin: 16px 40px 0 0;
+}
+  
+.tree-view-container {
+    padding: 0 16px 8px 16px; /* Ensure padding allows visibility */
+    display: block; /* Ensure container is visible */
+}
+  
+button[mat-raised-button] {
+    min-width: 120px;
+    padding: 8px 16px;
+}

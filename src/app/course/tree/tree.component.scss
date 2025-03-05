@@ -1,0 +1,29 @@
+.custom-tree {
+    .e-treeview {
+      width: 100%;
+      display: block;
+      border: 1px solid red; /* Debug border */
+      min-height: 100px; /* Ensure visible height */
+    }
+  
+    .e-treeview .e-list-item {
+      padding: 8px 16px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+  
+    .e-treeview .e-list-text {
+      font-size: 14px;
+      font-weight: 500;
+    }
+  
+    .e-treeview .e-icon-collapsible::before,
+    .e-treeview .e-icon-expandable::before {
+      font-size: 16px;
+    }
+  }
+  
+  .tree-view-container {
+    border: 2px solid blue; /* Debug border */
+    min-height: 200px; /* Ensure enough space */
+    overflow: auto; /* Allow scrolling if needed */
+  }

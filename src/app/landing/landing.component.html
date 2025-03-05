@@ -1,0 +1,15 @@
+<div class="container">
+    <h1 class="title">Welcome to LessonTree</h1> <!-- Fixed typo "LèssonTree" to "LessonTree" -->
+    <img src="/assets/images/child_reading_apple_tree.jpg" alt="Kids under a tree" class="background-image">
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+      <mat-form-field>
+        <mat-label>Username</mat-label>
+        <input matInput formControlName="username" required>
+      </mat-form-field>
+      <mat-form-field>
+        <mat-label>Password</mat-label>
+        <input matInput type="password" formControlName="password" required>
+      </mat-form-field>
+      <button mat-raised-button color="primary" type="submit" [disabled]="loginForm.invalid">Login</button>
+    </form>
+  </div>
