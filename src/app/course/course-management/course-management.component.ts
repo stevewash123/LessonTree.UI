@@ -9,7 +9,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TreeComponent } from '../tree/tree.component'; // Already imported
+import { TreeComponent } from '../tree/tree.component';
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
 import { TopicMovedEvent } from '../tree/tree-node.interface';
 
@@ -22,7 +22,7 @@ import { TopicMovedEvent } from '../tree/tree-node.interface';
     MatIconModule,
     MatButtonModule,
     MatTooltipModule,
-    TreeComponent, // Ensure this is present
+    TreeComponent,
     SyncfusionModule
   ],
   templateUrl: './course-management.component.html',
@@ -36,7 +36,7 @@ export class CourseManagementComponent implements OnInit {
   constructor(
     private apiService: ApiService,
     private toastr: ToastrService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef // Remains private
   ) {}
 
   ngOnInit() {
@@ -118,5 +118,12 @@ export class CourseManagementComponent implements OnInit {
       this.toastr.error('Failed to update course data after moving topic', 'Error');
       this.loadCourses();
     }
+  }
+
+  // New public method to trigger change detection
+  public triggerChangeDetection() {
+    console.log('Triggering change detection in CourseManagementComponent');
+    this.refreshTrigger = !this.refreshTrigger;
+    this.cdr.detectChanges();
   }
 }

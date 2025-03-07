@@ -56,13 +56,12 @@ export class TreeComponent implements OnChanges, AfterViewInit {
       console.warn('Invalid tree data detected, skipping update');
       return;
     }
-    // Update in place instead of replacing the entire array
-    this.treeData.length = 0; // Clear existing data
+    this.treeData.length = 0;
     this.treeData.push(...topics.map(topic => createTopicNode(topic)));
     this.treeFields = { ...this.treeFields, dataSource: this.treeData };
     console.log('Updated Tree Data:', JSON.stringify(this.treeData));
     if (this.treeViewComponent) {
-      this.treeViewComponent.dataBind(); // Ensure TreeView updates
+      this.treeViewComponent.dataBind();
       this.restoreExpandedState();
     }
   }
@@ -93,8 +92,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
       );
       console.log('Restoring expanded nodes:', validExpandedNodes);
       this.treeViewComponent.expandedNodes = validExpandedNodes;
-      this.treeViewComponent.dataBind(); // Ensure changes are applied
-      // Force visibility of expanded nodes
+      this.treeViewComponent.dataBind();
       validExpandedNodes.forEach(nodeId => {
         this.treeViewComponent.ensureVisible(nodeId);
       });
@@ -177,10 +175,15 @@ export class TreeComponent implements OnChanges, AfterViewInit {
       return;
     }
 
-    // Handle intra-tree drops (SubTopic to Topic, Lesson to SubTopic)
+    // Handle intra-tree and cross-course drops
     const dropTargetId = args.droppedNode?.getAttribute('data-uid') || '';
     console.log('Drop target ID from Syncfusion:', dropTargetId);
-    const targetNode = this.findNodeById(this.treeData, dropTargetId);
+    let targetNode = this.findNodeById(this.treeData, dropTargetId);
+
+    // If targetNode not found in current tree, check across all courses
+    if (!targetNode && dropTargetId) {
+      targetNode = this.findNodeAcrossCourses(dropTargetId);
+    }
 
     if (!targetNode || !draggedNode.type || !targetNode.type) {
       console.log('Drag rejected: Invalid target or type', { targetNode, draggedNode });
@@ -228,12 +231,50 @@ export class TreeComponent implements OnChanges, AfterViewInit {
 
       this.apiService.moveLesson(lesson.id, targetSubTopic.id).subscribe({
         next: () => {
-          this.updateTreeData();
-          this.toastr.success(`Moved Lesson ${lesson.title} to SubTopic ${targetSubTopic.title}`);
+          // Determine if it's a cross-course move
+          const sourceCourse = this.courseManagement.courses.find(c => 
+            c.topics.some(t => t.subTopics.some(st => st.id === sourceSubTopicId))
+          );
+          const targetCourse = this.courseManagement.courses.find(c => 
+            c.topics.some(t => t.subTopics.some(st => st.id === targetSubTopic.id))
+          );
+
+          if (sourceCourse && targetCourse && sourceCourse.id !== targetCourse.id) {
+            // Remove lesson from source
+            const sourceSubTopic = sourceCourse.topics
+              .flatMap(t => t.subTopics)
+              .find(st => st.id === sourceSubTopicId);
+            if (sourceSubTopic) {
+              sourceSubTopic.lessons = sourceSubTopic.lessons.filter(l => l.id !== lesson.id);
+            }
+            // Add lesson to target
+            const targetSubTopicData = targetCourse.topics
+              .flatMap(t => t.subTopics)
+              .find(st => st.id === targetSubTopic.id);
+            if (targetSubTopicData) {
+              targetSubTopicData.lessons.push(lesson);
+            }
+            // Trigger refresh via public method
+            this.courseManagement.triggerChangeDetection();
+            this.toastr.success(`Moved Lesson ${lesson.title} to SubTopic ${targetSubTopic.title} in Course ${targetCourse.title}`);
+          } else {
+            // Intra-course move
+            this.updateTreeData();
+            this.toastr.success(`Moved Lesson ${lesson.title} to SubTopic ${targetSubTopic.title}`);
+          }
         },
         error: (error) => this.handleMoveError(error, args, lesson, sourceSubTopicId, targetSubTopic.id)
       });
     }
+  }
+
+  private findNodeAcrossCourses(nodeId: string): TreeNode | undefined {
+    for (const course of this.courseManagement.courses) {
+      const treeData = course.topics.map(topic => createTopicNode(topic));
+      const node = this.findNodeById(treeData, nodeId);
+      if (node) return node;
+    }
+    return undefined;
   }
 
   private determineNodeType(nodeId: string): 'Topic' | 'SubTopic' | 'Lesson' | undefined {
