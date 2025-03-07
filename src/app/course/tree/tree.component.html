@@ -1,11 +1,13 @@
 @if (topics.length > 0) {
     <ejs-treeview
+      #treeview
       id="treeview"
       [fields]="treeFields"
       [enablePersistence]="true"
       [allowDragAndDrop]="true"
+      (nodeDragging)="onNodeDragging($event)"
       (nodeDragStop)="onNodeDragStop($event)"
     ></ejs-treeview>
-} @else {
+  } @else {
     <p>No tree data available. Check console logs for details.</p>
-}
+  }

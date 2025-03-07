@@ -1,9 +1,8 @@
-// src/app/course/tree/tree.component.scss
 .material-icons {
-    font-family: 'Material Icons'; // Ensure Material Icons font is loaded
-    font-size: 16px; // Adjust as needed
+    font-family: 'Material Icons';
+    font-size: 24px; /* Increased from 16px */
     vertical-align: middle;
-    margin-right: 5px;
+    margin-right: 8px; /* Adjusted for larger size */
   }
   
   .topic-icon::before {

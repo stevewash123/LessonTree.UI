@@ -1,15 +1,15 @@
 // src/app/course/tree/tree.component.ts
-import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
-import { TreeViewModule } from '@syncfusion/ej2-angular-navigations';
+import { Component, Input, OnChanges, SimpleChanges, Output, EventEmitter, AfterViewInit, ViewChild } from '@angular/core';
+import { TreeViewModule, TreeViewComponent as SyncfusionTreeViewComponent } from '@syncfusion/ej2-angular-navigations';
 import { Topic, createTopicNode } from '../../models/topic';
 import { SubTopic } from '../../models/subTopic';
 import { Lesson } from '../../models/lesson';
+import { Course } from '../../models/course';
 import { DragAndDropEventArgs } from '@syncfusion/ej2-navigations';
 import { ApiService } from '../../core/services/api.service';
 import { ToastrService } from 'ngx-toastr';
-import { forkJoin, Observable } from 'rxjs';
-import { catchError } from 'rxjs/operators';
-import { TreeNode } from './tree-node.interface';
+import { TreeNode, TopicMovedEvent } from './tree-node.interface';
+import { CourseManagementComponent } from '../course-management/course-management.component';
 
 @Component({
   selector: 'app-tree',
@@ -18,9 +18,14 @@ import { TreeNode } from './tree-node.interface';
   templateUrl: './tree.component.html',
   styleUrls: ['./tree.component.scss']
 })
-export class TreeComponent implements OnChanges {
+export class TreeComponent implements OnChanges, AfterViewInit {
+  @ViewChild('treeview') treeViewComponent!: SyncfusionTreeViewComponent;
   @Input() topics: Topic[] = [];
+  @Input() courseManagement!: CourseManagementComponent;
+  @Input() refreshTrigger: boolean = false;
+  @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
   public treeData: TreeNode[] = [];
+  private expandedNodes: string[] = [];
 
   public treeFields: object = {
     dataSource: this.treeData,
@@ -32,132 +37,244 @@ export class TreeComponent implements OnChanges {
 
   constructor(private apiService: ApiService, private toastr: ToastrService) {}
 
+  ngAfterViewInit() {
+    if (this.treeViewComponent) {
+      console.log('TreeView initialized:', this.treeViewComponent);
+      this.restoreExpandedState();
+    }
+  }
+
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['topics']) {
-      console.log('Topics changed:', this.topics);
+    if (changes['topics'] || changes['refreshTrigger']) {
+      console.log('ngOnChanges triggered:', changes);
       this.updateTreeData();
     }
   }
 
-  private updateTreeData() {
-    this.treeData = this.topics.map(topic => createTopicNode(topic));
-    this.treeFields = {
-      dataSource: this.treeData,
-      id: 'id',
-      text: 'text',
-      child: 'child',
-      iconCss: 'iconCss'
-    };
+  private updateTreeData(topics: Topic[] = this.topics) {
+    if (!this.validateTreeData(topics.map(t => createTopicNode(t)))) {
+      console.warn('Invalid tree data detected, skipping update');
+      return;
+    }
+    // Update in place instead of replacing the entire array
+    this.treeData.length = 0; // Clear existing data
+    this.treeData.push(...topics.map(topic => createTopicNode(topic)));
+    this.treeFields = { ...this.treeFields, dataSource: this.treeData };
     console.log('Updated Tree Data:', JSON.stringify(this.treeData));
+    if (this.treeViewComponent) {
+      this.treeViewComponent.dataBind(); // Ensure TreeView updates
+      this.restoreExpandedState();
+    }
   }
 
-  public getAsString(obj: any): string {
-    return JSON.stringify(obj);
+  private validateTreeData(nodes: TreeNode[]): boolean {
+    return nodes.every(node => {
+      return typeof node.id === 'string' && 
+             typeof node.text === 'string' && 
+             (node.child === undefined || Array.isArray(node.child));
+    });
+  }
+
+  private saveExpandedState() {
+    if (this.treeViewComponent) {
+      this.expandedNodes = this.treeViewComponent.expandedNodes.map((node: any) => node.toString()) || [];
+      console.log('Saved expanded nodes:', this.expandedNodes);
+    }
+  }
+
+  private restoreExpandedState() {
+    if (!this.treeViewComponent) {
+      console.warn('TreeView not yet initialized, deferring restore');
+      return;
+    }
+    if (this.expandedNodes.length > 0) {
+      const validExpandedNodes = this.expandedNodes.filter(nodeId => 
+        this.findNodeById(this.treeData, nodeId) !== undefined
+      );
+      console.log('Restoring expanded nodes:', validExpandedNodes);
+      this.treeViewComponent.expandedNodes = validExpandedNodes;
+      this.treeViewComponent.dataBind(); // Ensure changes are applied
+      // Force visibility of expanded nodes
+      validExpandedNodes.forEach(nodeId => {
+        this.treeViewComponent.ensureVisible(nodeId);
+      });
+    }
+  }
+
+  public onNodeDragging(args: DragAndDropEventArgs) {
+    const dropTarget = args.event.target as Element;
+    console.log('Dragging over:', dropTarget);
+    const targetContainer = dropTarget.closest('.course-item');
+    if (targetContainer) {
+      console.log('Hovering over course item:', targetContainer);
+      targetContainer.classList.add('drag-over');
+      args.dropIndicator = 'e-drop-in';
+      const dragEvent = args.event as unknown as DragEvent;
+      if (dragEvent.dataTransfer) {
+        dragEvent.dataTransfer.dropEffect = 'move';
+      } else {
+        console.warn('dataTransfer is undefined during dragging');
+      }
+    } else {
+      document.querySelectorAll('.course-item.drag-over').forEach(el => el.classList.remove('drag-over'));
+      args.dropIndicator = 'e-drop-out';
+      const dragEvent = args.event as unknown as DragEvent;
+      if (dragEvent.dataTransfer) {
+        dragEvent.dataTransfer.dropEffect = 'none';
+      } else {
+        console.warn('dataTransfer is undefined during dragging');
+      }
+    }
   }
 
   public onNodeDragStop(args: DragAndDropEventArgs) {
-    const draggedNodeData = args.draggedNodeData as { id?: unknown; text?: unknown; [key: string]: any };
+    console.log('onNodeDragStop triggered:', args);
+    const draggedNodeData = args.draggedNodeData as { id?: unknown; text?: unknown };
     if (!this.isTreeNode(draggedNodeData)) {
+      console.log('Drag rejected: Invalid dragged node data', draggedNodeData);
       args.cancel = true;
-      console.log('Drag rejected: Invalid dragged node data');
       return;
     }
 
     const draggedNode: TreeNode = {
-      ...draggedNodeData,
-      type: this.determineNodeType(draggedNodeData.id as string) || 'Lesson',
+      id: draggedNodeData.id as string,
+      text: draggedNodeData.text as string,
+      type: this.determineNodeType(draggedNodeData.id as string),
       original: this.findOriginalById(draggedNodeData.id as string)
     };
+    console.log('Dragged node:', draggedNode);
 
-    const dropTargetId = args.dropTarget?.getAttribute('data-uid') || '';
+    const dropTarget = args.event.target as Element;
+    const targetContainer = dropTarget.closest('.course-item');
+
+    // Handle Topic-to-Course drop
+    if (draggedNode.type === 'Topic' && targetContainer) {
+      console.log('Topic dropped on course item:', targetContainer);
+      const topic = draggedNode.original as Topic;
+      const sourceCourseId = this.findParentCourseId(this.treeData, topic.nodeId);
+      const targetCourse = this.findTargetCourseFromContainer(targetContainer);
+
+      if (sourceCourseId && targetCourse && sourceCourseId !== targetCourse.id) {
+        this.saveExpandedState();
+        this.apiService.moveTopic(topic.id, targetCourse.id).subscribe({
+          next: () => {
+            this.nodeDragStop.emit({ topic, sourceCourseId, targetCourseId: targetCourse.id });
+            this.updateTreeData(this.topics.filter(t => t.id !== topic.id));
+            this.toastr.success(`Moved Topic ${topic.title} to Course ${targetCourse.title}`);
+          },
+          error: (error) => {
+            console.error('Error moving topic:', error);
+            this.toastr.error('Failed to move topic', 'Error');
+            args.cancel = true;
+            this.restoreExpandedState();
+          }
+        });
+      } else {
+        console.log('Topic drop rejected: Invalid source or target', { sourceCourseId, targetCourse });
+        args.cancel = true;
+      }
+      targetContainer.classList.remove('drag-over');
+      return;
+    }
+
+    // Handle intra-tree drops (SubTopic to Topic, Lesson to SubTopic)
+    const dropTargetId = args.droppedNode?.getAttribute('data-uid') || '';
+    console.log('Drop target ID from Syncfusion:', dropTargetId);
     const targetNode = this.findNodeById(this.treeData, dropTargetId);
 
-    if (!draggedNode || !targetNode || !draggedNode.type || !targetNode.type) {
+    if (!targetNode || !draggedNode.type || !targetNode.type) {
+      console.log('Drag rejected: Invalid target or type', { targetNode, draggedNode });
       args.cancel = true;
-      console.log('Drag rejected: Invalid node data');
       return;
     }
 
     if (
       (draggedNode.type === 'SubTopic' && targetNode.type !== 'Topic') ||
-      (draggedNode.type === 'Lesson' && targetNode.type !== 'SubTopic') ||
-      (draggedNode.type === 'Topic')
+      (draggedNode.type === 'Lesson' && targetNode.type !== 'SubTopic')
     ) {
-      args.cancel = true;
       console.log(`Drag rejected: ${draggedNode.type} cannot drop onto ${targetNode.type}`);
+      args.cancel = true;
       return;
     }
 
+    this.saveExpandedState();
+
     if (draggedNode.type === 'SubTopic') {
       const subTopic = draggedNode.original as SubTopic;
-      const sourceTopic = this.findParentTopic(this.treeData, subTopic.nodeId);
+      const sourceTopicId = this.findParentTopic(this.treeData, subTopic.nodeId)?.id;
       const targetTopic = targetNode.original as Topic;
 
-      if (!sourceTopic || sourceTopic === targetTopic) {
+      if (!sourceTopicId || sourceTopicId === targetTopic.id) {
         args.cancel = true;
         return;
       }
 
-      sourceTopic.subTopics = sourceTopic.subTopics.filter(st => st.nodeId !== subTopic.nodeId);
-      targetTopic.subTopics.push(subTopic);
-
-      this.saveEntities([sourceTopic, targetTopic], args, `Moved SubTopic ${subTopic.title} to Topic ${targetTopic.title}`);
+      this.apiService.moveSubTopic(subTopic.id, targetTopic.id).subscribe({
+        next: () => {
+          this.updateTreeData();
+          this.toastr.success(`Moved SubTopic ${subTopic.title} to Topic ${targetTopic.title}`);
+        },
+        error: (error) => this.handleMoveError(error, args, subTopic, sourceTopicId, targetTopic.id)
+      });
     } else if (draggedNode.type === 'Lesson') {
       const lesson = draggedNode.original as Lesson;
-      const sourceSubTopic = this.findParentSubTopic(this.treeData, lesson.nodeId);
+      const sourceSubTopicId = this.findParentSubTopic(this.treeData, lesson.nodeId)?.id;
       const targetSubTopic = targetNode.original as SubTopic;
 
-      if (!sourceSubTopic || sourceSubTopic === targetSubTopic) {
+      if (!sourceSubTopicId || sourceSubTopicId === targetSubTopic.id) {
         args.cancel = true;
         return;
       }
 
-      sourceSubTopic.lessons = sourceSubTopic.lessons.filter(l => l.nodeId !== lesson.nodeId);
-      targetSubTopic.lessons.push(lesson);
-      lesson.subTopicId = targetSubTopic.id;
-
-      this.saveEntities([sourceSubTopic, targetSubTopic, lesson], args, `Moved Lesson ${lesson.title} to SubTopic ${targetSubTopic.title}`);
+      this.apiService.moveLesson(lesson.id, targetSubTopic.id).subscribe({
+        next: () => {
+          this.updateTreeData();
+          this.toastr.success(`Moved Lesson ${lesson.title} to SubTopic ${targetSubTopic.title}`);
+        },
+        error: (error) => this.handleMoveError(error, args, lesson, sourceSubTopicId, targetSubTopic.id)
+      });
     }
   }
 
-  private saveEntities<T>(entities: T[], args: DragAndDropEventArgs, successMessage: string) {
-    const requests: Observable<T>[] = entities.map(entity => this.apiService.put(entity));
-    forkJoin(requests).subscribe({
-      next: () => {
-        this.updateTreeData();
-        this.toastr.success(successMessage);
-      },
-      error: () => this.rollbackMove(entities, args)
-    });
+  private determineNodeType(nodeId: string): 'Topic' | 'SubTopic' | 'Lesson' | undefined {
+    console.log('Determining node type for ID:', nodeId);
+    if (nodeId.startsWith('topic_')) return 'Topic';
+    if (nodeId.startsWith('subtopic_')) return 'SubTopic';
+    if (nodeId.startsWith('lesson_')) return 'Lesson';
+    return undefined;
   }
 
-  private rollbackMove<T>(entities: T[], args: DragAndDropEventArgs) {
-    if (entities.length === 2 && this.isTopic(entities[0]) && this.isTopic(entities[1])) {
-      const sourceTopic = entities[0] as Topic;
-      const targetTopic = entities[1] as Topic;
-      const subTopic = targetTopic.subTopics.pop()!;
-      sourceTopic.subTopics.push(subTopic);
-    } else if (entities.length === 3 && this.isSubTopic(entities[0]) && this.isSubTopic(entities[1]) && this.isLesson(entities[2])) {
-      const sourceSubTopic = entities[0] as SubTopic;
-      const targetSubTopic = entities[1] as SubTopic;
-      const lesson = targetSubTopic.lessons.pop()!;
-      sourceSubTopic.lessons.push(lesson);
-      lesson.subTopicId = sourceSubTopic.id;
+  private findParentCourseId(treeData: TreeNode[], nodeId: string): number | undefined {
+    console.log('Finding parent course for nodeId:', nodeId);
+    const course = this.courseManagement.courses.find((c: Course) => 
+      c.topics.some((t: Topic) => t.nodeId === nodeId)
+    );
+    return course?.id;
+  }
+
+  private findTargetCourseFromContainer(container: Element): Course | undefined {
+    const courseTitleElement = container.querySelector('.course-title');
+    if (courseTitleElement) {
+      const courseTitle = courseTitleElement.textContent?.trim();
+      return this.courseManagement.courses.find(c => c.title === courseTitle || c.nodeId === courseTitle);
     }
-    this.updateTreeData();
-    args.cancel = true;
-    console.log('Rollback: Failed to save move');
+    console.warn('Could not determine target Course from container');
+    return undefined;
+  }
+
+  private findNodeById(nodes: TreeNode[], id: string): TreeNode | undefined {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.child) {
+        const found = this.findNodeById(node.child, id);
+        if (found) return found;
+      }
+    }
+    return undefined;
   }
 
   private isTreeNode(data: any): data is TreeNode {
     return typeof data.id === 'string' && typeof data.text === 'string';
-  }
-
-  private determineNodeType(nodeId: string): 'Topic' | 'SubTopic' | 'Lesson' | undefined {
-    if (nodeId.startsWith('topic-')) return 'Topic';
-    if (nodeId.startsWith('subtopic-')) return 'SubTopic';
-    if (nodeId.startsWith('lesson-')) return 'Lesson';
-    return undefined;
   }
 
   private findOriginalById(nodeId: string): Topic | SubTopic | Lesson | undefined {
@@ -182,15 +299,12 @@ export class TreeComponent implements OnChanges {
     return undefined;
   }
 
-  private findNodeById(nodes: TreeNode[], id: string): TreeNode | undefined {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      if (node.child) {
-        const found = this.findNodeById(node.child, id);
-        if (found) return found;
-      }
-    }
-    return undefined;
+  private handleMoveError(error: any, args: DragAndDropEventArgs, entity: any, sourceId: number, targetId: number) {
+    console.log('Move failed:', error);
+    this.toastr.error('Failed to move item. Rolling back...', 'Error');
+    args.cancel = true;
+    this.restoreExpandedState();
+    this.updateTreeData(this.topics);
   }
 
   private findParentTopic(nodes: TreeNode[], subTopicNodeId: string): Topic | undefined {
@@ -212,7 +326,6 @@ export class TreeComponent implements OnChanges {
     return undefined;
   }
 
-  // Type guards for TreeComponent
   private isTopic(entity: any): entity is Topic {
     return entity && typeof entity.id === 'number' && typeof entity.nodeId === 'string' && 
            typeof entity.title === 'string' && typeof entity.description === 'string' && 

@@ -34,7 +34,7 @@ export class ApiService {
     );
   }
 
-  // Determine endpoint by type T using type guards
+  // Determine endpoint by type T using type guards (unchanged)
   private getEndpoint<T>(entity: T): string {
     if (this.isTopic(entity)) {
       return `topic/${(entity as Topic).id}`;
@@ -90,6 +90,19 @@ export class ApiService {
         return throwError(() => error);
       })
     );
+  }
+
+  // New methods for move operations
+  moveLesson(lessonId: number, newSubTopicId: number): Observable<any> {
+    return this.post<any>('Lesson/move', { lessonId, newSubTopicId });
+  }
+
+  moveSubTopic(subTopicId: number, newTopicId: number): Observable<any> {
+    return this.post<any>('SubTopic/move', { subTopicId, newTopicId });
+  }
+
+  moveTopic(topicId: number, newCourseId: number): Observable<any> {
+    return this.post<any>('Topic/move', { topicId, newCourseId });
   }
 
   private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {

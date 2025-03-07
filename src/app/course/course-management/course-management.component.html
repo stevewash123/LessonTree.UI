@@ -1,6 +1,6 @@
 <div>
     <h2 class="courses-header">Courses</h2>
-    @for (course of courses; track $index) { <!-- Use $index as a fallback for unique tracking -->        
+    @for (course of courses; track $index) {        
       <mat-card class="course-card">
         <mat-list-item>
           <div class="course-item">
@@ -8,7 +8,7 @@
               class="expand-icon" 
               (click)="toggleCourse(course.nodeId)"
             >
-              {{ expandedCourseId === course.nodeId ? 'expand_more' : 'chevron_right' }}
+              {{ expandedCourseIds.includes(course.nodeId) ? 'expand_more' : 'chevron_right' }}
             </mat-icon>
             <span class="course-title">{{ course.title }}</span>
             <span class="course-description">{{ course.description }}</span>
@@ -25,11 +25,14 @@
             </span>
           </div>
         </mat-list-item>
-        @if (expandedCourseId === course.nodeId) {  <!-- Updated to use course.nodeId -->
+        @if (expandedCourseIds.includes(course.nodeId)) {  
           <div class="tree-view-container">
-            
-            <app-tree [topics]="course.topics"></app-tree>
-            
+            <app-tree 
+              [topics]="course.topics" 
+              [courseManagement]="this" 
+              [refreshTrigger]="refreshTrigger" 
+              (nodeDragStop)="onTopicMoved($event)"
+            ></app-tree>
           </div>
         } 
       </mat-card>
@@ -37,4 +40,4 @@
     <div class="add-course-button">
       <button mat-raised-button color="primary" (click)="openAddCourseDialog()">Add Course</button>
     </div>
-</div>
+  </div>

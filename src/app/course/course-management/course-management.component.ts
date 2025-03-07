@@ -1,14 +1,17 @@
-import { Component, OnInit } from '@angular/core';
+// src/app/course/course-management/course-management.component.ts
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../core/services/api.service';
 import { Course } from '../../models/course';
+import { Topic } from '../../models/topic';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TreeComponent } from '../tree/tree.component';
+import { TreeComponent } from '../tree/tree.component'; // Already imported
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
+import { TopicMovedEvent } from '../tree/tree-node.interface';
 
 @Component({
   selector: 'app-course-management',
@@ -19,7 +22,7 @@ import { SyncfusionModule } from '../../core/modules/syncfusion.module';
     MatIconModule,
     MatButtonModule,
     MatTooltipModule,
-    TreeComponent,
+    TreeComponent, // Ensure this is present
     SyncfusionModule
   ],
   templateUrl: './course-management.component.html',
@@ -27,9 +30,14 @@ import { SyncfusionModule } from '../../core/modules/syncfusion.module';
 })
 export class CourseManagementComponent implements OnInit {
   courses: Course[] = [];
-  expandedCourseId: string | null = null;  // Changed from number | null to string | null
+  expandedCourseIds: string[] = [];
+  refreshTrigger: boolean = false;
 
-  constructor(private apiService: ApiService, private toastr: ToastrService) {}
+  constructor(
+    private apiService: ApiService,
+    private toastr: ToastrService,
+    private cdr: ChangeDetectorRef
+  ) {}
 
   ngOnInit() {
     this.loadCourses();
@@ -39,15 +47,24 @@ export class CourseManagementComponent implements OnInit {
     this.apiService.get<Course[]>('course').subscribe({
       next: (courses) => {
         this.courses = courses;
-        //console.log('API Response Courses Data:', JSON.stringify(this.courses));
       },
       error: (err) => this.toastr.error('Failed to load courses: ' + err.message, 'Error', { timeOut: 0 })
     });
   }
-  
-  toggleCourse(courseNodeId: string) {  // Updated parameter to string (nodeId)
-    this.expandedCourseId = this.expandedCourseId === courseNodeId ? null : courseNodeId;
-    console.log('Toggling Course Node ID:', courseNodeId, 'Expanded Course ID:', this.expandedCourseId);
+
+  toggleCourse(courseNodeId: string) {
+    const index = this.expandedCourseIds.indexOf(courseNodeId);
+    if (index !== -1) {
+      this.expandedCourseIds.splice(index, 1);
+      console.log('Collapsed Course Node ID:', courseNodeId, 'Expanded Course IDs:', this.expandedCourseIds);
+    } else {
+      if (this.expandedCourseIds.length >= 2) {
+        const removedCourseId = this.expandedCourseIds.shift();
+        console.log('Removed oldest expanded Course Node ID:', removedCourseId);
+      }
+      this.expandedCourseIds.push(courseNodeId);
+      console.log('Expanded Course Node ID:', courseNodeId, 'Expanded Course IDs:', this.expandedCourseIds);
+    }
   }
 
   editCourse(course: Course) {
@@ -68,5 +85,38 @@ export class CourseManagementComponent implements OnInit {
   openAddCourseDialog() {
     console.log('Open Add Course Dialog');
     this.toastr.info('Add Course dialog opened', 'Info');
+  }
+
+  onTopicMoved(event: TopicMovedEvent) {
+    console.log('onTopicMoved called with event:', event);
+    const { topic, sourceCourseId, targetCourseId } = event;
+    const sourceCourse = this.courses.find(c => c.id === sourceCourseId);
+    const targetCourse = this.courses.find(c => c.id === targetCourseId);
+
+    if (sourceCourse && targetCourse) {
+      sourceCourse.topics = sourceCourse.topics.filter(t => t.id !== topic.id);
+      targetCourse.topics.push(topic);
+
+      if (!this.expandedCourseIds.includes(targetCourse.nodeId)) {
+        this.expandedCourseIds.push(targetCourse.nodeId);
+        console.log('Expanded target Course after drop:', targetCourse.nodeId, 'Expanded Course IDs:', this.expandedCourseIds);
+      }
+
+      if (!this.expandedCourseIds.includes(sourceCourse.nodeId)) {
+        this.expandedCourseIds.push(sourceCourse.nodeId);
+        console.log('Re-expanded source Course after drop:', sourceCourse.nodeId, 'Expanded Course IDs:', this.expandedCourseIds);
+      }
+
+      console.log('Toggled refreshTrigger to (before):', this.refreshTrigger);
+      this.refreshTrigger = !this.refreshTrigger;
+      console.log('Toggled refreshTrigger to (after):', this.refreshTrigger);
+      this.cdr.detectChanges();
+
+      this.toastr.success(`Moved Topic ${topic.title} from Course ${sourceCourse.title} to Course ${targetCourse.title}`);
+    } else {
+      console.error('Source or target course not found:', { sourceCourseId, targetCourseId });
+      this.toastr.error('Failed to update course data after moving topic', 'Error');
+      this.loadCourses();
+    }
   }
 }

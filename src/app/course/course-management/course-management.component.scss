@@ -1,53 +1,97 @@
+/* src/app/course/course-management/course-management.component.scss (unchanged) */
 .courses-header {
     margin-left: 40px;
-}
+  }
   
-.course-card {
+  .course-card {
     margin: 8px 40px;
     background-color: #f5f5f5;
     padding: 8px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
+  }
   
-.course-item {
+  .course-item {
     display: flex;
     align-items: center;
     height: 48px;
-}
+    cursor: pointer; /* Default pointing hand for course items */
+  }
   
-.expand-icon {
+  .expand-icon {
     cursor: pointer;
     margin-right: 8px;
-}
+    font-size: 24px; /* Increased size */
+    width: 24px;
+    height: 24px;
+  }
   
-.course-title {
+  .course-title {
     flex: 1;
     font-weight: bold;
     margin-left: 16px;
-}
+  }
   
-.course-description {
+  .course-description {
     flex: 2;
     margin-left: 16px;
-}
+  }
   
-.course-actions {
+  .course-actions {
     display: flex;
     gap: 8px;
-}
+  }
   
-.add-course-button {
+  .add-course-button {
     display: flex;
     justify-content: flex-end;
     margin: 16px 40px 0 0;
-}
+  }
   
-.tree-view-container {
+  .tree-view-container {
     padding: 0 16px 8px 16px; /* Ensure padding allows visibility */
     display: block; /* Ensure container is visible */
-}
+  }
   
-button[mat-raised-button] {
+  button[mat-raised-button] {
     min-width: 120px;
     padding: 8px 16px;
-}
+  }
+  
+  .drop-zone {
+    flex: 1;
+    font-weight: bold;
+    margin-left: 16px;
+    padding: 8px; /* Increase padding for larger drop area */
+    background-color: #e0e0e0; /* Visual feedback */
+  }
+  
+  .drop-zone:hover {
+    background-color: #d0d0d0; /* Hover effect */
+  }
+  
+  /* Drag-and-Drop Styles */
+  .course-item.drag-over {
+    background-color: #d0f0d0;
+    border: 3px dashed #4caf50;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+    cursor: grab !important; /* Use grab cursor for drag-over (open hand) */
+  }
+  
+  .course-item:not(.drag-over) {
+    cursor: pointer !important; /* Ensure pointing hand outside drag-over */
+  }
+  
+  /* Syncfusion TreeView Cursor Consistency */
+  .e-treeview .e-fullrow {
+    cursor: pointer; /* Pointing hand for tree nodes */
+  }
+  
+  .e-treeview.e-drag-item {
+    cursor: grabbing !important; /* Use grabbing cursor for dragged item (closed hand) */
+  }
+  
+  /* Additional styling for tree drag-over (optional, for visual feedback) */
+  .e-treeview .e-drop-in {
+    background-color: #d0f0d0 !important; /* Match course-item.drag-over */
+    border: 2px dashed #4caf50 !important;
+  }
