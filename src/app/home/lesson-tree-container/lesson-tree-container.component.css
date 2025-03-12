@@ -1,0 +1,27 @@
+/* src/app/lesson-tree-container/lesson-tree-container.component.scss */
+.container {
+    display: flex;
+    height: calc(100vh - 64px);
+    width: 100%;
+  }
+  
+  .left-panel {
+    width: 50%; /* Initial width */
+    min-width: 300px;
+    max-width: 50%;
+    overflow-y: auto;
+    padding: 16px;
+  }
+  
+  .splitter {
+    cursor: col-resize;
+    width: 4px;
+    background-color: #ccc;
+  }
+  
+  .right-panel {
+    flex: 1;
+    min-width: 300px;
+    overflow-y: auto;
+    padding: 16px;
+  }

@@ -8,7 +8,7 @@ import { Course } from '../../models/course';
 import { DragAndDropEventArgs } from '@syncfusion/ej2-navigations';
 import { ApiService } from '../../core/services/api.service';
 import { ToastrService } from 'ngx-toastr';
-import { TreeNode, TopicMovedEvent } from './tree-node.interface';
+import { TreeNode, TopicMovedEvent, NodeSelectedEvent } from './tree-node.interface';
 import { CourseManagementComponent } from '../course-management/course-management.component';
 
 @Component({
@@ -24,6 +24,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
   @Input() courseManagement!: CourseManagementComponent;
   @Input() refreshTrigger: boolean = false;
   @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
+  @Output() nodeSelected = new EventEmitter<NodeSelectedEvent>();
   public treeData: TreeNode[] = [];
   private expandedNodes: string[] = [];
 
@@ -40,6 +41,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
   ngAfterViewInit() {
     if (this.treeViewComponent) {
       console.log('TreeView initialized:', this.treeViewComponent);
+      this.treeViewComponent.nodeSelected = this.onNodeSelected.bind(this); // Bind Syncfusion's nodeSelected event
       this.restoreExpandedState();
     }
   }
@@ -51,6 +53,25 @@ export class TreeComponent implements OnChanges, AfterViewInit {
     }
   }
 
+  // Handle node selection
+  private onNodeSelected(args: any) {
+    const selectedArgs = args.nodeData as { id?: unknown; text?: unknown };
+    
+    const selectedNode: TreeNode = {
+        id: selectedArgs.id as string,
+        text: selectedArgs.text as string,
+        type: this.determineNodeType(selectedArgs.id as string),
+        original: this.findOriginalById(selectedArgs.id as string)
+      };
+    if (selectedNode) {
+      const event: NodeSelectedEvent = { node: selectedNode };
+      console.log('Emitting nodeSelected event:', event);
+      this.nodeSelected.emit(event);
+    } else {
+      console.warn('Selected node not found:', selectedArgs.id);
+    }
+  }
+  
   private updateTreeData(topics: Topic[] = this.topics) {
     if (!this.validateTreeData(topics.map(t => createTopicNode(t)))) {
       console.warn('Invalid tree data detected, skipping update');

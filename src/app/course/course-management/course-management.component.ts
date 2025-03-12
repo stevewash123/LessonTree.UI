@@ -3,7 +3,7 @@ import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../core/services/api.service';
 import { Course } from '../../models/course';
-import { Topic } from '../../models/topic';
+import { createTopicNode, Topic } from '../../models/topic';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,7 +11,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TreeComponent } from '../tree/tree.component';
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
-import { TopicMovedEvent } from '../tree/tree-node.interface';
+import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from '../tree/tree-node.interface';
 
 @Component({
   selector: 'app-course-management',
@@ -32,6 +32,7 @@ export class CourseManagementComponent implements OnInit {
   courses: Course[] = [];
   expandedCourseIds: string[] = [];
   refreshTrigger: boolean = false;
+  activeNode: TreeNode | null = null; // Store the active node
 
   constructor(
     private apiService: ApiService,
@@ -66,7 +67,22 @@ export class CourseManagementComponent implements OnInit {
       console.log('Expanded Course Node ID:', courseNodeId, 'Expanded Course IDs:', this.expandedCourseIds);
     }
   }
+  
+  onNodeSelected(event: NodeSelectedEvent) {
+    this.activeNode = event.node;
+  }
 
+  // Helper method to find node by ID
+  private findNodeById(nodes: TreeNode[], id: string): TreeNode | undefined {
+    for (const node of nodes) {
+      if (node.id === id) return node;
+      if (node.child) {
+        const found = this.findNodeById(node.child, id);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  }
   editCourse(course: Course) {
     console.log('Edit Course:', course);
     this.toastr.info(`Editing course: ${course.title}`, 'Info');
@@ -120,9 +136,7 @@ export class CourseManagementComponent implements OnInit {
     }
   }
 
-  // New public method to trigger change detection
   public triggerChangeDetection() {
-    console.log('Triggering change detection in CourseManagementComponent');
     this.refreshTrigger = !this.refreshTrigger;
     this.cdr.detectChanges();
   }

@@ -1,4 +1,5 @@
 import { TreeNode } from "../course/tree/tree-node.interface";
+import { Course } from "./course";
 import { createSubTopicNode, SubTopic } from "./subTopic";
 
 export interface Topic {
@@ -6,6 +7,9 @@ export interface Topic {
     nodeId: string;
     title: string;
     description: string;
+    courseId: number;
+    course?: Course; // Optional to avoid mandatory deep nesting
+    hasSubTopics: boolean;
     subTopics: SubTopic[];
   }
   

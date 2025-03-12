@@ -1,13 +1,16 @@
 import { TreeNode } from "../course/tree/tree-node.interface";
 import { createLessonNode, Lesson } from "./lesson";
+import { Topic } from "./topic";
 
 export interface SubTopic {
     id: number;
     nodeId: string;
     title: string;
-    description?: string;
-    lessons: Lesson[];
-  }
+    description: string;
+    topicId: number;
+    topic?: Topic; // Optional to avoid mandatory deep nesting
+    lessons: Lesson[]; // Using LessonResource for simplicity
+    }
   
   export function createSubTopicNode(subTopic: SubTopic): TreeNode {
     return {

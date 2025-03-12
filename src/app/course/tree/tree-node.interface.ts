@@ -12,8 +12,13 @@ export interface TreeNode {
     iconCss?: string; // Add for Syncfusion icon support
   }
   
-  export interface TopicMovedEvent {
+export interface TopicMovedEvent {
     topic: Topic;
     sourceCourseId: number;
     targetCourseId: number;
+}
+
+ 
+export interface NodeSelectedEvent {
+    node: TreeNode;
 }
