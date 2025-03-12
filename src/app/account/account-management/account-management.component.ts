@@ -7,17 +7,16 @@ import { MatListModule } from '@angular/material/list';
 import { ApiService } from '../../core/services/api.service';
 
 @Component({
-  selector: 'app-account-management',
-  standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatListModule
-  ],
-  templateUrl: './account-management.component.html',
-  styleUrls: ['./account-management.component.scss']
+    selector: 'app-account-management',
+    imports: [
+        ReactiveFormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatButtonModule,
+        MatListModule
+    ],
+    templateUrl: './account-management.component.html',
+    styleUrls: ['./account-management.component.scss']
 })
 export class AccountManagementComponent implements OnInit {
   userForm: FormGroup;

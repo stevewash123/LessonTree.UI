@@ -5,15 +5,14 @@ import { CourseManagementComponent } from '../../course/course-management/course
 import { InfoPanelComponent } from '../../course/info-panel/info-panel.component';
 
 @Component({
-  selector: 'app-lesson-tree-container',
-  standalone: true,
-  imports: [
-    CourseManagementComponent,
-    InfoPanelComponent,
-    MatDividerModule
-  ],
-  templateUrl: './lesson-tree-container.component.html',
-  styleUrls: ['./lesson-tree-container.component.scss']
+    selector: 'app-lesson-tree-container',
+    imports: [
+        CourseManagementComponent,
+        InfoPanelComponent,
+        MatDividerModule
+    ],
+    templateUrl: './lesson-tree-container.component.html',
+    styleUrls: ['./lesson-tree-container.component.scss']
 })
 export class LessonTreeContainerComponent {
   @ViewChild('splitter') splitter!: ElementRef;

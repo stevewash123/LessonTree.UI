@@ -12,11 +12,10 @@ import { TreeNode, TopicMovedEvent, NodeSelectedEvent } from './tree-node.interf
 import { CourseManagementComponent } from '../course-management/course-management.component';
 
 @Component({
-  selector: 'app-tree',
-  standalone: true,
-  imports: [TreeViewModule],
-  templateUrl: './tree.component.html',
-  styleUrls: ['./tree.component.scss']
+    selector: 'app-tree',
+    imports: [TreeViewModule],
+    templateUrl: './tree.component.html',
+    styleUrls: ['./tree.component.scss']
 })
 export class TreeComponent implements OnChanges, AfterViewInit {
   @ViewChild('treeview') treeViewComponent!: SyncfusionTreeViewComponent;

@@ -7,17 +7,16 @@ import { MatListModule } from '@angular/material/list';
 import { ApiService } from '../../core/services/api.service';
 
 @Component({
-  selector: 'app-lesson-management',
-  standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatListModule
-  ],
-  templateUrl: './lesson-management.component.html',
-  styleUrls: ['./lesson-management.component.scss']
+    selector: 'app-lesson-management',
+    imports: [
+        ReactiveFormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatButtonModule,
+        MatListModule
+    ],
+    templateUrl: './lesson-management.component.html',
+    styleUrls: ['./lesson-management.component.scss']
 })
 export class LessonManagementComponent implements OnInit {
   lessonForm: FormGroup;

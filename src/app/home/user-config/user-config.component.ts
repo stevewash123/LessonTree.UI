@@ -3,11 +3,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-user-config',
-  standalone: true,
-  imports: [MatButtonModule],
-  templateUrl: './user-config.component.html',
-  styleUrls: ['./user-config.component.scss']
+    selector: 'app-user-config',
+    imports: [MatButtonModule],
+    templateUrl: './user-config.component.html',
+    styleUrls: ['./user-config.component.scss']
 })
 export class UserConfigComponent {
   constructor(private router: Router) { }

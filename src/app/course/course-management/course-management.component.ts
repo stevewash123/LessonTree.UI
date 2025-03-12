@@ -14,19 +14,18 @@ import { SyncfusionModule } from '../../core/modules/syncfusion.module';
 import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from '../tree/tree-node.interface';
 
 @Component({
-  selector: 'app-course-management',
-  standalone: true,
-  imports: [
-    MatCardModule,
-    MatListModule,
-    MatIconModule,
-    MatButtonModule,
-    MatTooltipModule,
-    TreeComponent,
-    SyncfusionModule
-  ],
-  templateUrl: './course-management.component.html',
-  styleUrls: ['./course-management.component.scss']
+    selector: 'app-course-management',
+    imports: [
+        MatCardModule,
+        MatListModule,
+        MatIconModule,
+        MatButtonModule,
+        MatTooltipModule,
+        TreeComponent,
+        SyncfusionModule
+    ],
+    templateUrl: './course-management.component.html',
+    styleUrls: ['./course-management.component.scss']
 })
 export class CourseManagementComponent implements OnInit {
   courses: Course[] = [];

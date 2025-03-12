@@ -7,17 +7,16 @@ import { RouterOutlet, RouterLink } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [
-    MatSidenavModule,
-    MatToolbarModule,
-    MatListModule,
-    MatButtonModule,
-    RouterOutlet
-  ],
-  templateUrl: './app.component.html',
-  styleUrls: ['./app.component.scss']
+    selector: 'app-root',
+    imports: [
+        MatSidenavModule,
+        MatToolbarModule,
+        MatListModule,
+        MatButtonModule,
+        RouterOutlet
+    ],
+    templateUrl: './app.component.html',
+    styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
   constructor(public authService: AuthService) { }

@@ -8,17 +8,16 @@ import { AuthService } from '../core/services/auth.service';
 import { Router } from '@angular/router';
 
 @Component({
-  selector: 'app-landing',
-  standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatCardModule
-  ],
-  templateUrl: './landing.component.html',
-  styleUrls: ['./landing.component.scss']
+    selector: 'app-landing',
+    imports: [
+        ReactiveFormsModule,
+        MatFormFieldModule,
+        MatInputModule,
+        MatButtonModule,
+        MatCardModule
+    ],
+    templateUrl: './landing.component.html',
+    styleUrls: ['./landing.component.scss']
 })
 export class LandingComponent implements OnInit {
   loginForm: FormGroup;
