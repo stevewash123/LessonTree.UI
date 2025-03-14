@@ -1,4 +1,4 @@
-import { TreeNode } from "../course/tree/tree-node.interface";
+import { TreeNode } from "../lessontree/course-list-panel/tree/tree-node.interface";
 import { createLessonNode, Lesson } from "./lesson";
 import { Topic } from "./topic";
 

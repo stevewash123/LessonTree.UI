@@ -1,4 +1,4 @@
-import { TreeNode } from "../course/tree/tree-node.interface";
+import { TreeNode } from "../lessontree/course-list-panel/tree/tree-node.interface";
 import { Standard } from "./standard";
 import { SubTopic } from "./subTopic";
 

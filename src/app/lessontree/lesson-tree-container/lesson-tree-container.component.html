@@ -1,8 +1,8 @@
 <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
     <as-split-area [size]="50">
-        <app-course-management (activeNodeChange)="onActiveNodeChange($event)"></app-course-management>
+        <course-list-panel (activeNodeChange)="onActiveNodeChange($event)"></course-list-panel>
     </as-split-area>
     <as-split-area [size]="50">
-        <app-info-panel [activeNode]="currentActiveNode"></app-info-panel>
+        <info-panel [activeNode]="currentActiveNode"></info-panel>
     </as-split-area>
 </as-split>

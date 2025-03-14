@@ -1,15 +1,15 @@
 // src/app/lesson-tree-container/lesson-tree-container.component.ts
 import { Component } from '@angular/core';
-import { CourseManagementComponent } from '../../course/course-management/course-management.component';
-import { InfoPanelComponent } from '../../course/info-panel/info-panel.component';
+import { InfoPanelComponent } from '../info-panel/info-panel.component';
 import { SplitComponent, SplitAreaComponent } from 'angular-split'; // Import standalone components
-import { TreeNode } from '../../course/tree/tree-node.interface';
+import { CourseListPanelComponent } from '../course-list-panel/course-list-panel.component';
+import { TreeNode } from '../course-list-panel/tree/tree-node.interface';
 
 @Component({
-    selector: 'app-lesson-tree-container',
+    selector: 'lesson-tree-container',
     standalone: true,
     imports: [
-      CourseManagementComponent,
+      CourseListPanelComponent,
       InfoPanelComponent,
       SplitComponent, 
       SplitAreaComponent

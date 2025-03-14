@@ -9,25 +9,26 @@ import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TreeComponent } from '../tree/tree.component';
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
-import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from '../tree/tree-node.interface';
+import { TreeComponent } from './tree/tree.component';
+import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from './tree/tree-node.interface';
 
 @Component({
-    selector: 'app-course-management',
+    selector: 'course-list-panel',
     imports: [
         MatCardModule,
         MatListModule,
         MatIconModule,
         MatButtonModule,
         MatTooltipModule,
-        TreeComponent,
-        SyncfusionModule
+        SyncfusionModule,
+        TreeComponent
     ],
-    templateUrl: './course-management.component.html',
-    styleUrls: ['./course-management.component.scss']
+    templateUrl: './course-list-panel.component.html',
+    styleUrls: ['./course-list-panel.component.scss']
 })
-export class CourseManagementComponent implements OnInit {
+export class CourseListPanelComponent
+ implements OnInit {
   @Output() activeNodeChange = new EventEmitter<TreeNode>();
   courses: Course[] = [];
   expandedCourseIds: string[] = [];

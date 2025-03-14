@@ -1,4 +1,3 @@
-import { TreeNode } from "../course/tree/tree-node.interface";
 import { Topic } from "./topic";
 
 

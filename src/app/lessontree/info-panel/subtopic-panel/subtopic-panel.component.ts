@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { SubTopic } from '../../models/subTopic';
+import { SubTopic } from '../../../models/subTopic';
 
 @Component({
   selector: 'subtopic-panel',

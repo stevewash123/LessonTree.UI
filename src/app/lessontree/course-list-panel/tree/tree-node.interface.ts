@@ -1,6 +1,6 @@
-import { Lesson } from "../../models/lesson";
-import { SubTopic } from "../../models/subTopic";
-import { Topic } from "../../models/topic";
+import { Lesson } from "../../../models/lesson";
+import { SubTopic } from "../../../models/subTopic";
+import { Topic } from "../../../models/topic";
 
 export interface TreeNode {
     id: string;

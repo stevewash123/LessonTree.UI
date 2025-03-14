@@ -1,6 +1,6 @@
 // app-lesson-detail-editor.component.ts
 import { Component, Input } from '@angular/core';
-import { LessonDetail } from '../../models/lesson';
+import { LessonDetail } from '../../../models/lesson';
 
 @Component({
   selector: 'lesson-info-panel',

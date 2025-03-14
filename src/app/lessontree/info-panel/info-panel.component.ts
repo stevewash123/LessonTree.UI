@@ -2,17 +2,17 @@ import { Component, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { ApiService } from '../../core/services/api.service';
 
 import { Lesson, LessonDetail } from '../../models/lesson';
-import { TreeNode } from '../tree/tree-node.interface';
 import { Topic } from '../../models/topic';
 import { SubTopic } from '../../models/subTopic';
 import { Observable, take } from 'rxjs';
-import { LessonDetailEditorComponent } from '../../lesson/lesson-info-panel/lesson-info-panel.component';
-import { SubtopicPanelComponent } from '../../info-panel/subtopic-panel/subtopic-panel.component';
-import { TopicPanelComponent } from '../../info-panel/topic-panel/topic-panel.component';
+import { LessonDetailEditorComponent } from './lesson-info-panel/lesson-info-panel.component';
+import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.component';
+import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CommonModule } from '@angular/common';
+import { TreeNode } from '../course-list-panel/tree/tree-node.interface';
 
 @Component({
-  selector: 'app-info-panel',
+  selector: 'info-panel',
   templateUrl: './info-panel.component.html',
   imports: [ CommonModule, LessonDetailEditorComponent, SubtopicPanelComponent, TopicPanelComponent ]
 })

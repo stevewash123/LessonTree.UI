@@ -8,7 +8,7 @@ import { AuthService } from '../core/services/auth.service';
 import { Router } from '@angular/router';
 
 @Component({
-    selector: 'app-landing',
+    selector: 'landing-page',
     imports: [
         ReactiveFormsModule,
         MatFormFieldModule,

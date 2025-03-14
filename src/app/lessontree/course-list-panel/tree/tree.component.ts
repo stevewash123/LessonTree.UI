@@ -1,16 +1,15 @@
 // src/app/course/tree/tree.component.ts
 import { Component, Input, OnChanges, SimpleChanges, Output, EventEmitter, AfterViewInit, ViewChild } from '@angular/core';
 import { TreeViewModule, TreeViewComponent as SyncfusionTreeViewComponent } from '@syncfusion/ej2-angular-navigations';
-import { Topic, createTopicNode } from '../../models/topic';
-import { SubTopic } from '../../models/subTopic';
-import { Lesson } from '../../models/lesson';
-import { Course } from '../../models/course';
+import { Topic, createTopicNode } from '../../../models/topic';
+import { SubTopic } from '../../../models/subTopic';
+import { Lesson } from '../../../models/lesson';
+import { Course } from '../../../models/course';
 import { DragAndDropEventArgs } from '@syncfusion/ej2-navigations';
-import { ApiService } from '../../core/services/api.service';
+import { ApiService } from '../../../core/services/api.service';
 import { ToastrService } from 'ngx-toastr';
-import { TreeNode, TopicMovedEvent, NodeSelectedEvent } from './tree-node.interface';
-import { CourseManagementComponent } from '../course-management/course-management.component';
-
+import { CourseListPanelComponent } from '../course-list-panel.component';
+import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from './tree-node.interface';
 @Component({
     selector: 'app-tree',
     imports: [TreeViewModule],
@@ -19,11 +18,14 @@ import { CourseManagementComponent } from '../course-management/course-managemen
 })
 export class TreeComponent implements OnChanges, AfterViewInit {
   @ViewChild('treeview') treeViewComponent!: SyncfusionTreeViewComponent;
+
   @Input() topics: Topic[] = [];
-  @Input() courseManagement!: CourseManagementComponent;
+  @Input() courseManagement!: CourseListPanelComponent;
   @Input() refreshTrigger: boolean = false;
+  
   @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
   @Output() nodeSelected = new EventEmitter<NodeSelectedEvent>();
+
   public treeData: TreeNode[] = [];
   private expandedNodes: string[] = [];
 

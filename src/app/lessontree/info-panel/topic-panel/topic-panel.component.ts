@@ -1,5 +1,5 @@
 import { Component, Input } from '@angular/core';
-import { Topic } from '../../models/topic';
+import { Topic } from '../../../models/topic';
 
 @Component({
   selector: 'topic-panel',
