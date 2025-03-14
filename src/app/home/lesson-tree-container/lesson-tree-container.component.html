@@ -1,9 +1,8 @@
-<div class="container">
-    <div class="left-panel">
-      <app-course-management></app-course-management>
-    </div>
-    <mat-divider #splitter vertical class="splitter"></mat-divider>
-    <div class="right-panel">
-      <app-info-panel></app-info-panel>
-    </div>
-  </div>
+<as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
+    <as-split-area [size]="50">
+        <app-course-management (activeNodeChange)="onActiveNodeChange($event)"></app-course-management>
+    </as-split-area>
+    <as-split-area [size]="50">
+        <app-info-panel [activeNode]="currentActiveNode"></app-info-panel>
+    </as-split-area>
+</as-split>

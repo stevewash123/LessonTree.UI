@@ -40,7 +40,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
   ngAfterViewInit() {
     if (this.treeViewComponent) {
       console.log('TreeView initialized:', this.treeViewComponent);
-      this.treeViewComponent.nodeSelected = this.onNodeSelected.bind(this); // Bind Syncfusion's nodeSelected event
+      //this.treeViewComponent.nodeSelected = this.onNodeSelected.bind(this); // Bind Syncfusion's nodeSelected event
       this.restoreExpandedState();
     }
   }
@@ -53,7 +53,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
   }
 
   // Handle node selection
-  private onNodeSelected(args: any) {
+  public onNodeSelected(args: any) {
     const selectedArgs = args.nodeData as { id?: unknown; text?: unknown };
     
     const selectedNode: TreeNode = {
@@ -106,7 +106,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
       console.warn('TreeView not yet initialized, deferring restore');
       return;
     }
-    if (this.expandedNodes.length > 0) {
+    //if (this.expandedNodes.length > 0) {
       const validExpandedNodes = this.expandedNodes.filter(nodeId => 
         this.findNodeById(this.treeData, nodeId) !== undefined
       );
@@ -116,7 +116,7 @@ export class TreeComponent implements OnChanges, AfterViewInit {
       validExpandedNodes.forEach(nodeId => {
         this.treeViewComponent.ensureVisible(nodeId);
       });
-    }
+    //}
   }
 
   public onNodeDragging(args: DragAndDropEventArgs) {

@@ -19,7 +19,7 @@ export function createLessonNode(lesson: Lesson): TreeNode {
   };
 }
 
-export interface LessonDetailResource {
+export interface LessonDetail {
     id: number;
     title: string;
     content: string;

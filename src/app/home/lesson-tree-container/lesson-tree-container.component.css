@@ -1,27 +1,26 @@
 /* src/app/lesson-tree-container/lesson-tree-container.component.scss */
-.container {
-    display: flex;
-    height: calc(100vh - 64px);
+:host {
+    display: block;
+    height: calc(100vh - 64px); /* Adjust for toolbar height (64px is Material toolbar default) */
+  }
+  
+  as-split {
+    height: 100%;
     width: 100%;
   }
   
-  .left-panel {
-    width: 50%; /* Initial width */
-    min-width: 300px;
-    max-width: 50%;
-    overflow-y: auto;
-    padding: 16px;
+  as-split-area {
+    overflow-y: auto; /* Scroll if content overflows */
+    padding: 16px; /* Optional padding */
   }
   
-  .splitter {
-    cursor: col-resize;
-    width: 4px;
+  /* Optional: Customize the splitter (gutter) */
+  as-split ::ng-deep .as-split-gutter {
     background-color: #ccc;
+    cursor: col-resize;
+    width: 4px; /* Thickness of the splitter */
   }
   
-  .right-panel {
-    flex: 1;
-    min-width: 300px;
-    overflow-y: auto;
-    padding: 16px;
+  as-split ::ng-deep .as-split-gutter:hover {
+    background-color: #999;
   }

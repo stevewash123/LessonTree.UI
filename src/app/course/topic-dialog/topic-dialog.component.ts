@@ -7,6 +7,7 @@ import { MatDialogModule, MatDialogRef, MAT_DIALOG_DATA } from '@angular/materia
 import { MatTableModule, MatTableDataSource } from '@angular/material/table';
 import { MatIconModule } from '@angular/material/icon';
 import { ToastrService } from 'ngx-toastr';
+import { Topic } from '../../models/topic';
 
 @Component({
   selector: 'app-topic-dialog',
@@ -33,7 +34,7 @@ export class TopicDialogComponent {
   constructor(
     private fb: FormBuilder,
     public dialogRef: MatDialogRef<TopicDialogComponent>,
-    @Inject(MAT_DIALOG_DATA) public data: any,
+    @Inject(MAT_DIALOG_DATA) public data: Topic,
     private toastr: ToastrService
   ) {
     this.topicForm = this.fb.group({

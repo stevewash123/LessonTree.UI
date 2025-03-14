@@ -1,0 +1,10 @@
+<div *ngIf="lessonDetail; else loading">
+    <label>Title: <input [(ngModel)]="lessonDetail.title"></label>
+    <label>Content: <textarea [(ngModel)]="lessonDetail.content"></textarea></label>
+    <label>Objective: <input [(ngModel)]="lessonDetail.objective"></label>
+    <!-- Other fields -->
+    
+    <app-lesson-document-table [documents]="lessonDetail.documents"></app-lesson-document-table>
+  </div>
+  
+  <ng-template #loading>Loading...</ng-template>

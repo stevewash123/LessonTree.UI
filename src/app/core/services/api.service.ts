@@ -7,7 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../../environments/environment';
 import { Topic } from '../../models/topic'; // Import interfaces
 import { SubTopic } from '../../models/subTopic';
-import { Lesson } from '../../models/lesson';
+import { Lesson, LessonDetail } from '../../models/lesson';
 
 @Injectable({
   providedIn: 'root'
@@ -103,6 +103,11 @@ export class ApiService {
 
   moveTopic(topicId: number, newCourseId: number): Observable<any> {
     return this.post<any>('Topic/move', { topicId, newCourseId });
+  }
+
+  
+  getLessonDetail(id: any): Observable<LessonDetail> {
+    throw new Error('Method not implemented.');
   }
 
   private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {

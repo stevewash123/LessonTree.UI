@@ -1,5 +1,5 @@
 // src/app/course/course-management/course-management.component.ts
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, Output, EventEmitter } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../core/services/api.service';
 import { Course } from '../../models/course';
@@ -28,6 +28,7 @@ import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from '../tree/tree-node.
     styleUrls: ['./course-management.component.scss']
 })
 export class CourseManagementComponent implements OnInit {
+  @Output() activeNodeChange = new EventEmitter<TreeNode>();
   courses: Course[] = [];
   expandedCourseIds: string[] = [];
   refreshTrigger: boolean = false;
@@ -69,6 +70,7 @@ export class CourseManagementComponent implements OnInit {
   
   onNodeSelected(event: NodeSelectedEvent) {
     this.activeNode = event.node;
+    this.activeNodeChange.next(this.activeNode);
   }
 
   // Helper method to find node by ID

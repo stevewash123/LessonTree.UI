@@ -7,6 +7,7 @@
       [allowDragAndDrop]="true"
       (nodeDragging)="onNodeDragging($event)"
       (nodeDragStop)="onNodeDragStop($event)"
+      (nodeSelected)="onNodeSelected($event)"
     ></ejs-treeview>
   } @else {
     <p>No tree data available. Check console logs for details.</p>
