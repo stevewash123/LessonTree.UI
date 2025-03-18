@@ -1,10 +1,122 @@
-<div *ngIf="lessonDetail; else loading">
-    <label>Title: <input [(ngModel)]="lessonDetail.title"></label>
-    <label>Content: <textarea [(ngModel)]="lessonDetail.content"></textarea></label>
-    <label>Objective: <input [(ngModel)]="lessonDetail.objective"></label>
-    <!-- Other fields -->
-    
-    <lesson-document-table [documents]="lessonDetail.documents"></lesson-document-table>
-  </div>
+<div class="lesson-info-panel-wrapper">
+    <h2 class="panel-title">Lesson Details</h2>
+    @if (lessonDetail) {
+      <div class="lesson-card">
+        <form>
+          <!-- Title -->
+          <div class="form-group">
+            <label for="title">Title:</label>
+            <input
+              id="title"
+              [readonly]="!isEditing"
+              [(ngModel)]="lessonDetail.title"
+              name="title"
+              [ngClass]="{'editing': isEditing}"
+            />
+          </div>
   
-  <ng-template #loading>Loading...</ng-template>
+          <!-- Level and Class Time on the same row -->
+          <div class="form-row">
+            <div class="form-group half-width">
+              <label for="level">Level:</label>
+              <input
+                id="level"
+                [readonly]="!isEditing"
+                [(ngModel)]="lessonDetail.level"
+                name="level"
+                [ngClass]="{'editing': isEditing}"
+              />
+            </div>
+            <div class="form-group half-width">
+              <label for="classTime">Class Time:</label>
+              <input
+                id="classTime"
+                [readonly]="!isEditing"
+                [(ngModel)]="lessonDetail.classTime"
+                name="classTime"
+                [ngClass]="{'editing': isEditing}"
+              />
+            </div>
+          </div>
+            
+          <!-- Objective -->
+          <div class="form-group">
+            <label for="objective">Objective:</label>
+            <textarea
+              id="objective"
+              [readonly]="!isEditing"
+              [(ngModel)]="lessonDetail.objective"
+              name="objective"
+              [ngClass]="{'editing': isEditing}"
+            ></textarea>
+          </div>
+  
+          <!-- Method -->
+          <div class="form-group">
+            <label for="method">Method:</label>
+            <textarea
+              id="method"
+              [readonly]="!isEditing"
+              [(ngModel)]="lessonDetail.methods"
+              name="method"
+              [ngClass]="{'editing': isEditing}"
+            ></textarea>
+          </div>
+  
+          <!-- Materials (smaller height) -->
+          <div class="form-group">
+            <label for="materials">Materials:</label>
+            <textarea
+              id="materials"
+              [readonly]="!isEditing"
+              [(ngModel)]="lessonDetail.materials"
+              name="materials"
+              [ngClass]="{'editing': isEditing}"
+              style="height: 80px;"
+            ></textarea>
+          </div>
+  
+          <!-- Assessment -->
+          <div class="form-group">
+            <label for="assessment">Assessment:</label>
+            <textarea
+              id="assessment"
+              [readonly]="!isEditing"
+              [(ngModel)]="lessonDetail.assessment"
+              name="assessment"
+              [ngClass]="{'editing': isEditing}"
+              style="height: 80px;"
+            ></textarea>
+          </div>
+  
+          <!-- Special Needs -->
+          <div class="form-group">
+            <label for="specialNeeds">Special Needs:</label>
+            <textarea
+              id="specialNeeds"
+              [readonly]="!isEditing"
+              [(ngModel)]="lessonDetail.specialNeeds"
+              name="specialNeeds"
+              [ngClass]="{'editing': isEditing}"
+              style="height: 80px;"
+            ></textarea>
+          </div>
+  
+          <!-- Edit Button -->
+          @if (!isEditing) {
+            <div class="buttons">
+              <button (click)="enterEditMode()">Edit</button>
+            </div>
+          }
+          @if (isEditing) {
+            <div class="buttons">
+              <button (click)="save()">Save</button>
+              <button (click)="cancel()">Cancel</button>
+            </div>
+          }
+        </form>
+      </div>
+    } @else {
+      <p>Loading...</p>
+    }
+  </div>

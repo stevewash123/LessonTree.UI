@@ -15,7 +15,7 @@ import { TreeNode } from '../course-list-panel/tree/tree-node.interface';
       SplitAreaComponent
     ],
     templateUrl: './lesson-tree-container.component.html',
-    styleUrls: ['./lesson-tree-container.component.scss']
+    styleUrls: ['./lesson-tree-container.component.css']
   })
   export class LessonTreeContainerComponent {
     sizes: number[] = [50, 50];

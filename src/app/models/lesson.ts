@@ -1,12 +1,15 @@
 import { TreeNode } from "../lessontree/course-list-panel/tree/tree-node.interface";
+import { Attachment } from "./attachment";
 import { Standard } from "./standard";
 import { SubTopic } from "./subTopic";
 
 export interface Lesson {
     id: number;
     nodeId: string;
+    courseId: number;
+    subTopicId: number;
     title: string;
-    content: string;
+    objective: string;
   }
 
 export function createLessonNode(lesson: Lesson): TreeNode {
@@ -21,11 +24,9 @@ export function createLessonNode(lesson: Lesson): TreeNode {
 
 export interface LessonDetail {
     id: number;
+    subTopicId: number;
+    courseId: number;
     title: string;
-    content: string;
-    subTopic: SubTopic;
-    documents: Document[];
-    lastDateTaught: Date;
     level: string;
     objective: string;
     materials: string;
@@ -34,5 +35,5 @@ export interface LessonDetail {
     specialNeeds: string;
     assessment: string;
     standards: Standard[];
-    subTopicId: number;
+    attachments: Attachment[];
   }

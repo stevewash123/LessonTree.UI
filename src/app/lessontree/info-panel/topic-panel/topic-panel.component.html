@@ -1,1 +1,49 @@
-<p>topic-panel works!</p>
+<div class="topic-panel-wrapper">
+    <h2 class="panel-title">Topic</h2>
+    @if (data) {
+      <div class="topic-card">
+        <form>
+          <div class="form-group">
+            <label for="title">Title:</label>
+            <input
+              id="title"
+              [readonly]="!isEditing"
+              [(ngModel)]="data.title"
+              name="title"
+              [ngClass]="{'editing': isEditing}"
+            />
+          </div>
+          <div class="form-group" *ngIf="isEditing">
+            <label for="hasSubTopics">Has SubTopics:</label>
+            <input
+              type="checkbox"
+              id="hasSubTopics"
+              [(ngModel)]="data.hasSubTopics"
+              name="hasSubTopics"
+            />
+          </div>
+          <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea
+              id="description"
+              [readonly]="!isEditing"
+              [(ngModel)]="data.description"
+              name="description"
+              [ngClass]="{'editing': isEditing}"
+            ></textarea>
+          </div>
+          @if (!isEditing) {
+            <div class="buttons">
+              <button (click)="enterEditMode()">Edit</button>
+            </div>
+          }
+          @if (isEditing) {
+            <div class="buttons">
+              <button (click)="save()">Save</button>
+              <button (click)="cancel()">Cancel</button>
+            </div>
+          }
+        </form>
+      </div>
+    }
+  </div>

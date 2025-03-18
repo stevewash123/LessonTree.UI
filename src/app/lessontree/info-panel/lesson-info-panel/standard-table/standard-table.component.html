@@ -1,0 +1,17 @@
+<table *ngIf="standards.length > 0">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let standard of standards">
+        <td>{{ standard.id }}</td>
+        <td>{{ standard.description }}</td>
+      </tr>
+    </tbody>
+  </table>
+  @if(standards.length === 0){
+    <p>No standards available.</p>
+  }

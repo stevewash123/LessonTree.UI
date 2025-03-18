@@ -8,9 +8,10 @@ export interface SubTopic {
     title: string;
     description: string;
     topicId: number;
-    topic?: Topic; // Optional to avoid mandatory deep nesting
+    courseId: number;
+    isDefault: Boolean;
     lessons: Lesson[]; // Using LessonResource for simplicity
-    }
+  }
   
   export function createSubTopicNode(subTopic: SubTopic): TreeNode {
     return {

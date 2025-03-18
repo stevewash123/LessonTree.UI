@@ -1,5 +1,6 @@
 import { TreeNode } from "../lessontree/course-list-panel/tree/tree-node.interface";
 import { Course } from "./course";
+import { Lesson } from "./lesson";
 import { createSubTopicNode, SubTopic } from "./subTopic";
 
 export interface Topic {
@@ -8,9 +9,9 @@ export interface Topic {
     title: string;
     description: string;
     courseId: number;
-    course?: Course; // Optional to avoid mandatory deep nesting
     hasSubTopics: boolean;
     subTopics: SubTopic[];
+    lessons: Lesson[];
   }
   
   export function createTopicNode(topic: Topic): TreeNode {
@@ -22,4 +23,8 @@ export interface Topic {
       original: topic,
       iconCss: 'material-icons topic-icon' // 'school' icon
     };
+  }
+
+  export interface UdpateTopic {
+    
   }

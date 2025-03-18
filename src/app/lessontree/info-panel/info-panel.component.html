@@ -1,5 +1,13 @@
 @if(activeNode){
-    <topic-panel *ngIf="activeNode.type === 'Topic'" [data]="topic"></topic-panel>
-    <subtopic-panel *ngIf="activeNode.type === 'SubTopic'" [data]="subtopic"></subtopic-panel>
-    <lesson-info-panel *ngIf="activeNode.type === 'Lesson'" [lessonDetail]="lessonDetail"></lesson-info-panel>
+    @if(activeNode.type === 'Topic' && data){
+        <topic-panel [data]="topic" (modeChange)="handleModeChange($event)"></topic-panel>
+    }
+
+    @if(activeNode.type === 'SubTopic' && data){
+        <subtopic-panel [data]="subtopic" (modeChange)="handleModeChange($event)"></subtopic-panel>
+    }
+
+    @if(activeNode.type === 'Lesson' && data){
+        <lesson-info-panel [lessonDetail]="lessonDetail"></lesson-info-panel>
+    }
 }

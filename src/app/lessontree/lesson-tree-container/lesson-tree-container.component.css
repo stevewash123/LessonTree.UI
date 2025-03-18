@@ -7,6 +7,7 @@
   as-split {
     height: 100%;
     width: 100%;
+    margin-top: 64px;
   }
   
   as-split-area {
@@ -24,3 +25,22 @@
   as-split ::ng-deep .as-split-gutter:hover {
     background-color: #999;
   }
+
+  .main-container {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
+  }
+  
+  .split-full-height {
+    flex: 1; /* Fills space between header and footer */
+  }
+  
+  .footer {
+    background-color: black;
+    color: white;
+    padding: 10px;
+    text-align: center;
+  }
+  

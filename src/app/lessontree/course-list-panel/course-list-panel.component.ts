@@ -12,6 +12,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
 import { TreeComponent } from './tree/tree.component';
 import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from './tree/tree-node.interface';
+import { SubTopic } from '../../models/subTopic';
+import { Lesson } from '../../models/lesson';
 
 @Component({
     selector: 'course-list-panel',
@@ -25,7 +27,7 @@ import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from './tree/tree-node.i
         TreeComponent
     ],
     templateUrl: './course-list-panel.component.html',
-    styleUrls: ['./course-list-panel.component.scss']
+    styleUrls: ['./course-list-panel.component.css']
 })
 export class CourseListPanelComponent
  implements OnInit {
@@ -66,9 +68,41 @@ export class CourseListPanelComponent
       }
       this.expandedCourseIds.push(courseNodeId);
       console.log('Expanded Course Node ID:', courseNodeId, 'Expanded Course IDs:', this.expandedCourseIds);
+  
+      const course = this.courses.find(c => c.nodeId === courseNodeId);
+      if (course && course.topics.length > 0) {
+        const firstTopic = course.topics[0];
+        const firstNode: TreeNode = {
+          id: firstTopic.nodeId,
+          text: firstTopic.title,
+          type: 'Topic',
+          original: firstTopic
+        };
+  
+        // Check if the current activeNode belongs to this course
+        const activeNodeCourseId = this.getCourseIdForNode(this.activeNode);
+        if (activeNodeCourseId !== course.id) {
+          this.activeNode = firstNode;
+          this.activeNodeChange.next(this.activeNode); // Notify other components of the change
+        }
+      }
     }
   }
   
+  // Helper method to determine the course ID of a node
+  private getCourseIdForNode(node: TreeNode | null): number | null {
+    if (node && node.original) {
+        if (node.type === 'Topic') {
+            return (node.original as Topic).courseId;
+        } else if (node.type === 'SubTopic') {
+            return (node.original as SubTopic).courseId;
+        } else if (node.type === 'Lesson') {
+            return (node.original as Lesson).courseId;
+        }
+    }
+    return null;
+  }
+
   onNodeSelected(event: NodeSelectedEvent) {
     this.activeNode = event.node;
     this.activeNodeChange.next(this.activeNode);

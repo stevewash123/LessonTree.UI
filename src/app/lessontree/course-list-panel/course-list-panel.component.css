@@ -1,6 +1,7 @@
 /* src/app/course/course-management/course-management.component.scss (unchanged) */
 .courses-header {
     margin-left: 40px;
+    font-size: 18px; /* Consistent with typical header size */
   }
   
   .course-card {

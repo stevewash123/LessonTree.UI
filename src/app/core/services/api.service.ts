@@ -8,6 +8,7 @@ import { environment } from '../../../environments/environment';
 import { Topic } from '../../models/topic'; // Import interfaces
 import { SubTopic } from '../../models/subTopic';
 import { Lesson, LessonDetail } from '../../models/lesson';
+import { Attachment } from '../../models/attachment';
 
 @Injectable({
   providedIn: 'root'
@@ -61,7 +62,7 @@ export class ApiService {
   private isLesson(entity: any): entity is Lesson {
     return entity && typeof entity.id === 'number' && typeof entity.nodeId === 'string' && 
            typeof entity.title === 'string' && typeof entity.content === 'string' && 
-           typeof entity.subTopicId === 'number' && Array.isArray(entity.documents);
+           typeof entity.subTopicId === 'number' && Array.isArray(entity.attachments);
   }
 
   put<T>(entity: T): Observable<T> {
@@ -104,12 +105,13 @@ export class ApiService {
   moveTopic(topicId: number, newCourseId: number): Observable<any> {
     return this.post<any>('Topic/move', { topicId, newCourseId });
   }
-
-  
-  getLessonDetail(id: any): Observable<LessonDetail> {
-    throw new Error('Method not implemented.');
+  uploadAttachment(lessonId: number, file: File): Observable<Attachment> {
+    const formData = new FormData();
+    formData.append('file', file, file.name); // Append file to FormData
+    const url = `/api/Lesson/${lessonId}/document`;
+    return this.http.post<Attachment>(url, formData);
   }
-
+  
   private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {
     if (Array.isArray(obj)) {
       return obj.map(item => this.transformKeysToCamelCaseAndEnsureArrays(item));
@@ -122,7 +124,7 @@ export class ApiService {
         if (value && typeof value === 'object' && '$values' in value) {
           value = value.$values || [];
         }
-        if (camelKey === 'subTopics' || camelKey === 'lessons' || camelKey === 'topics' || camelKey === 'documents') {
+        if (camelKey === 'subTopics' || camelKey === 'lessons' || camelKey === 'topics' || camelKey === 'attachments') {
           value = Array.isArray(value) ? value : [];
         }
 

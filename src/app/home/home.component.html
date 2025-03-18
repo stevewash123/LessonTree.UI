@@ -1,4 +1,4 @@
-<mat-toolbar color="primary">
+<mat-toolbar #toolbar color="primary">
     <button mat-icon-button [matMenuTriggerFor]="navMenu">
       <mat-icon>menu</mat-icon>
     </button>
@@ -19,4 +19,6 @@
       <button mat-menu-item (click)="logout()">Logout</button>
     </mat-menu>
   </mat-toolbar>
-  <router-outlet></router-outlet>
+  <div [style.paddingTop.px]="toolbarHeight">
+    <router-outlet></router-outlet>
+  </div>

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -19,10 +19,17 @@ import { AuthService } from '../core/services/auth.service';
     templateUrl: './home.component.html',
     styleUrls: ['./home.component.scss']
 })
-export class HomeComponent {
-  constructor(public authService: AuthService) { }
-
-  logout() {
-    this.authService.logout();
+export class HomeComponent implements AfterViewInit {
+    @ViewChild('toolbar') toolbar!: ElementRef;
+    toolbarHeight: number | undefined;
+  
+    constructor(public authService: AuthService) { }
+  
+    ngAfterViewInit() {
+      this.toolbarHeight = this.toolbar.nativeElement.offsetHeight;
+    }
+  
+    logout() {
+      this.authService.logout();
+    }
   }
-}

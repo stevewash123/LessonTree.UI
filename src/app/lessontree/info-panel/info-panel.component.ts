@@ -5,7 +5,7 @@ import { Lesson, LessonDetail } from '../../models/lesson';
 import { Topic } from '../../models/topic';
 import { SubTopic } from '../../models/subTopic';
 import { Observable, take } from 'rxjs';
-import { LessonDetailEditorComponent } from './lesson-info-panel/lesson-info-panel.component';
+import { LessonInfoPanelComponent } from './lesson-info-panel/lesson-info-panel.component';
 import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.component';
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CommonModule } from '@angular/common';
@@ -14,28 +14,29 @@ import { TreeNode } from '../course-list-panel/tree/tree-node.interface';
 @Component({
   selector: 'info-panel',
   templateUrl: './info-panel.component.html',
-  imports: [ CommonModule, LessonDetailEditorComponent, SubtopicPanelComponent, TopicPanelComponent ]
+  imports: [ CommonModule, LessonInfoPanelComponent, SubtopicPanelComponent, TopicPanelComponent ]
 })
 export class InfoPanelComponent implements OnChanges {
     @Input() activeNode: TreeNode | null = null;
     data: Topic | SubTopic | LessonDetail | null = null;
 
     get lessonDetail(): LessonDetail | null {
-        return this.activeNode?.type === 'Lesson' ? (this.data as LessonDetail) : null;
+        return this.data as LessonDetail;
       }
 
-    get topic(): Topic | null {
-        return this.activeNode?.type === 'Lesson' ? (this.data as Topic) : null;
+    get topic(): Topic {
+        return this.data as Topic;
       }
 
-    get subtopic(): SubTopic | null {
-        return this.activeNode?.type === 'Lesson' ? (this.data as SubTopic) : null;
+    get subtopic(): SubTopic {
+        return this.data as SubTopic;
       }
   
     constructor(private _apiService: ApiService) {}
   
     ngOnChanges(changes: SimpleChanges) {
       if (changes['activeNode'] && this.activeNode && this.activeNode.original) {
+        this.data = null;
         switch(this.activeNode.type) {
             case 'Topic': this.data = this.activeNode.original as Topic;
             break;
@@ -47,22 +48,16 @@ export class InfoPanelComponent implements OnChanges {
                 this.data = detail;
             })
             break;
-
         }
-        this.updateDisplay();
-      }
-    }
-  
-    updateDisplay() {
-      if (this.activeNode!.type === 'Lesson') {
-        this.fetchLessonDetails();
-      } else {
-        this.data = null; // Reset for Topic/SubTopic
       }
     }
   
     fetchLessonDetails(): Observable<LessonDetail> {
         const id = (this.activeNode!.original as Lesson).id;
-        return this._apiService.getLessonDetail(id);
+        return this._apiService.get<LessonDetail>('lesson/' + id);
+    }
+
+    handleModeChange(isEditing: boolean) {
+        console.log('Subtopic panel editing mode:', isEditing);
     }
   }

@@ -40,10 +40,15 @@ export class TreeComponent implements OnChanges, AfterViewInit {
   constructor(private apiService: ApiService, private toastr: ToastrService) {}
 
   ngAfterViewInit() {
-    if (this.treeViewComponent) {
-      console.log('TreeView initialized:', this.treeViewComponent);
-      //this.treeViewComponent.nodeSelected = this.onNodeSelected.bind(this); // Bind Syncfusion's nodeSelected event
-      this.restoreExpandedState();
+    // Optional: Add any other initialization logic here
+    console.log('TreeView initialized:', this.treeViewComponent);
+  }
+
+  onDataBound() {
+    if (this.courseManagement.activeNode) {
+      const nodeId = this.courseManagement.activeNode.id;
+      this.treeViewComponent.selectedNodes = [nodeId];
+      console.log('Node selected:', nodeId);
     }
   }
 
@@ -404,6 +409,6 @@ export class TreeComponent implements OnChanges, AfterViewInit {
   private isLesson(entity: any): entity is Lesson {
     return entity && typeof entity.id === 'number' && typeof entity.nodeId === 'string' && 
            typeof entity.title === 'string' && typeof entity.content === 'string' && 
-           typeof entity.subTopicId === 'number' && Array.isArray(entity.documents);
+           typeof entity.subTopicId === 'number' && Array.isArray(entity.attachments);
   }
 }
