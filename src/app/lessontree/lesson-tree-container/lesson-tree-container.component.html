@@ -1,7 +1,7 @@
 <div class="main-container">
     <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
         <as-split-area [size]="50">
-            <course-list-panel (activeNodeChange)="onActiveNodeChange($event)"></course-list-panel>
+            <course-list (activeNodeChange)="onActiveNodeChange($event)"></course-list>
         </as-split-area>
         <as-split-area [size]="50">
             <info-panel [activeNode]="currentActiveNode"></info-panel>

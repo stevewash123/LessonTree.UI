@@ -1,7 +1,6 @@
-import { TreeNode } from "../lessontree/course-list-panel/tree/tree-node.interface";
 import { Attachment } from "./attachment";
 import { Standard } from "./standard";
-import { SubTopic } from "./subTopic";
+import { TreeNode } from "./tree-node";
 
 export interface Lesson {
     id: number;
@@ -16,7 +15,8 @@ export function createLessonNode(lesson: Lesson): TreeNode {
   return {
     id: lesson.nodeId,
     text: lesson.title,
-    type: 'Lesson',
+    nodeType: 'Lesson',
+    hasChildren: false,
     original: lesson,
     iconCss: 'material-icons lesson-icon' // 'assignment' icon
   };

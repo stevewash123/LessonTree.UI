@@ -1,6 +1,5 @@
-import { TreeNode } from "../lessontree/course-list-panel/tree/tree-node.interface";
 import { createLessonNode, Lesson } from "./lesson";
-import { Topic } from "./topic";
+import { TreeNode } from "./tree-node";
 
 export interface SubTopic {
     id: number;
@@ -10,15 +9,16 @@ export interface SubTopic {
     topicId: number;
     courseId: number;
     isDefault: Boolean;
-    lessons: Lesson[]; // Using LessonResource for simplicity
+    lessons: Lesson[];
+    hasChildren: boolean;
   }
   
   export function createSubTopicNode(subTopic: SubTopic): TreeNode {
     return {
       id: subTopic.nodeId,
       text: subTopic.title,
-      type: 'SubTopic',
-      child: subTopic.lessons.map(lesson => createLessonNode(lesson)),
+      nodeType: 'SubTopic',
+      hasChildren: subTopic.hasChildren,
       original: subTopic,
       iconCss: 'material-icons subtopic-icon' // 'book' icon
     };

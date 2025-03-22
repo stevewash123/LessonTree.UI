@@ -26,7 +26,9 @@ export class HomeComponent implements AfterViewInit {
     constructor(public authService: AuthService) { }
   
     ngAfterViewInit() {
-      this.toolbarHeight = this.toolbar.nativeElement.offsetHeight;
+        if(this.toolbar && this.toolbar.nativeElement){
+            this.toolbarHeight = this.toolbar.nativeElement.offsetHeight;
+        }
     }
   
     logout() {

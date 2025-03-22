@@ -16,6 +16,7 @@
               <button mat-icon-button (click)="deleteCourse(course.id)" matTooltip="Delete Course">
                 <mat-icon>delete</mat-icon>
               </button>
+              <div class="spacer"></div>
               <button mat-icon-button (click)="addTopic(course.id)" matTooltip="Add Topic">
                 <mat-icon>add_circle</mat-icon>
               </button>
@@ -23,16 +24,21 @@
           </div>
         </mat-list-item>
         @if (expandedCourseIds.includes(course.nodeId)) {  
-          <div class="tree-view-container">
-            <app-tree 
-              [topics]="course.topics" 
-              [courseManagement]="this" 
-              [refreshTrigger]="refreshTrigger" 
-              (nodeDragStop)="onTopicMoved($event)"
-              (nodeSelected)="onNodeSelected($event)"
-            ></app-tree>
-          </div>
-        } 
+            @if (course.topics) {  
+              <div class="tree-view-container">
+                <app-tree 
+                  [topics]="course.topics" 
+                  [courseId]="course.id"
+                  [courseManagement]="this" 
+                  [refreshTrigger]="refreshTrigger" 
+                  (nodeDragStop)="onTopicMoved($event)"
+                  (nodeSelected)="onNodeSelected($event)"
+                ></app-tree>
+              </div>
+            } @else {  
+              <p>Loading topics...</p>
+            }
+          }
       </mat-card>
     }
     <div class="add-course-button">

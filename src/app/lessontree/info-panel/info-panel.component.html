@@ -1,13 +1,13 @@
 @if(activeNode){
-    @if(activeNode.type === 'Topic' && data){
+    @if(activeNode.nodeType === 'Topic' && data){
         <topic-panel [data]="topic" (modeChange)="handleModeChange($event)"></topic-panel>
     }
 
-    @if(activeNode.type === 'SubTopic' && data){
+    @if(activeNode.nodeType === 'SubTopic' && data){
         <subtopic-panel [data]="subtopic" (modeChange)="handleModeChange($event)"></subtopic-panel>
     }
 
-    @if(activeNode.type === 'Lesson' && data){
+    @if(activeNode.nodeType === 'Lesson' && data){
         <lesson-info-panel [lessonDetail]="lessonDetail"></lesson-info-panel>
     }
 }

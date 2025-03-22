@@ -9,7 +9,7 @@ import { LessonInfoPanelComponent } from './lesson-info-panel/lesson-info-panel.
 import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.component';
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CommonModule } from '@angular/common';
-import { TreeNode } from '../course-list-panel/tree/tree-node.interface';
+import { TreeNode } from '../../models/tree-node';
 
 @Component({
   selector: 'info-panel',
@@ -37,7 +37,7 @@ export class InfoPanelComponent implements OnChanges {
     ngOnChanges(changes: SimpleChanges) {
       if (changes['activeNode'] && this.activeNode && this.activeNode.original) {
         this.data = null;
-        switch(this.activeNode.type) {
+        switch(this.activeNode.nodeType) {
             case 'Topic': this.data = this.activeNode.original as Topic;
             break;
 
