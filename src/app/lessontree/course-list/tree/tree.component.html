@@ -11,10 +11,7 @@
         [enablePersistence]="true"
         [loadOnDemand]="true"
         [nodeTemplate]="nodeTemplate"
-        [dragArea]="{ minimumDragDistance: 15 }"
-        (nodeDragging)="onNodeDragging($event)"
         (nodeDragStop)="onNodeDragStop($event)"
-        (nodeSelected)="onNodeSelected($event)"
         (nodeExpanding)="onNodeExpanding($event)"
         (dataBound)="onDataBound()"
     ></ejs-treeview>

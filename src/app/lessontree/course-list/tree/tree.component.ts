@@ -7,21 +7,20 @@ import { ApiService } from '../../../core/services/api.service';
 import { createSubTopicNode, SubTopic } from '../../../models/subTopic';
 import { createLessonNode, Lesson } from '../../../models/lesson'; // Added for lesson nodes
 import { TreeViewModule } from '@syncfusion/ej2-angular-navigations';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
     selector: 'app-tree',
     standalone: true,
-    imports: [TreeViewModule],
-    template: `
-        <ejs-treeview #treeView
-            [fields]="treeFields"
-            (nodeExpanding)="onNodeExpanding($event)"
-            (nodeSelected)="emitNodeSelected($event)"
-            (dataBound)="onDataBound()"
-            allowDragAndDrop="true"
-            (nodeDragStop)="onNodeDragStop($event)">
-        </ejs-treeview>
-    `,
+    imports: [
+        TreeViewModule,
+        MatIconModule,
+        MatButtonModule,
+        MatTooltipModule
+    ],
+    templateUrl: './tree.component.html',
     styles: []
 })
 export class TreeComponent implements OnChanges {
@@ -175,5 +174,13 @@ export class TreeComponent implements OnChanges {
     public determineNodeType(nodeId: string): 'Topic' | 'SubTopic' | 'Lesson' | undefined {
         const node = this.findNodeById(this.treeData, nodeId);
         return node?.nodeType;
+    }
+
+    public addChildNode(event: any) {
+        // not implemented
+    }
+
+    public deleteNode(event: any) {
+        // not implemented
     }
 }
