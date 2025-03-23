@@ -35,6 +35,7 @@ export class ApiService {
 
   /** Generic GET method with data transformation and error handling */
   get<T>(endpoint: string): Observable<T> {
+    console.log(`ApiService: GET request to ${this.baseUrl}/${endpoint}`);
     return this.http.get<T>(`${this.baseUrl}/${endpoint}`).pipe(
       map(response => this.transformResponse<T>(response)),
       catchError(error => {
@@ -47,6 +48,7 @@ export class ApiService {
   /** Generic PUT method with consistent base URL usage */
   put<T>(entity: T): Observable<T> {
     const endpoint = this.getEndpoint(entity);
+    console.log(`ApiService: PUT request to ${this.baseUrl}/${endpoint}`);
     return this.http.put<T>(`${this.baseUrl}/${endpoint}`, entity).pipe(
       catchError(this.handleError)
     );
@@ -54,6 +56,7 @@ export class ApiService {
 
   /** Generic POST method with consistent base URL usage */
   post<T>(endpoint: string, body: any): Observable<T> {
+    console.log(`ApiService: POST request to ${this.baseUrl}/${endpoint}`, body);
     return this.http.post<T>(`${this.baseUrl}/${endpoint}`, body).pipe(
       catchError(this.handleError)
     );
@@ -61,31 +64,58 @@ export class ApiService {
 
   /** Generic DELETE method with consistent base URL usage */
   delete<T>(endpoint: string): Observable<T> {
+    console.log(`ApiService: DELETE request to ${this.baseUrl}/${endpoint}`);
     return this.http.delete<T>(`${this.baseUrl}/${endpoint}`).pipe(
       catchError(this.handleError)
     );
   }
 
+  /** Create a new SubTopic */
+  createSubTopic(subTopic: SubTopic): Observable<SubTopic> {
+    return this.post<SubTopic>('subtopic', subTopic);
+  }
+
+  /** Create a new Lesson */
+  createLesson(lesson: Lesson): Observable<Lesson> {
+    return this.post<Lesson>('lesson', lesson);
+  }
+
+  /** Delete a Topic */
+  deleteTopic(topicId: number): Observable<void> {
+    return this.delete<void>(`topic/${topicId}`);
+  }
+
+  /** Delete a SubTopic */
+  deleteSubTopic(subTopicId: number): Observable<void> {
+    return this.delete<void>(`subtopic/${subTopicId}`);
+  }
+
+  /** Delete a Lesson */
+  deleteLesson(lessonId: number): Observable<void> {
+    return this.delete<void>(`lesson/${lessonId}`);
+  }
+
   /** Move a lesson to a new subtopic */
   moveLesson(lessonId: number, newSubTopicId: number): Observable<any> {
-    return this.post<any>('Lesson/move', { lessonId, newSubTopicId });
+    return this.post<any>('lesson/move', { lessonId, newSubTopicId });
   }
 
   /** Move a subtopic to a new topic */
   moveSubTopic(subTopicId: number, newTopicId: number): Observable<any> {
-    return this.post<any>('SubTopic/move', { subTopicId, newTopicId });
+    return this.post<any>('subtopic/move', { subTopicId, newTopicId });
   }
 
   /** Move a topic to a new course */
   moveTopic(topicId: number, newCourseId: number): Observable<any> {
-    return this.post<any>('Topic/move', { topicId, newCourseId });
+    return this.post<any>('topic/move', { topicId, newCourseId });
   }
 
   /** Upload an attachment for a lesson */
   uploadAttachment(lessonId: number, file: File): Observable<Attachment> {
     const formData = new FormData();
     formData.append('file', file, file.name);
-    const url = `${this.baseUrl}/Lesson/${lessonId}/document`;
+    const url = `${this.baseUrl}/lesson/${lessonId}/document`;
+    console.log(`ApiService: Uploading attachment to ${url}`);
     return this.http.post<Attachment>(url, formData).pipe(
       catchError(this.handleError)
     );
@@ -144,7 +174,7 @@ export class ApiService {
     if (this.isTopic(entity)) {
       return `topic/${(entity as Topic).id}`;
     } else if (this.isSubTopic(entity)) {
-      return `subTopic/${(entity as SubTopic).id}`;
+      return `subtopic/${(entity as SubTopic).id}`;
     } else if (this.isLesson(entity)) {
       return `lesson/${(entity as Lesson).id}`;
     }

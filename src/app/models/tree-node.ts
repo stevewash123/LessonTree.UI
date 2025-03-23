@@ -12,19 +12,18 @@ export interface TreeNode {
     original?: Topic | SubTopic | Lesson;
     iconCss?: string; // Add for Syncfusion icon support
     [key: string]: any;
-  }
-  
+}
+
 export interface TopicMovedEvent {
     topic: Topic;
     sourceCourseId: number;
-    targetCourseId: number;
+    targetCourseId: number | null; // Changed to allow null
+    targetNodeId?: string; // Already optional, no change needed
 }
 
- 
 export interface NodeSelectedEvent {
     node: TreeNode;
 }
-
 
 // did this in another branch, but haven't needed to here yet. 
 // export interface SyncfusionNode {

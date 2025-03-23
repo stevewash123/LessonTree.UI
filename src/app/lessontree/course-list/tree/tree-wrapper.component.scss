@@ -19,3 +19,14 @@
   .selected-node {
     color: blue; /* Changes text color to blue */
   }
+  
+  :host ::ng-deep .e-treeview .e-list-item.e-active {
+    background-color: #e0f7fa; /* Light cyan background for selected node */
+    border: 1px solid #0288d1; /* Blue border for emphasis */
+    border-radius: 4px;
+}
+
+:host ::ng-deep .e-treeview .e-list-item.e-active .e-text-content {
+    color: #0288d1; /* Blue text color for selected node */
+    font-weight: bold;
+}

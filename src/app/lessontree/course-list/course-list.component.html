@@ -31,8 +31,10 @@
                   [courseId]="course.id"
                   [courseManagement]="this" 
                   [refreshTrigger]="refreshTrigger" 
+                  [activeNode]="activeNode"
                   (nodeDragStop)="onTopicMoved($event)"
                   (nodeSelected)="onNodeSelected($event)"
+                  (lessonMoved)="onLessonMoved($event)" 
                 ></app-tree>
               </div>
             } @else {  
@@ -44,4 +46,4 @@
     <div class="add-course-button">
       <button mat-raised-button color="primary" (click)="openAddCourseDialog()">Add Course</button>
     </div>    
-  </div>
+</div>

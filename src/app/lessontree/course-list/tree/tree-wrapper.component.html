@@ -1,5 +1,4 @@
-<!-- src/app/course/tree/tree.component.html -->
-<!-- Tree component template with lazy loading enabled -->
+<!-- src/app/lessontree/course-list/tree/tree-wrapper.component.html -->
 @if (courseId && topics.length > 0) {
     <ejs-treeview
         #treeview
@@ -8,11 +7,13 @@
         [enablePersistence]="true"
         [allowDragAndDrop]="true"
         [fullRowSelect]="true"
-        [enablePersistence]="true"
-        [loadOnDemand]="true"
+        [loadOnDemand]="false"
+        [expandOn]="'click'"
         [nodeTemplate]="nodeTemplate"
+        (nodeDragStart)="onNodeDragStart($event)"
+        (nodeDragging)="nodeDragging($event)"
         (nodeDragStop)="onNodeDragStop($event)"
-        (nodeExpanding)="onNodeExpanding($event)"
+        (nodeSelected)="emitNodeSelected($event)"
         (dataBound)="onDataBound()"
     ></ejs-treeview>
 } @else {
@@ -31,4 +32,4 @@
         </button>
       </span>
     </div>
-  </ng-template>
+</ng-template>

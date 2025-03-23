@@ -2,14 +2,14 @@
 import { Component } from '@angular/core';
 import { InfoPanelComponent } from '../info-panel/info-panel.component';
 import { SplitComponent, SplitAreaComponent } from 'angular-split'; // Import standalone components
-import { CourseListPanelComponent } from '../course-list/course-list.component';
+import { CourseListComponent } from '../course-list/course-list.component';
 import { TreeNode } from '../../models/tree-node';
 
 @Component({
     selector: 'lesson-tree-container',
     standalone: true,
     imports: [
-      CourseListPanelComponent,
+      CourseListComponent,
       InfoPanelComponent,
       SplitComponent, 
       SplitAreaComponent
