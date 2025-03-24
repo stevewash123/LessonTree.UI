@@ -1,14 +1,14 @@
-<!-- src/app/lessontree/course-list/tree/tree-wrapper.component.html -->
 @if (courseId && topics.length > 0) {
     <ejs-treeview
         #treeview
         id="treeview-{{courseId}}"
         [fields]="treeFields"
-        [enablePersistence]="true"
+        [enablePersistence]="false"
         [allowDragAndDrop]="true"
         [fullRowSelect]="true"
         [loadOnDemand]="false"
         [expandOn]="'click'"
+        [autoCheck]="false"
         [nodeTemplate]="nodeTemplate"
         (nodeDragStart)="onNodeDragStart($event)"
         (nodeDragging)="nodeDragging($event)"
@@ -19,6 +19,20 @@
 } @else {
     <p>No tree data available. Check console logs for details.</p>
 }
+
+<ng-template #nodeTemplate let-data>
+    <div class="node-container">
+      <span>{{data.text}}</span>
+      <span class="node-actions">
+        <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete">
+          <mat-icon>delete</mat-icon>
+        </button>
+        <button mat-icon-button (click)="addChildNode(data); $event.stopPropagation()" matTooltip="Add Child">
+          <mat-icon>add_circle</mat-icon>
+        </button>
+      </span>
+    </div>
+</ng-template>
 
 <ng-template #nodeTemplate let-data>
     <div class="node-container">

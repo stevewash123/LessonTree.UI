@@ -53,6 +53,9 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
     private topicsSubject = new BehaviorSubject<Topic[] | null>(null);
     private viewInitializedSubject = new BehaviorSubject<boolean>(false);
     private initializationSubscription: Subscription | null = null;
+    private isProgrammaticSelection: boolean = false;
+
+
 
     constructor(
         private apiService: ApiService,
@@ -79,17 +82,21 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         if (changes['refreshTrigger']) {
             this.refreshTrigger = changes['refreshTrigger'].currentValue;
         }
-        if (changes['activeNode'] && this.syncFuncTree) {
+        if (changes['activeNode']) {
             const newActiveNode = changes['activeNode'].currentValue as TreeNode | null;
             if (newActiveNode && newActiveNode.id !== this.activeNodeId) {
                 this.activeNodeId = newActiveNode.id;
                 console.log(`[${this.courseId}] ngOnChanges: Active node changed to ${this.activeNodeId}`);
-                this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
+                if (this.syncFuncTree) {
+                    this.isProgrammaticSelection = true; // Flag to prevent loop
+                    this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
+                    console.log(`[${this.courseId}] ngOnChanges: Set selectedNodes to ${this.activeNodeId}`);
+                }
             }
         }
-
+    
         this.cdr.detectChanges();
-
+    
         if (this.isViewInitialized && this.syncFuncTree) {
             console.log(`[${this.courseId}] ngOnChanges: Updating tree data`);
             this.updateTreeData(this.topics);
@@ -118,6 +125,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         }
     }
 
+    // Modify updateTreeData to set expanded state
     private updateTreeData(topics: Topic[] = this.topics) {
         console.log(`[${this.courseId}] updateTreeData: Updating with topics`, topics);
         const newTreeData = topics.map(t => {
@@ -161,7 +169,6 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
             return;
         }
     
-        // Recursively log the entire tree structure
         const logTree = (nodes: TreeNode[], level: number = 0): any[] => {
             return nodes.map(n => ({
                 level,
@@ -181,7 +188,25 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
             this.syncFuncTree.dataBind();
         }
     }
-    
+
+    // Update onDataBound to ensure correct node selection
+    public onDataBound() {
+        console.log(`[${this.courseId}] onDataBound: Tree data bound, activeNodeId: ${this.activeNodeId}`);
+        
+        if (this.syncFuncTree && this.activeNodeId) {
+            this.isProgrammaticSelection = true; // Flag to prevent loop
+            this.syncFuncTree.selectedNodes = [this.activeNodeId];
+            console.log(`[${this.courseId}] onDataBound: Set selectedNodes to ${this.activeNodeId}, actual selectedNodes:`, this.syncFuncTree.selectedNodes);
+        } else if (!this.activeNodeId) {
+            console.warn(`[${this.courseId}] onDataBound: No activeNodeId set`);
+            if (this.syncFuncTree) {
+                this.isProgrammaticSelection = true; // Flag to prevent loop
+                this.syncFuncTree.selectedNodes = [];
+                console.log(`[${this.courseId}] onDataBound: Cleared selectedNodes`);
+            }
+        }
+    }
+
     private validateTreeData(data: TreeNode[]): boolean {
         const isValid = Array.isArray(data) && data.every(node => 
             node.id && 
@@ -195,28 +220,6 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         return isValid;
     }
 
-    public emitNodeSelected(args: any) {
-        const nodeId = args.nodeData.id;
-        console.log(`[${this.courseId}] emitNodeSelected: Node selected: ${nodeId}`);
-        const node = this.findNodeById(this.treeData, nodeId);
-        if (node) {
-            this.activeNodeId = nodeId;
-            if (this.syncFuncTree) {
-                this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
-            }
-            this.nodeSelected.emit({ node });
-        } else {
-            console.warn(`[${this.courseId}] emitNodeSelected: Node not found: ${nodeId}`);
-        }
-    }
-
-    public onDataBound() {
-        console.log(`[${this.courseId}] onDataBound: Tree data bound`);
-        if (this.syncFuncTree && this.activeNodeId) {
-            this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
-        }
-    }
-
     public onNodeDragStart(args: any) {
         console.log(`[${this.courseId}] onNodeDragStart: Drag started for node: ${args.draggedNodeData.id}`);
         this.dragStartX = args.event.pageX;
@@ -224,6 +227,29 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         this.allowDrag = false;
     }
 
+    public emitNodeSelected(args: any) {
+        const nodeId = args.nodeData.id;
+        console.log(`[${this.courseId}] emitNodeSelected: Node selected: ${nodeId}, isProgrammatic: ${this.isProgrammaticSelection}`);
+        
+        // Skip emitting if this is a programmatic selection
+        if (this.isProgrammaticSelection) {
+            this.isProgrammaticSelection = false;
+            return;
+        }
+    
+        const node = this.findNodeById(this.treeData, nodeId);
+        if (node) {
+            this.activeNodeId = nodeId;
+            if (this.syncFuncTree) {
+                this.isProgrammaticSelection = true; // Flag to prevent loop
+                this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
+            }
+            this.nodeSelected.emit({ node });
+        } else {
+            console.warn(`[${this.courseId}] emitNodeSelected: Node not found: ${nodeId}`);
+        }
+    }
+    
     public nodeDragging(args: any) {
         const currentX = args.event.pageX;
         const currentY = args.event.pageY;
