@@ -46,152 +46,152 @@ export class CourseListComponent implements OnInit {
         this.loadCourses();
     }
 
-    // loadCourses() {
-    //     console.log('Loading courses from API');
-    //     this.apiService.get<Course[]>('course').subscribe({
-    //         next: (courses) => {
-    //             this.courses = courses;
-    //             console.log('Courses loaded successfully:', courses);
-    //         },
-    //         error: (err) => {
-    //             console.error('Failed to load courses:', err);
-    //             this.toastr.error('Failed to load courses: ' + err.message, 'Error', { timeOut: 0 });
-    //         }
-    //     });
-    // }
-
     loadCourses() {
-        console.log('Loading courses with hardcoded data');
-        this.courses = [
-            {
-                id: 1,
-                nodeId: 'course_1',
-                title: 'High School English',
-                description: 'A comprehensive English course for high school students.',
-                hasChildren: true, // Has topics
-                topics: [
-                    {
-                        id: 1,
-                        nodeId: 'topic_1',
-                        courseId: 1,
-                        title: 'Literature',
-                        description: 'Exploring classic and modern literary works.',
-                        hasSubTopics: false,
-                        hasChildren: true, // Has lessons
-                        lessons: [
-                            {
-                                id: 1,
-                                nodeId: 'lesson_1',
-                                courseId: 1,
-                                subTopicId: 0,
-                                title: 'The Great Gatsby',
-                                objective: 'Analyze themes in The Great Gatsby.'
-                            },
-                            {
-                                id: 2,
-                                nodeId: 'lesson_2',
-                                courseId: 1,
-                                subTopicId: 0,
-                                title: 'To Kill a Mockingbird',
-                                objective: 'Discuss social issues in To Kill a Mockingbird.'
-                            }
-                        ]
-                    },
-                    {
-                        id: 2,
-                        nodeId: 'topic_2',
-                        courseId: 1,
-                        title: 'Writing',
-                        description: 'Developing writing skills for essays and creative works.',
-                        hasSubTopics: false,
-                        hasChildren: true, // Has lessons
-                        lessons: [
-                            {
-                                id: 3,
-                                nodeId: 'lesson_3',
-                                courseId: 1,
-                                subTopicId: 0,
-                                title: 'Essay Structure',
-                                objective: 'Learn the structure of a five-paragraph essay.'
-                            },
-                            {
-                                id: 4,
-                                nodeId: 'lesson_4',
-                                courseId: 1,
-                                subTopicId: 0,
-                                title: 'Creative Writing',
-                                objective: 'Practice writing short stories.'
-                            }
-                        ]
-                    }
-                ]
+        console.log('Loading courses from API');
+        this.apiService.get<Course[]>('course').subscribe({
+            next: (courses) => {
+                this.courses = courses;
+                console.log('Courses loaded successfully:', courses);
             },
-            {
-                id: 2,
-                nodeId: 'course_2',
-                title: 'High School Math',
-                description: 'A comprehensive math course for high school students.',
-                hasChildren: true, // Has topics
-                topics: [
-                    {
-                        id: 3,
-                        nodeId: 'topic_3',
-                        courseId: 2,
-                        title: 'Algebra',
-                        description: 'Fundamentals of algebra for high school students.',
-                        hasSubTopics: false,
-                        hasChildren: true, // Has lessons
-                        lessons: [
-                            {
-                                id: 5,
-                                nodeId: 'lesson_5',
-                                courseId: 2,
-                                subTopicId: 0,
-                                title: 'Linear Equations',
-                                objective: 'Solve linear equations and graph them.'
-                            },
-                            {
-                                id: 6,
-                                nodeId: 'lesson_6',
-                                courseId: 2,
-                                subTopicId: 0,
-                                title: 'Quadratic Equations',
-                                objective: 'Solve quadratic equations using factoring.'
-                            }
-                        ]
-                    },
-                    {
-                        id: 4,
-                        nodeId: 'topic_4',
-                        courseId: 2,
-                        title: 'Geometry',
-                        description: 'Introduction to geometric concepts and proofs.',
-                        hasSubTopics: false,
-                        hasChildren: true, // Has lessons
-                        lessons: [
-                            {
-                                id: 7,
-                                nodeId: 'lesson_7',
-                                courseId: 2,
-                                subTopicId: 0,
-                                title: 'Triangles',
-                                objective: 'Understand properties of triangles.'
-                            },
-                            {
-                                id: 8,
-                                nodeId: 'lesson_8',
-                                courseId: 2,
-                                subTopicId: 0,
-                                title: 'Circles',
-                                objective: 'Explore properties of circles and arcs.'
-                            }
-                        ]
-                    }
-                ]
+            error: (err) => {
+                console.error('Failed to load courses:', err);
+                this.toastr.error('Failed to load courses: ' + err.message, 'Error', { timeOut: 0 });
             }
-        ];
-        console.log('Courses loaded with hardcoded data:', this.courses);
+        });
     }
+
+    // loadCourses() {
+    //     console.log('Loading courses with hardcoded data');
+    //     this.courses = [
+    //         {
+    //             id: 1,
+    //             nodeId: 'course_1',
+    //             title: 'High School English',
+    //             description: 'A comprehensive English course for high school students.',
+    //             hasChildren: true, // Has topics
+    //             topics: [
+    //                 {
+    //                     id: 1,
+    //                     nodeId: 'topic_1',
+    //                     courseId: 1,
+    //                     title: 'Literature',
+    //                     description: 'Exploring classic and modern literary works.',
+    //                     hasSubTopics: false,
+    //                     hasChildren: true, // Has lessons
+    //                     lessons: [
+    //                         {
+    //                             id: 1,
+    //                             nodeId: 'lesson_1',
+    //                             courseId: 1,
+    //                             subTopicId: 0,
+    //                             title: 'The Great Gatsby',
+    //                             objective: 'Analyze themes in The Great Gatsby.'
+    //                         },
+    //                         {
+    //                             id: 2,
+    //                             nodeId: 'lesson_2',
+    //                             courseId: 1,
+    //                             subTopicId: 0,
+    //                             title: 'To Kill a Mockingbird',
+    //                             objective: 'Discuss social issues in To Kill a Mockingbird.'
+    //                         }
+    //                     ]
+    //                 },
+    //                 {
+    //                     id: 2,
+    //                     nodeId: 'topic_2',
+    //                     courseId: 1,
+    //                     title: 'Writing',
+    //                     description: 'Developing writing skills for essays and creative works.',
+    //                     hasSubTopics: false,
+    //                     hasChildren: true, // Has lessons
+    //                     lessons: [
+    //                         {
+    //                             id: 3,
+    //                             nodeId: 'lesson_3',
+    //                             courseId: 1,
+    //                             subTopicId: 0,
+    //                             title: 'Essay Structure',
+    //                             objective: 'Learn the structure of a five-paragraph essay.'
+    //                         },
+    //                         {
+    //                             id: 4,
+    //                             nodeId: 'lesson_4',
+    //                             courseId: 1,
+    //                             subTopicId: 0,
+    //                             title: 'Creative Writing',
+    //                             objective: 'Practice writing short stories.'
+    //                         }
+    //                     ]
+    //                 }
+    //             ]
+    //         },
+    //         {
+    //             id: 2,
+    //             nodeId: 'course_2',
+    //             title: 'High School Math',
+    //             description: 'A comprehensive math course for high school students.',
+    //             hasChildren: true, // Has topics
+    //             topics: [
+    //                 {
+    //                     id: 3,
+    //                     nodeId: 'topic_3',
+    //                     courseId: 2,
+    //                     title: 'Algebra',
+    //                     description: 'Fundamentals of algebra for high school students.',
+    //                     hasSubTopics: false,
+    //                     hasChildren: true, // Has lessons
+    //                     lessons: [
+    //                         {
+    //                             id: 5,
+    //                             nodeId: 'lesson_5',
+    //                             courseId: 2,
+    //                             subTopicId: 0,
+    //                             title: 'Linear Equations',
+    //                             objective: 'Solve linear equations and graph them.'
+    //                         },
+    //                         {
+    //                             id: 6,
+    //                             nodeId: 'lesson_6',
+    //                             courseId: 2,
+    //                             subTopicId: 0,
+    //                             title: 'Quadratic Equations',
+    //                             objective: 'Solve quadratic equations using factoring.'
+    //                         }
+    //                     ]
+    //                 },
+    //                 {
+    //                     id: 4,
+    //                     nodeId: 'topic_4',
+    //                     courseId: 2,
+    //                     title: 'Geometry',
+    //                     description: 'Introduction to geometric concepts and proofs.',
+    //                     hasSubTopics: false,
+    //                     hasChildren: true, // Has lessons
+    //                     lessons: [
+    //                         {
+    //                             id: 7,
+    //                             nodeId: 'lesson_7',
+    //                             courseId: 2,
+    //                             subTopicId: 0,
+    //                             title: 'Triangles',
+    //                             objective: 'Understand properties of triangles.'
+    //                         },
+    //                         {
+    //                             id: 8,
+    //                             nodeId: 'lesson_8',
+    //                             courseId: 2,
+    //                             subTopicId: 0,
+    //                             title: 'Circles',
+    //                             objective: 'Explore properties of circles and arcs.'
+    //                         }
+    //                     ]
+    //                 }
+    //             ]
+    //         }
+    //     ];
+    //     console.log('Courses loaded with hardcoded data:', this.courses);
+    // }
 
     toggleCourse(courseNodeId: string) {
         const course = this.courses.find(c => c.nodeId === courseNodeId);
