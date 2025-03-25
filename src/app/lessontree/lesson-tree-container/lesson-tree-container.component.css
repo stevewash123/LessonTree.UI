@@ -1,4 +1,3 @@
-/* src/app/lesson-tree-container/lesson-tree-container.component.scss */
 :host {
     display: block;
     height: calc(100vh - 64px); /* Adjust for toolbar height (64px is Material toolbar default) */
@@ -13,6 +12,33 @@
   as-split-area {
     overflow-y: auto; /* Scroll if content overflows */
     padding: 16px; /* Optional padding */
+    position: relative; /* Allow absolute positioning of overlay */
+  }
+  
+  .left-split-area {
+    position: relative; /* Ensure overlay stays within this area */
+  }
+  
+  /* Disable interactions only when disabled class is applied */
+  .left-split-area.disabled {
+    pointer-events: none; /* Disable interactions on CourseList when overlay is active */
+  }
+  
+  /* Overlay styling */
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Increased opacity for visibility */
+    z-index: 10; /* Above CourseList content */
+    pointer-events: auto; /* Overlay captures events */
+  }
+  
+  /* Ensure CourseList is interactive by default */
+  .left-split-area course-list {
+    pointer-events: auto; /* Explicitly enable unless disabled */
   }
   
   /* Optional: Customize the splitter (gutter) */
@@ -25,7 +51,7 @@
   as-split ::ng-deep .as-split-gutter:hover {
     background-color: #999;
   }
-
+  
   .main-container {
     margin-top: 20px;
     display: flex;
@@ -43,4 +69,3 @@
     padding: 10px;
     text-align: center;
   }
-  

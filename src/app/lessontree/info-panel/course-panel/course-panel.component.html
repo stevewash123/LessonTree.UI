@@ -1,5 +1,41 @@
-@if(data){
-    <h2>{{ data.title }}</h2>
-    <p>{{ data.description }}</p>
-    <button mat-raised-button color="primary" (click)="onAddTopic()">Add Topic</button>
-}
+<div class="course-panel-wrapper">
+    <h2 class="panel-title">Course</h2>
+    @if (data) {
+      <div class="course-card">
+        <form>
+          <div class="form-group">
+            <label for="title">Title:</label>
+            <input
+              id="title"
+              [readonly]="!isEditing"
+              [(ngModel)]="data.title"
+              name="title"
+              [ngClass]="{'editing': isEditing}"
+            />
+          </div>
+          <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea
+              id="description"
+              [readonly]="!isEditing"
+              [(ngModel)]="data.description"
+              name="description"
+              [ngClass]="{'editing': isEditing}"
+            ></textarea>
+          </div>
+          @if (!isEditing) {
+            <div class="buttons">
+              <button (click)="enterEditMode()">Edit</button>
+              <button (click)="onAddTopic()">Add Topic</button>
+            </div>
+          }
+          @if (isEditing) {
+            <div class="buttons">
+              <button (click)="save()">Save</button>
+              <button (click)="cancel()">Cancel</button>
+            </div>
+          }
+        </form>
+      </div>
+    }
+  </div>

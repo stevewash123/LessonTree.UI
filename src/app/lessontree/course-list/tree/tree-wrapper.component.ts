@@ -36,6 +36,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
     @Input() courseManagement!: CourseListComponent;
     @Input() refreshTrigger!: boolean;
     @Input() activeNode: TreeNode | null = null;
+    @Input() newNode: TreeNode | null = null;
     @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
     @Output() nodeSelected = new EventEmitter<NodeSelectedEvent>();
     @Output() lessonMoved = new EventEmitter<LessonMovedEvent>();
@@ -95,6 +96,11 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
                 }
             }
         }
+        if (changes['newNode'] && changes['newNode'].currentValue) {
+            const newNode = changes['newNode'].currentValue as TreeNode;
+            this.selectNode(newNode.id);
+            console.log(`[${this.courseId}] ngOnChanges: Selecting new node ${newNode.id}`);
+          }
     
         this.cdr.detectChanges();
     
@@ -188,6 +194,10 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
             console.log(`[${this.courseId}] updateTreeData: Binding data`);
             this.syncFuncTree.dataBind();
         }
+        if (this.newNode) {
+            this.selectNode(this.newNode.id);
+            this.newNode = null; // Clear after selection
+          }
     }
 
     // Update onDataBound to ensure correct node selection
@@ -391,6 +401,8 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
           return;
         }
       
+        const previousActiveNodeId = this.activeNodeId; // Preserve current selection
+      
         if (node.nodeType === 'Topic') {
           const topic = node.original as Topic;
           if (topic.hasSubTopics) {
@@ -404,7 +416,24 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
           console.log(`[${this.courseId}] addChildNode: Emitting Lesson request for SubTopic ${nodeId}`);
           this.addNodeRequested.emit({ parentNode: node, nodeType: 'Lesson' });
         }
-    }
+      
+        // Restore previous selection if not replaced by new node
+        if (previousActiveNodeId && this.syncFuncTree) {
+          this.activeNodeId = previousActiveNodeId;
+          this.isProgrammaticSelection = true;
+          this.syncFuncTree.selectedNodes = [previousActiveNodeId];
+          console.log(`[${this.courseId}] addChildNode: Restored selection to ${previousActiveNodeId}`);
+        }
+      }
+
+    public selectNode(nodeId: string) {
+        if (this.syncFuncTree) {
+          this.activeNodeId = nodeId;
+          this.isProgrammaticSelection = true;
+          this.syncFuncTree.selectedNodes = [nodeId];
+          console.log(`[${this.courseId}] selectNode: Selected node ${nodeId}`);
+        }
+      }
 
     public deleteNode(data: any) {
         console.log(`[${this.courseId}] deleteNode: Deleting node`, data);

@@ -1,8 +1,8 @@
 .material-icons {
     font-family: 'Material Icons';
-    font-size: 24px; /* Increased from 16px */
+    font-size: 24px;
     vertical-align: middle;
-    margin-right: 8px; /* Adjusted for larger size */
+    margin-right: 8px;
   }
   
   .topic-icon::before {
@@ -16,17 +16,40 @@
   .lesson-icon::before {
     content: 'assignment';
   }
+  
   .selected-node {
-    color: blue; /* Changes text color to blue */
+    color: blue; /* Retained for text color */
   }
   
+  /* Base tree item styling */
+  :host ::ng-deep .e-treeview .e-list-item {
+    padding: 4px 8px; /* Add some padding for better spacing */
+  }
+  
+  /* Light shading for different node types */
+  :host ::ng-deep .e-treeview .e-list-item .e-text-content.topic-icon {
+    background-color: #e8f5e9; /* Light green for Topics */
+    border-radius: 4px;
+  }
+  
+  :host ::ng-deep .e-treeview .e-list-item .e-text-content.subtopic-icon {
+    background-color: #e3f2fd; /* Light blue for SubTopics */
+    border-radius: 4px;
+  }
+  
+  :host ::ng-deep .e-treeview .e-list-item .e-text-content.lesson-icon {
+    background-color: #fff3e0; /* Light orange for Lessons */
+    border-radius: 4px;
+  }
+  
+  /* Selected node styling */
   :host ::ng-deep .e-treeview .e-list-item.e-active {
     background-color: #e0f7fa; /* Light cyan background for selected node */
-    border: 1px solid #0288d1; /* Blue border for emphasis */
+    border: 1px solid #0288d1; /* Blue border */
     border-radius: 4px;
-}
-
-:host ::ng-deep .e-treeview .e-list-item.e-active .e-text-content {
-    color: #0288d1; /* Blue text color for selected node */
+  }
+  
+  :host ::ng-deep .e-treeview .e-list-item.e-active .e-text-content {
+    color: #0288d1; /* Blue text color */
     font-weight: bold;
-}
+  }

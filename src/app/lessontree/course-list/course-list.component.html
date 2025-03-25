@@ -10,8 +10,8 @@
             >
               {{ expandedCourseIds.includes(course.nodeId) ? 'expand_more' : 'chevron_right' }}
             </mat-icon>
-            <span class="course-title">{{ course.title }}</span>
-            <span class="course-description">{{ course.description }}</span>
+            <span class="course-title" (click)="selectCourse(course)">{{ course.title }}</span>
+            <span class="course-description" (click)="selectCourse(course)">{{ course.description }}</span>
             <span class="course-actions">
               <button mat-icon-button (click)="deleteCourse(course.id)" matTooltip="Delete Course">
                 <mat-icon>delete</mat-icon>
@@ -24,27 +24,28 @@
           </div>
         </mat-list-item>
         @if (expandedCourseIds.includes(course.nodeId)) {  
-            @if (course.topics) {  
-              <div class="tree-view-container">
-                <app-tree 
-                  [topics]="course.topics" 
-                  [courseId]="course.id"
-                  [courseManagement]="this" 
-                  [refreshTrigger]="refreshTrigger" 
-                  [activeNode]="activeNode"
-                  (nodeDragStop)="onTopicMoved($event)"
-                  (nodeSelected)="onNodeSelected($event)"
-                  (lessonMoved)="onLessonMoved($event)" 
-                  (addNodeRequested)="onAddNodeRequested($event)"
-                ></app-tree>
-              </div>
-            } @else {  
-              <p>Loading topics...</p>
-            }
+          @if (course.topics) {  
+            <div class="tree-view-container">
+              <app-tree
+                [topics]="course.topics"
+                [courseId]="course.id"
+                [courseManagement]="this"
+                [refreshTrigger]="refreshTrigger"
+                [activeNode]="treeActiveNode" 
+                [newNode]="newNode"
+                (nodeDragStop)="onTopicMoved($event)"
+                (nodeSelected)="onNodeSelected($event)"
+                (lessonMoved)="onLessonMoved($event)"
+                (addNodeRequested)="onAddNodeRequested($event)"
+              ></app-tree>
+            </div>
+          } @else {  
+            <p>Loading topics...</p>
           }
+        }
       </mat-card>
     }
     <div class="add-course-button">
       <button mat-raised-button color="primary" (click)="openAddCourseDialog()">Add Course</button>
     </div>    
-</div>
+  </div>

@@ -9,7 +9,7 @@ export interface Lesson {
     subTopicId: number;
     title: string;
     objective: string;
-  }
+}
 
 export function createLessonNode(lesson: Lesson): TreeNode {
   return {
@@ -22,13 +22,8 @@ export function createLessonNode(lesson: Lesson): TreeNode {
   };
 }
 
-export interface LessonDetail {
-    id: number;
-    subTopicId: number;
-    courseId: number;
-    title: string;
+export interface LessonDetail extends Lesson { // Extend Lesson
     level: string;
-    objective: string;
     materials: string;
     classTime: string;
     methods: string;
@@ -36,4 +31,4 @@ export interface LessonDetail {
     assessment: string;
     standards: Standard[];
     attachments: Attachment[];
-  }
+}

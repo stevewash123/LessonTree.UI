@@ -32,6 +32,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
 
   @Input() mode: PanelMode = 'view';
   @Output() modeChange = new EventEmitter<boolean>();
+  @Output() lessonAdded = new EventEmitter<LessonDetail>(); // New output for when a Lesson is added
   isEditing: boolean = false;
   originalLessonDetail: LessonDetail | null = null;
 
@@ -74,12 +75,13 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
           Object.assign(this.lessonDetail, createdLesson);
           this.isEditing = false;
           this.modeChange.emit(false);
+          this.lessonAdded.emit(createdLesson);
           console.log(`[LessonInfoPanel] Lesson created: ${createdLesson.title}`);
         },
         error: (error) => console.error(`[LessonInfoPanel] Error creating lesson: ${error}`)
       });
     } else {
-      this.apiService.put<LessonDetail>(this.lessonDetail).subscribe({
+      this.apiService.put<LessonDetail>(`lesson/${this.lessonDetail.id}`, this.lessonDetail).subscribe({
         next: (updatedLesson) => {
           Object.assign(this.lessonDetail, updatedLesson);
           this.isEditing = false;

@@ -76,13 +76,13 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
           Object.assign(this.data, createdSubTopic);
           this.isEditing = false;
           this.modeChange.emit(false);
-          this.subTopicAdded.emit(createdSubTopic); // Emit new SubTopic
+          this.subTopicAdded.emit(createdSubTopic);
           console.log(`[SubtopicPanel] SubTopic created: ${createdSubTopic.title}`);
         },
         error: (error) => console.error(`[SubtopicPanel] Error creating subtopic: ${error}`)
       });
     } else {
-      this.apiService.put<SubTopic>(this.data).subscribe({
+      this.apiService.put<SubTopic>(`subtopic/${this.data.id}`, this.data).subscribe({
         next: (updatedSubTopic) => {
           Object.assign(this.data, updatedSubTopic);
           this.isEditing = false;
@@ -94,7 +94,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
       });
     }
   }
-
+  
   cancel() {
     if (this.data && this.originalData && this.mode === 'edit') {
       Object.assign(this.data, this.originalData);

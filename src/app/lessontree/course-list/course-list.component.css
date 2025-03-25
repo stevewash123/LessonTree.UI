@@ -101,3 +101,18 @@ button[mat-raised-button] {
     background-color: #d0f0d0 !important; /* Match course-item.drag-over */
     border: 2px dashed #4caf50 !important;
 }
+
+.disabled-container {
+    position: relative; /* Ensure the overlay stays within this container */
+    pointer-events: none; /* Disable all interactions */
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black shadow */
+    z-index: 10; /* Ensure it’s above other content */
+  }

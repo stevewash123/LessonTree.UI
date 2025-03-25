@@ -1,16 +1,17 @@
+import { Course } from "./course";
 import { Lesson } from "./lesson";
 import { SubTopic } from "./subTopic";
 import { Topic } from "./topic";
 
 export interface TreeNode {
     id: string;
-    nodeType?: 'Topic' | 'SubTopic' | 'Lesson';
+    nodeType?: 'Course' | 'Topic' | 'SubTopic' | 'Lesson'; // Added 'Course'
     hasChildren?: boolean;
     text: string;
     expanded?: boolean;
     child?: TreeNode[];
-    original?: Topic | SubTopic | Lesson;
-    iconCss?: string; // Add for Syncfusion icon support
+    original?: Course | Topic | SubTopic | Lesson; // Added Course
+    iconCss?: string;
     [key: string]: any;
 }
 
