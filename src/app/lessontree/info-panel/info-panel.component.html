@@ -1,13 +1,26 @@
-@if(activeNode){
-    @if(activeNode.nodeType === 'Topic' && data){
-        <topic-panel [data]="topic" (modeChange)="handleModeChange($event)"></topic-panel>
+<div class="info-panel-wrapper">
+    @if (activeNode || mode === 'add') {
+      @if ((activeNode?.nodeType === 'Topic' && mode !== 'add') || (mode === 'add' && addNodeType === 'Topic')) {
+        @if (topic) {
+          <topic-panel [data]="topic" [mode]="mode" (modeChange)="handleModeChange($event)"></topic-panel>
+        }
+      }
+      @if ((activeNode?.nodeType === 'SubTopic' && mode !== 'add') || (mode === 'add' && addNodeType === 'SubTopic')) {
+        @if (subtopic) {
+          <subtopic-panel
+            [data]="subtopic"
+            [mode]="mode"
+            (modeChange)="handleModeChange($event)"
+            (subTopicAdded)="onSubTopicAdded($event)"
+          ></subtopic-panel>
+        }
+      }
+      @if ((activeNode?.nodeType === 'Lesson' && mode !== 'add') || (mode === 'add' && addNodeType === 'Lesson')) {
+        @if (lessonDetail) {
+          <lesson-info-panel [lessonDetail]="lessonDetail" [mode]="mode" (modeChange)="handleModeChange($event)"></lesson-info-panel>
+        }
+      }
+    } @else {
+      <p>Select a node to view or add a new item.</p>
     }
-
-    @if(activeNode.nodeType === 'SubTopic' && data){
-        <subtopic-panel [data]="subtopic" (modeChange)="handleModeChange($event)"></subtopic-panel>
-    }
-
-    @if(activeNode.nodeType === 'Lesson' && data){
-        <lesson-info-panel [lessonDetail]="lessonDetail"></lesson-info-panel>
-    }
-}
+  </div>

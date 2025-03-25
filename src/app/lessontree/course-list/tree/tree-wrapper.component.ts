@@ -39,6 +39,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
     @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
     @Output() nodeSelected = new EventEmitter<NodeSelectedEvent>();
     @Output() lessonMoved = new EventEmitter<LessonMovedEvent>();
+    @Output() addNodeRequested = new EventEmitter<{ parentNode: TreeNode; nodeType: 'Topic' | 'SubTopic' | 'Lesson' }>();
 
     @ViewChild('treeview') syncFuncTree!: TreeViewComponent;
 
@@ -386,57 +387,22 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         const nodeId = data.id;
         const node = this.findNodeById(this.treeData, nodeId);
         if (!node) {
-            console.warn(`[${this.courseId}] addChildNode: Node not found: ${nodeId}`);
-            return;
+          console.warn(`[${this.courseId}] addChildNode: Node not found: ${nodeId}`);
+          return;
         }
-
+      
         if (node.nodeType === 'Topic') {
-            const topic = node.original as Topic;
-            const newSubTopic: SubTopic = {
-                id: 0,
-                nodeId: `subtopic_${Date.now()}`,
-                title: 'New SubTopic',
-                description: 'Placeholder description',
-                topicId: topic.id,
-                courseId: topic.courseId,
-                isDefault: false,
-                lessons: [],
-                hasChildren: false
-            };
-            this.apiService.createSubTopic(newSubTopic).subscribe({
-                next: (createdSubTopic: SubTopic) => {
-                    const subTopicNode = createSubTopicNode(createdSubTopic);
-                    if (this.syncFuncTree) {
-                        this.syncFuncTree.addNodes([subTopicNode], nodeId);
-                        this.updateTreeDataWithChildren(nodeId, (node.child || []).concat(subTopicNode));
-                        this.emitNodeSelected({ nodeData: { id: subTopicNode.id } });
-                        console.log(`[${this.courseId}] addChildNode: SubTopic added`, createdSubTopic);
-                    }
-                },
-                error: (err: any) => console.error(`[${this.courseId}] addChildNode: Failed to create SubTopic`, err)
-            });
+          const topic = node.original as Topic;
+          if (topic.hasSubTopics) {
+            console.log(`[${this.courseId}] addChildNode: Emitting SubTopic request for Topic ${nodeId} (hasSubTopics: true)`);
+            this.addNodeRequested.emit({ parentNode: node, nodeType: 'SubTopic' });
+          } else {
+            console.log(`[${this.courseId}] addChildNode: Emitting Lesson request for Topic ${nodeId} (hasSubTopics: false)`);
+            this.addNodeRequested.emit({ parentNode: node, nodeType: 'Lesson' });
+          }
         } else if (node.nodeType === 'SubTopic') {
-            const subTopic = node.original as SubTopic;
-            const newLesson: Lesson = {
-                id: 0,
-                nodeId: `lesson_${Date.now()}`,
-                courseId: subTopic.courseId,
-                subTopicId: subTopic.id,
-                title: 'New Lesson',
-                objective: 'Placeholder objective'
-            };
-            this.apiService.createLesson(newLesson).subscribe({
-                next: (createdLesson: Lesson) => {
-                    const lessonNode = createLessonNode(createdLesson);
-                    if (this.syncFuncTree) {
-                        this.syncFuncTree.addNodes([lessonNode], nodeId);
-                        this.updateTreeDataWithChildren(nodeId, (node.child || []).concat(lessonNode));
-                        this.emitNodeSelected({ nodeData: { id: lessonNode.id } });
-                        console.log(`[${this.courseId}] addChildNode: Lesson added`, createdLesson);
-                    }
-                },
-                error: (err: any) => console.error(`[${this.courseId}] addChildNode: Failed to create Lesson`, err)
-            });
+          console.log(`[${this.courseId}] addChildNode: Emitting Lesson request for SubTopic ${nodeId}`);
+          this.addNodeRequested.emit({ parentNode: node, nodeType: 'Lesson' });
         }
     }
 

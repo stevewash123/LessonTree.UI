@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, Output, EventEmitter } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, Output, EventEmitter, Input, SimpleChanges, OnChanges } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../core/services/api.service';
 import { Course } from '../../models/course';
@@ -29,8 +29,11 @@ import { Lesson } from '../../models/lesson';
     templateUrl: './course-list.component.html',
     styleUrls: ['./course-list.component.css']
 })
-export class CourseListComponent implements OnInit {
+export class CourseListComponent implements OnInit, OnChanges {
+    @Input() triggerRefresh: boolean = false;
     @Output() activeNodeChange = new EventEmitter<TreeNode>();
+    @Output() addNodeRequested = new EventEmitter<{ parentNode?: TreeNode; nodeType: 'Topic' | 'SubTopic' | 'Lesson'; courseId?: number }>();
+    
     courses: Course[] = [];
     expandedCourseIds: string[] = [];
     refreshTrigger: boolean = false;
@@ -45,6 +48,13 @@ export class CourseListComponent implements OnInit {
     ngOnInit() {
         this.loadCourses();
     }
+
+    ngOnChanges(changes: SimpleChanges) {
+        if (changes['triggerRefresh'] && changes['triggerRefresh'].currentValue) {
+          console.log('[CourseList] Triggering refresh due to new SubTopic');
+          this.loadCourses();
+        }
+      }
 
     loadCourses() {
         console.log('Loading courses from API');
@@ -248,12 +258,12 @@ export class CourseListComponent implements OnInit {
 
     private getCourseIdForNode(node: TreeNode | null): number | null {
         if (node && node.original) {
-            if (node.nodeType === 'Topic') return (node.original as Topic).courseId;
-            if (node.nodeType === 'SubTopic') return (node.original as SubTopic).courseId;
-            if (node.nodeType === 'Lesson') return (node.original as Lesson).courseId;
+          if (node.nodeType === 'Topic') return (node.original as Topic).courseId;
+          if (node.nodeType === 'SubTopic') return (node.original as SubTopic).courseId;
+          if (node.nodeType === 'Lesson') return (node.original as Lesson).courseId;
         }
         return null;
-    }
+      }
 
     onNodeSelected(event: NodeSelectedEvent) {
         this.activeNode = event.node;
@@ -272,7 +282,8 @@ export class CourseListComponent implements OnInit {
     }
 
     addTopic(courseId: number) {
-        console.log('addTopic: Add Topic to Course ID:', courseId);
+        console.log(`[CourseList] Requesting to add Topic to Course ID: ${courseId}`);
+        this.addNodeRequested.emit({ nodeType: 'Topic', courseId });
         this.toastr.info(`Adding topic to course with ID: ${courseId}`, 'Info');
     }
 
@@ -408,4 +419,13 @@ export class CourseListComponent implements OnInit {
         this.cdr.detectChanges();
         console.log('triggerChangeDetection: Triggered change detection, refreshTrigger:', this.refreshTrigger);
     }
+
+    onAddNodeRequested(event: { parentNode: TreeNode; nodeType: 'Topic' | 'SubTopic' | 'Lesson' }) {
+        console.log(`[CourseList] Add node requested: ${event.nodeType} under ${event.parentNode?.id || 'no parent'}`);
+        const courseId = this.getCourseIdForNode(event.parentNode) ?? undefined;
+        console.log(`[CourseList] Propagating addNodeRequested with courseId: ${courseId}`);
+        this.addNodeRequested.emit({ parentNode: event.parentNode, nodeType: event.nodeType, courseId });
+        // Removed loadCourses() to prevent state reset; refresh will happen after save
+      }
+
 }

@@ -32,7 +32,7 @@
               [ngClass]="{'editing': isEditing}"
             ></textarea>
           </div>
-          @if (!isEditing) {
+          @if (mode === 'view') {
             <div class="buttons">
               <button (click)="enterEditMode()">Edit</button>
             </div>
