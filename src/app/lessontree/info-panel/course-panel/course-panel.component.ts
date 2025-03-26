@@ -16,24 +16,24 @@ type PanelMode = 'view' | 'edit' | 'add';
   styleUrls: ['./course-panel.component.css']
 })
 export class CoursePanelComponent implements OnChanges, OnInit {
-  private _data: Course | null = null;
+    private _data: Course | null = null;
 
-  @Input()
-  set data(value: Course | null) {
-    this._data = value;
-    console.log(`[CoursePanel] Data set: ${this._data?.title || 'New Course'}`);
-  }
-  get data(): Course | null {
-    return this._data;
-  }
+    @Input()
+    set data(value: Course | null) {
+        this._data = value;
+        console.log(`[CoursePanel] Data set`, { title: this._data?.title ?? 'New Course', timestamp: new Date().toISOString() });
+    }
+    get data(): Course | null {
+        return this._data;
+    }
 
-  @Input() mode: PanelMode = 'view';
-  @Output() modeChange = new EventEmitter<boolean>();
-  @Output() courseAdded = new EventEmitter<Course>(); // Emit when a new course is added
-  @Output() addNode = new EventEmitter<TreeNode>(); // For adding a Topic under the course
-
-  isEditing: boolean = false;
-  originalData: Course | null = null;
+    @Input() mode: PanelMode = 'view';
+    @Output() modeChange = new EventEmitter<boolean>();
+    @Output() courseAdded = new EventEmitter<Course>();
+    @Output() addNode = new EventEmitter<TreeNode>();
+  
+    isEditing: boolean = false;
+    originalData: Course | null = null;
 
   constructor(private apiService: ApiService) {}
 
@@ -71,26 +71,26 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.apiService.post<Course>('course', this.data).subscribe({
+      this.apiService.createCourse(this.data).subscribe({
         next: (createdCourse) => {
-          Object.assign(this.data!, createdCourse);
+          this.data = createdCourse; // Replace, don’t merge
           this.isEditing = false;
           this.modeChange.emit(false);
           this.courseAdded.emit(createdCourse);
-          console.log(`[CoursePanel] Course created: ${createdCourse.title}`);
+          console.log(`[CoursePanel] Course created`, { title: createdCourse.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[CoursePanel] Error creating course: ${error}`)
+        error: (error) => console.error(`[CoursePanel] Error creating course`, { error, timestamp: new Date().toISOString() })
       });
     } else {
-      this.apiService.put<Course>(`course/${this.data.id}`, this.data).subscribe({ // Added endpoint
+      this.apiService.updateCourse(this.data).subscribe({
         next: (updatedCourse) => {
-          Object.assign(this.data!, updatedCourse);
+          this.data = updatedCourse; // Replace, don’t merge
           this.isEditing = false;
           this.modeChange.emit(false);
           this.originalData = null;
-          console.log(`[CoursePanel] Course updated: ${updatedCourse.title}`);
+          console.log(`[CoursePanel] Course updated`, { title: updatedCourse.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[CoursePanel] Error updating course: ${error}`)
+        error: (error) => console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() })
       });
     }
   }

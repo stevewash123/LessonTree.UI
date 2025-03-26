@@ -19,23 +19,24 @@
   } @else {
     <p>No tree data available. Check console logs for details.</p>
   }
+
   
   <ng-template #nodeTemplate let-data>
     <div class="node-container">
-      <span>{{data.text}}</span>
-      <span class="node-actions">
-        <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete">
-          <mat-icon>delete</mat-icon>
-        </button>
-        @if (data.nodeType === 'Topic' || data.nodeType === 'SubTopic') {
-          <button
-            mat-icon-button
-            (click)="addChildNode(data); $event.stopPropagation()"
-            [matTooltip]="data.nodeType === 'SubTopic' ? 'Add Lesson' : (data.original.hasSubTopics ? 'Add SubTopic' : 'Add Lesson')"
-          >
-            <mat-icon>add_circle</mat-icon>
-          </button>
-        }
-      </span>
+        <span>{{data.text}}</span>
+        <span class="node-actions">
+            <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete">
+                <mat-icon>delete</mat-icon>
+            </button>
+            @if (data.nodeType === 'Topic' || data.nodeType === 'SubTopic') {
+                <button
+                    mat-icon-button
+                    (click)="addChildNode(data); $event.stopPropagation()"
+                    [matTooltip]="data.nodeType === 'SubTopic' ? 'Add Lesson' : ((data.original.subTopics?.length ?? 0) > 0 ? 'Add SubTopic' : 'Add Lesson')"
+                >
+                    <mat-icon>add_circle</mat-icon>
+                </button>
+            }
+        </span>
     </div>
-  </ng-template>
+</ng-template>

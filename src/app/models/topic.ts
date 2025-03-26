@@ -8,20 +8,19 @@ export interface Topic {
     title: string;
     description: string;
     courseId: number;
-    hasSubTopics: boolean;
-    hasChildren: boolean;
+    hasChildren: boolean; // Removed hasSubTopics per API update
     subTopics?: SubTopic[];
     lessons?: Lesson[];
-  }
-  
-  export function createTopicNode(topic: Topic): TreeNode {
+    visibility: string;
+}
+
+export function createTopicNode(topic: Topic): TreeNode {
     return {
-      id: topic.nodeId,
-      text: topic.title,
-      nodeType: 'Topic',
-      hasChildren: topic.hasChildren,
-      //child: topic.subTopics.map(subTopic => createSubTopicNode(subTopic)),
-      original: topic,
-      iconCss: 'material-icons topic-icon' // 'school' icon
+        id: topic.nodeId,
+        text: topic.title,
+        nodeType: 'Topic',
+        hasChildren: topic.hasChildren,
+        original: topic,
+        iconCss: 'material-icons topic-icon' // 'school' icon
     };
-  }
+}

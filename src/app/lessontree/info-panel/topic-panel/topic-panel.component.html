@@ -1,3 +1,4 @@
+<!-- Partial File: topic-panel.component.html -->
 <div class="topic-panel-wrapper">
     <h2 class="panel-title">Topic</h2>
     @if (data) {
@@ -13,17 +14,6 @@
               [ngClass]="{'editing': isEditing}"
             />
           </div>
-          @if (isEditing) {
-            <div class="form-group">
-              <label for="hasSubTopics">Has SubTopics:</label>
-              <input
-                type="checkbox"
-                id="hasSubTopics"
-                [(ngModel)]="data.hasSubTopics"
-                name="hasSubTopics"
-              />
-            </div>
-          }
           <div class="form-group">
             <label for="description">Description:</label>
             <textarea
@@ -48,4 +38,4 @@
         </form>
       </div>
     }
-  </div>
+</div>

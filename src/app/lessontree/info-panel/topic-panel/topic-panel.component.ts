@@ -14,22 +14,23 @@ type PanelMode = 'view' | 'edit' | 'add';
   styleUrls: ['./topic-panel.component.css']
 })
 export class TopicPanelComponent implements OnChanges, OnInit {
-  private _data: Topic | null = null;
+    private _data: Topic | null = null;
 
-  @Input()
-  set data(value: Topic | null) {
-    this._data = value;
-    console.log(`[TopicPanel] Data set: ${this._data?.title || 'New Topic'}`);
-  }
-  get data(): Topic | null {
-    return this._data;
-  }
+    @Input()
+    set data(value: Topic | null) {
+      this._data = value;
+      console.log(`[TopicPanel] Data set`, { title: this._data?.title ?? 'New Topic', timestamp: new Date().toISOString() });
+    }
+    get data(): Topic | null {
+      return this._data;
+    }
+  
+    @Input() mode: PanelMode = 'view';
+    @Output() modeChange = new EventEmitter<boolean>();
 
-  @Input() mode: PanelMode = 'view';
-  @Output() modeChange = new EventEmitter<boolean>();
+    isEditing: boolean = false;
+    originalData: Topic | null = null;
 
-  isEditing: boolean = false;
-  originalData: Topic | null = null;
 
   constructor(private apiService: ApiService) {}
 
@@ -67,25 +68,25 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.apiService.post<Topic>('topic', this.data).subscribe({
+      this.apiService.createTopic(this.data).subscribe({
         next: (createdTopic) => {
-          Object.assign(this.data!, createdTopic); // Added non-null assertion
+          this.data = createdTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
-          console.log(`[TopicPanel] Topic created: ${createdTopic.title}`);
+          console.log(`[TopicPanel] Topic created`, { title: createdTopic.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[TopicPanel] Error creating topic: ${error}`)
+        error: (error) => console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() })
       });
     } else {
-      this.apiService.put<Topic>(`topic/${this.data.id}`, this.data).subscribe({
+      this.apiService.updateTopic(this.data).subscribe({
         next: (updatedTopic) => {
-          Object.assign(this.data!, updatedTopic); // Added non-null assertion
+          this.data = updatedTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
           this.originalData = null;
-          console.log(`[TopicPanel] Topic updated: ${updatedTopic.title}`);
+          console.log(`[TopicPanel] Topic updated`, { title: updatedTopic.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[TopicPanel] Error updating topic: ${error}`)
+        error: (error) => console.error(`[TopicPanel] Error updating topic`, { error, timestamp: new Date().toISOString() })
       });
     }
   }

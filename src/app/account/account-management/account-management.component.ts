@@ -39,10 +39,14 @@ export class AccountManagementComponent implements OnInit {
 
   addUser() {
     if (this.userForm.valid) {
-      this.apiService.post('account/register', this.userForm.value).subscribe(() => {
-        this.loadUsers();
-        this.userForm.reset();
-      });
+        this.apiService.createUser(this.userForm.value).subscribe({
+            next: () => {
+                this.loadUsers();
+                this.userForm.reset();
+                console.log('[AccountManagement] User added', { username: this.userForm.value.username, timestamp: new Date().toISOString() });
+            },
+            error: (error) => console.error('[AccountManagement] Error adding user', { error, timestamp: new Date().toISOString() })
+        });
     }
   }
 

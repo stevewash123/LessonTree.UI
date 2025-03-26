@@ -14,21 +14,21 @@ type PanelMode = 'view' | 'edit' | 'add';
   styleUrls: ['./subtopic-panel.component.css']
 })
 export class SubtopicPanelComponent implements OnChanges, OnInit {
-  private _data: SubTopic | null = null;
+    private _data: SubTopic | null = null;
 
-  @Input()
-  set data(value: SubTopic) {
-    this._data = value;
-    this.textData = JSON.stringify(this._data);
-    console.log(`[SubtopicPanel] Data set: ${this._data.title || 'New SubTopic'}`);
-  }
-  get data(): SubTopic {
-    return this._data!;
-  }
-
-  @Input() mode: PanelMode = 'view';
-  @Output() modeChange = new EventEmitter<boolean>();
-  @Output() subTopicAdded = new EventEmitter<SubTopic>();
+    @Input()
+    set data(value: SubTopic | null) {
+      this._data = value;
+      this.textData = JSON.stringify(this._data ?? {});
+      console.log(`[SubtopicPanel] Data set`, { title: this._data?.title ?? 'New SubTopic', timestamp: new Date().toISOString() });
+    }
+    get data(): SubTopic | null {
+      return this._data;
+    }
+  
+    @Input() mode: PanelMode = 'view';
+    @Output() modeChange = new EventEmitter<boolean>();
+    @Output() subTopicAdded = new EventEmitter<SubTopic>();
 
   textData: string = '';
   isEditing: boolean = false;
@@ -71,26 +71,26 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.apiService.post<SubTopic>('subtopic', this.data).subscribe({
+      this.apiService.createSubTopic(this.data).subscribe({
         next: (createdSubTopic) => {
-          Object.assign(this.data, createdSubTopic);
+          this.data = createdSubTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
           this.subTopicAdded.emit(createdSubTopic);
-          console.log(`[SubtopicPanel] SubTopic created: ${createdSubTopic.title}`);
+          console.log(`[SubtopicPanel] SubTopic created`, { title: createdSubTopic.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[SubtopicPanel] Error creating subtopic: ${error}`)
+        error: (error) => console.error(`[SubtopicPanel] Error creating subtopic`, { error, timestamp: new Date().toISOString() })
       });
     } else {
-      this.apiService.put<SubTopic>(`subtopic/${this.data.id}`, this.data).subscribe({
+      this.apiService.updateSubTopic(this.data).subscribe({
         next: (updatedSubTopic) => {
-          Object.assign(this.data, updatedSubTopic);
+          this.data = updatedSubTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
           this.originalData = null;
-          console.log(`[SubtopicPanel] SubTopic updated: ${updatedSubTopic.title}`);
+          console.log(`[SubtopicPanel] SubTopic updated`, { title: updatedSubTopic.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[SubtopicPanel] Error updating subtopic: ${error}`)
+        error: (error) => console.error(`[SubtopicPanel] Error updating subtopic`, { error, timestamp: new Date().toISOString() })
       });
     }
   }

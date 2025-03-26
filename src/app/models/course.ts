@@ -10,5 +10,7 @@ export interface Course {
     title: string;
     description: string;
     hasChildren: boolean;
-    topics?: Topic[]; // Optional, loaded lazily when course is expanded
+    archived: boolean; // Added
+    visibility: string;
+    topics?: Topic[];
 }

@@ -70,26 +70,32 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
     if (!this.lessonDetail) return;
 
     if (this.mode === 'add') {
-      this.apiService.post<LessonDetail>('lesson', this.lessonDetail).subscribe({
+      this.apiService.createLesson(this.lessonDetail).subscribe({
         next: (createdLesson) => {
-          Object.assign(this.lessonDetail, createdLesson);
-          this.isEditing = false;
-          this.modeChange.emit(false);
-          this.lessonAdded.emit(createdLesson);
-          console.log(`[LessonInfoPanel] Lesson created: ${createdLesson.title}`);
+          // Fetch full LessonDetail after creation to ensure all fields are present
+          this.apiService.get<LessonDetail>(`lesson/${createdLesson.id}`).subscribe({
+            next: (fullLesson) => {
+              Object.assign(this.lessonDetail, fullLesson);
+              this.isEditing = false;
+              this.modeChange.emit(false);
+              this.lessonAdded.emit(this.lessonDetail);
+              console.log(`[LessonInfoPanel] Lesson created`, { title: fullLesson.title, timestamp: new Date().toISOString() });
+            },
+            error: (error) => console.error(`[LessonInfoPanel] Error fetching lesson details`, { error, timestamp: new Date().toISOString() })
+          });
         },
-        error: (error) => console.error(`[LessonInfoPanel] Error creating lesson: ${error}`)
+        error: (error) => console.error(`[LessonInfoPanel] Error creating lesson`, { error, timestamp: new Date().toISOString() })
       });
     } else {
-      this.apiService.put<LessonDetail>(`lesson/${this.lessonDetail.id}`, this.lessonDetail).subscribe({
+      this.apiService.updateLesson(this.lessonDetail).subscribe({
         next: (updatedLesson) => {
           Object.assign(this.lessonDetail, updatedLesson);
           this.isEditing = false;
           this.modeChange.emit(false);
           this.originalLessonDetail = null;
-          console.log(`[LessonInfoPanel] Lesson updated: ${updatedLesson.title}`);
+          console.log(`[LessonInfoPanel] Lesson updated`, { title: updatedLesson.title, timestamp: new Date().toISOString() });
         },
-        error: (error) => console.error(`[LessonInfoPanel] Error updating lesson: ${error}`)
+        error: (error) => console.error(`[LessonInfoPanel] Error updating lesson`, { error, timestamp: new Date().toISOString() })
       });
     }
   }
