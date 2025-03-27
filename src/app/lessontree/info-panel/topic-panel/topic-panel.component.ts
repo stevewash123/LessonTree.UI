@@ -27,6 +27,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   
     @Input() mode: PanelMode = 'view';
     @Output() modeChange = new EventEmitter<boolean>();
+    @Output() nodeAdded = new EventEmitter<Topic>();
 
     isEditing: boolean = false;
     originalData: Topic | null = null;
@@ -73,6 +74,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
           this.data = createdTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
+          this.nodeAdded.emit(createdTopic); // Emit the new topic
           console.log(`[TopicPanel] Topic created`, { title: createdTopic.title, timestamp: new Date().toISOString() });
         },
         error: (error) => console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() })

@@ -3,14 +3,16 @@ import { Lesson } from "./lesson";
 import { SubTopic } from "./subTopic";
 import { Topic } from "./topic";
 
+export type NodeType = 'Topic' | 'SubTopic' | 'Lesson';
+
 export interface TreeNode {
     id: string;
-    nodeType?: 'Course' | 'Topic' | 'SubTopic' | 'Lesson'; // Added 'Course'
+    nodeType?: NodeType;
     hasChildren?: boolean;
     text: string;
     expanded?: boolean;
     child?: TreeNode[];
-    original?: Course | Topic | SubTopic | Lesson; // Added Course
+    original?: Topic | SubTopic | Lesson; 
     iconCss?: string;
     [key: string]: any;
 }

@@ -6,10 +6,8 @@
           <div class="course-item">
             <mat-icon 
               class="expand-icon" 
-              (click)="toggleCourse(course.nodeId)"
-            >
-              {{ expandedCourseIds.includes(course.nodeId) ? 'expand_more' : 'chevron_right' }}
-            </mat-icon>
+              (click)="toggleCourse(course.id)"
+            >{{ expandedCourseIds.includes(course.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
             <span class="course-title" (click)="selectCourse(course)">{{ course.title }}</span>
             <span class="course-description" (click)="selectCourse(course)">{{ course.description }}</span>
             <span class="course-actions">
@@ -23,15 +21,15 @@
             </span>
           </div>
         </mat-list-item>
-        @if (expandedCourseIds.includes(course.nodeId)) {  
+        @if (expandedCourseIds.includes(course.id)) {  
           @if (course.topics) {  
             <div class="tree-view-container">
-              <app-tree
+                <app-tree
                 [topics]="course.topics"
                 [courseId]="course.id"
                 [courseManagement]="this"
                 [refreshTrigger]="refreshTrigger"
-                [activeNode]="treeActiveNode" 
+                [activeNode]="treeActiveNode"
                 [newNode]="newNode"
                 (nodeDragStop)="onTopicMoved($event)"
                 (nodeSelected)="onNodeSelected($event)"

@@ -1,19 +1,24 @@
 <div class="info-panel-wrapper">
-    @if (activeNode || mode === 'add') {
-      @if ((activeNode?.nodeType === 'Course' && mode !== 'add') || (mode === 'add' && addNodeType === 'Course')) {
+    @if (activeNode || selectedCourse || mode === 'add') {
+      @if ((selectedCourse && mode !== 'add') || (mode === 'add' && addNodeType === 'Course')) {
         @if (course) {
           <course-panel
             [data]="course"
             [mode]="mode"
             (modeChange)="handleModeChange($event)"
             (courseAdded)="onCourseAdded($event)"
-            (addNode)="initiateAddMode($event, 'Topic', course.id)"
+            (addNode)="initiateAddMode(undefined, 'Topic', $event.courseId)"
           ></course-panel>
         }
       }
       @if ((activeNode?.nodeType === 'Topic' && mode !== 'add') || (mode === 'add' && addNodeType === 'Topic')) {
         @if (topic) {
-          <topic-panel [data]="topic" [mode]="mode" (modeChange)="handleModeChange($event)"></topic-panel>
+            <topic-panel 
+                [data]="topic" 
+                [mode]="mode" 
+                (modeChange)="handleModeChange($event)" 
+                (nodeAdded)="onTopicAdded($event)">
+            </topic-panel>
         }
       }
       @if ((activeNode?.nodeType === 'SubTopic' && mode !== 'add') || (mode === 'add' && addNodeType === 'SubTopic')) {
@@ -37,6 +42,6 @@
         }
       }
     } @else {
-      <p>Select a node to view or add a new item.</p>
+      <p>Select a node or course to view or add a new item.</p>
     }
   </div>
