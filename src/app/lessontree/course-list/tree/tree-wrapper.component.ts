@@ -2,7 +2,7 @@ import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ViewC
 import { TreeViewComponent } from '@syncfusion/ej2-angular-navigations';
 import { CourseListComponent } from '../course-list.component';
 import { createTopicNode, Topic } from '../../../models/topic';
-import { NodeSelectedEvent, TopicMovedEvent, TreeNode } from '../../../models/tree-node';
+import { NodeSelectedEvent, NodeType, TopicMovedEvent, TreeNode } from '../../../models/tree-node';
 import { ApiService } from '../../../core/services/api.service';
 import { createSubTopicNode, SubTopic } from '../../../models/subTopic';
 import { createLessonNode, Lesson } from '../../../models/lesson';
@@ -40,7 +40,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
     @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
     @Output() nodeSelected = new EventEmitter<NodeSelectedEvent>();
     @Output() lessonMoved = new EventEmitter<LessonMovedEvent>();
-    @Output() addNodeRequested = new EventEmitter<{ parentNode: TreeNode; nodeType: 'Topic' | 'SubTopic' | 'Lesson' }>();
+    @Output() addNodeRequested = new EventEmitter<{ parentNode: TreeNode; nodeType: NodeType}>();
 
     @ViewChild('treeview') syncFuncTree!: TreeViewComponent;
 
@@ -138,107 +138,103 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
 
         this.cdr.detectChanges();
     }
-// Partial File: tree-wrapper.component.ts
-// Fixed type errors with undefined instead of null
 
-private addNodeToTree(newNode: TreeNode) {
-    if (!this.syncFuncTree || !this.treeData) {
-        console.warn(`[${this.courseId}] addNodeToTree: Tree not initialized`, { 
-            timestamp: new Date().toISOString() 
-        });
-        return;
-    }
-
-    let parentNodeId: string | undefined; // Explicitly named as nodeId
-
-    if (newNode.nodeType === 'Topic') {
-        this.treeData.push(newNode);
-        this.syncFuncTree.addNodes([newNode], undefined, undefined); // Root-level, no parent nodeId
-        console.log(`[${this.courseId}] addNodeToTree: Added Topic via addNodes`, { 
-            nodeId: newNode.id, 
-            timestamp: new Date().toISOString() 
-        });
-    } else {
-        if (newNode.nodeType === 'SubTopic') {
-            const subTopic = newNode.original as SubTopic;
-            const parentTopic = this.topics.find(t => t.id === subTopic.topicId);
-            parentNodeId = parentTopic?.nodeId; // Use Topic's nodeId (e.g., 'topic_3')
-            console.log(`[${this.courseId}] addNodeToTree: Resolved parent nodeId for SubTopic`, { 
-                nodeId: newNode.id, 
-                topicId: subTopic.topicId, 
-                parentNodeId: parentNodeId ?? 'not found', 
-                timestamp: new Date().toISOString() 
-            });
-        } else if (newNode.nodeType === 'Lesson') {
-            const lesson = newNode.original as Lesson;
-            // Use nodeId from SubTopic or Topic, not numeric id
-            parentNodeId = lesson.subTopicId 
-                ? this.findSubTopicNodeId(lesson.subTopicId) 
-                : this.findTopicNodeId(lesson.topicId);
-            console.log(`[${this.courseId}] addNodeToTree: Resolved parent nodeId for Lesson`, { 
-                nodeId: newNode.id, 
-                subTopicId: lesson.subTopicId, 
-                topicId: lesson.topicId, 
-                parentNodeId: parentNodeId ?? 'not found', 
-                timestamp: new Date().toISOString() 
-            });
-        }
-
-        if (!parentNodeId) {
-            console.warn(`[${this.courseId}] addNodeToTree: No valid parent nodeId for ${newNode.nodeType}`, { 
-                nodeId: newNode.id, 
+    private addNodeToTree(newNode: TreeNode) {
+        if (!this.syncFuncTree || !this.treeData) {
+            console.warn(`[${this.courseId}] addNodeToTree: Tree not initialized`, { 
                 timestamp: new Date().toISOString() 
             });
             return;
         }
-
-        const parentNode = this.findNodeById(this.treeData, parentNodeId);
-        if (parentNode) {
-            if (!parentNode.child) parentNode.child = [];
-            parentNode.child.push(newNode);
-            parentNode.hasChildren = true;
-            // Use parentNodeId (e.g., 'topic_3') for Syncfusion addNodes
-            this.syncFuncTree.addNodes([newNode], parentNodeId, undefined);
-            console.log(`[${this.courseId}] addNodeToTree: Added ${newNode.nodeType} to parent via addNodes`, { 
+    
+        let parentNodeId: string | undefined;
+    
+        if (newNode.nodeType === 'Topic') {
+            this.treeData.push(newNode);
+            this.syncFuncTree.addNodes([newNode], undefined, undefined); // Root-level
+            console.log(`[${this.courseId}] addNodeToTree: Added Topic via addNodes`, { 
                 nodeId: newNode.id, 
-                parentNodeId, 
-                childCount: parentNode.child.length, 
                 timestamp: new Date().toISOString() 
             });
         } else {
-            console.warn(`[${this.courseId}] addNodeToTree: Parent node not found in treeData`, { 
-                parentNodeId, 
-                nodeId: newNode.id, 
-                treeDataIds: this.treeData.map(n => n.id), 
-                timestamp: new Date().toISOString() 
-            });
-            return;
+            if (newNode.nodeType === 'SubTopic') {
+                const subTopic = newNode.original as SubTopic;
+                const parentTopic = this.topics.find(t => t.id === subTopic.topicId);
+                parentNodeId = parentTopic?.nodeId;
+                console.log(`[${this.courseId}] addNodeToTree: Resolved parent nodeId for SubTopic`, { 
+                    nodeId: newNode.id, 
+                    topicId: subTopic.topicId, 
+                    parentNodeId: parentNodeId ?? 'not found', 
+                    timestamp: new Date().toISOString() 
+                });
+            } else if (newNode.nodeType === 'Lesson') {
+                const lesson = newNode.original as Lesson;
+                parentNodeId = lesson.subTopicId 
+                    ? this.findSubTopicNodeId(lesson.subTopicId) 
+                    : this.findTopicNodeId(lesson.topicId);
+                console.log(`[${this.courseId}] addNodeToTree: Resolved parent nodeId for Lesson`, { 
+                    nodeId: newNode.id, 
+                    subTopicId: lesson.subTopicId, 
+                    topicId: lesson.topicId, 
+                    parentNodeId: parentNodeId ?? 'not found', 
+                    timestamp: new Date().toISOString() 
+                });
+            }
+    
+            if (!parentNodeId) {
+                console.warn(`[${this.courseId}] addNodeToTree: No valid parent nodeId for ${newNode.nodeType}`, { 
+                    nodeId: newNode.id, 
+                    timestamp: new Date().toISOString() 
+                });
+                return;
+            }
+    
+            const parentNode = this.findNodeById(this.treeData, parentNodeId);
+            if (parentNode) {
+                if (!parentNode.child) parentNode.child = [];
+                parentNode.child.push(newNode);
+                parentNode.hasChildren = true;
+                this.syncFuncTree.addNodes([newNode], parentNodeId, undefined);
+                console.log(`[${this.courseId}] addNodeToTree: Added ${newNode.nodeType} to parent via addNodes`, { 
+                    nodeId: newNode.id, 
+                    parentNodeId, 
+                    childCount: parentNode.child.length, 
+                    timestamp: new Date().toISOString() 
+                });
+            } else {
+                console.warn(`[${this.courseId}] addNodeToTree: Parent node not found in treeData`, { 
+                    parentNodeId, 
+                    nodeId: newNode.id, 
+                    treeDataIds: this.treeData.map(n => n.id), 
+                    timestamp: new Date().toISOString() 
+                });
+                return;
+            }
         }
+    
+        console.log(`[${this.courseId}] addNodeToTree: Node added successfully`, { 
+            nodeId: newNode.id, 
+            treeDataLength: this.treeData.length, 
+            timestamp: new Date().toISOString() 
+        });
     }
 
-    console.log(`[${this.courseId}] addNodeToTree: Node added successfully`, { 
-        nodeId: newNode.id, 
-        treeDataLength: this.treeData.length, 
-        timestamp: new Date().toISOString() 
-    });
-}
-
-// Helper methods unchanged
-private findTopicNodeId(topicId?: number): string | undefined {
-    if (!topicId) return undefined;
-    const topic = this.topics.find(t => t.id === topicId);
-    return topic?.nodeId;
-}
-
-private findSubTopicNodeId(subTopicId?: number): string | undefined {
-    if (!subTopicId) return undefined;
-    for (const topic of this.topics) {
-        const subTopic = topic.subTopics?.find(st => st.id === subTopicId);
-        if (subTopic) return subTopic.nodeId;
+    // Helper methods unchanged
+    private findTopicNodeId(topicId?: number): string | undefined {
+        if (!topicId) return undefined;
+        const topic = this.topics.find(t => t.id === topicId);
+        return topic?.nodeId;
     }
-    return undefined;
-}
-      
+
+    private findSubTopicNodeId(subTopicId?: number): string | undefined {
+        if (!subTopicId) return undefined;
+        for (const topic of this.topics) {
+            const subTopic = topic.subTopics?.find(st => st.id === subTopicId);
+            if (subTopic) return subTopic.nodeId;
+        }
+        return undefined;
+    }
+    
     private processPendingOperations() {
         if (this.pendingTopics !== null) {
           console.log(`[${this.courseId}] processPendingOperations: Applying pending topics`, { 

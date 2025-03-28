@@ -27,7 +27,8 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   
     @Input() mode: PanelMode = 'view';
     @Output() modeChange = new EventEmitter<boolean>();
-    @Output() nodeAdded = new EventEmitter<Topic>();
+    @Output() topicAdded = new EventEmitter<Topic>(); // Renamed from nodeAdded
+    @Output() topicEdited = new EventEmitter<Topic>(); // New event for edit
 
     isEditing: boolean = false;
     originalData: Topic | null = null;
@@ -74,7 +75,8 @@ export class TopicPanelComponent implements OnChanges, OnInit {
           this.data = createdTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
-          this.nodeAdded.emit(createdTopic); // Emit the new topic
+          console.log(`[TopicPanel] Emitting topicAdded`, { title: createdTopic.title, timestamp: new Date().toISOString() });
+          this.topicAdded.emit(createdTopic); // Updated event name
           console.log(`[TopicPanel] Topic created`, { title: createdTopic.title, timestamp: new Date().toISOString() });
         },
         error: (error) => console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() })
@@ -84,6 +86,14 @@ export class TopicPanelComponent implements OnChanges, OnInit {
         next: (updatedTopic) => {
           this.data = updatedTopic;
           this.isEditing = false;
+          if (this.originalData && this.originalData.title !== updatedTopic.title) {
+            console.log(`[TopicPanel] Emitting topicEdited due to title change`, { 
+              oldTitle: this.originalData.title, 
+              newTitle: updatedTopic.title, 
+              timestamp: new Date().toISOString() 
+            });
+            this.topicEdited.emit(updatedTopic);
+          }
           this.modeChange.emit(false);
           this.originalData = null;
           console.log(`[TopicPanel] Topic updated`, { title: updatedTopic.title, timestamp: new Date().toISOString() });

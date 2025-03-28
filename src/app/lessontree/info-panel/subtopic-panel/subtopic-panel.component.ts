@@ -31,6 +31,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     @Input() mode: PanelMode = 'view';
     @Output() modeChange = new EventEmitter<boolean>();
     @Output() subTopicAdded = new EventEmitter<SubTopic>();
+    @Output() subTopicEdited = new EventEmitter<SubTopic>();
 
   textData: string = '';
   isEditing: boolean = false;
@@ -97,17 +98,25 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
         error: (error) => console.error(`[SubtopicPanel:${this.instanceId}] Error creating subtopic`, { error, timestamp: new Date().toISOString() })
       });
     } else {
-      this.apiService.updateSubTopic(this.data).subscribe({
-        next: (updatedSubTopic) => {
-          this.data = updatedSubTopic;
-          this.isEditing = false;
-          this.modeChange.emit(false); // Keep for edit mode
-          this.originalData = null;
-          console.log(`[SubtopicPanel:${this.instanceId}] SubTopic updated`, { title: updatedSubTopic.title, timestamp: new Date().toISOString() });
-        },
-        error: (error) => console.error(`[SubtopicPanel:${this.instanceId}] Error updating subtopic`, { error, timestamp: new Date().toISOString() })
-      });
-    }
+        this.apiService.updateSubTopic(this.data).subscribe({
+          next: (updatedSubTopic) => {
+            this.data = updatedSubTopic;
+            this.isEditing = false;
+            if (this.originalData && this.originalData.title !== updatedSubTopic.title) {
+              console.log(`[SubtopicPanel:${this.instanceId}] Emitting subTopicEdited due to title change`, { 
+                oldTitle: this.originalData.title, 
+                newTitle: updatedSubTopic.title, 
+                timestamp: new Date().toISOString() 
+              });
+              this.subTopicEdited.emit(updatedSubTopic);
+            }
+            this.modeChange.emit(false);
+            this.originalData = null;
+            console.log(`[SubtopicPanel:${this.instanceId}] SubTopic updated`, { title: updatedSubTopic.title, timestamp: new Date().toISOString() });
+          },
+          error: (error) => console.error(`[SubtopicPanel:${this.instanceId}] Error updating subtopic`, { error, timestamp: new Date().toISOString() })
+        });
+      }
   }
   
   cancel() {

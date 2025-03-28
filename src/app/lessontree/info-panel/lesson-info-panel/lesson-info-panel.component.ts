@@ -33,6 +33,8 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   @Input() mode: PanelMode = 'view';
   @Output() modeChange = new EventEmitter<boolean>();
   @Output() lessonAdded = new EventEmitter<LessonDetail>(); // New output for when a Lesson is added
+  @Output() lessonEdited = new EventEmitter<LessonDetail>();
+
   isEditing: boolean = false;
   originalLessonDetail: LessonDetail | null = null;
 
@@ -77,8 +79,8 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
             next: (fullLesson) => {
               Object.assign(this.lessonDetail, fullLesson);
               this.isEditing = false;
-              this.modeChange.emit(false);
               this.lessonAdded.emit(this.lessonDetail);
+              this.modeChange.emit(false);
               console.log(`[LessonInfoPanel] Lesson created`, { title: fullLesson.title, timestamp: new Date().toISOString() });
             },
             error: (error) => console.error(`[LessonInfoPanel] Error fetching lesson details`, { error, timestamp: new Date().toISOString() })
@@ -91,6 +93,14 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
         next: (updatedLesson) => {
           Object.assign(this.lessonDetail, updatedLesson);
           this.isEditing = false;
+          if (this.originalLessonDetail && this.originalLessonDetail.title !== updatedLesson.title) {
+            console.log(`[LessonInfoPanel] Emitting lessonEdited due to title change`, { 
+              oldTitle: this.originalLessonDetail.title, 
+              newTitle: updatedLesson.title, 
+              timestamp: new Date().toISOString() 
+            });
+            this.lessonEdited.emit(updatedLesson);
+          }
           this.modeChange.emit(false);
           this.originalLessonDetail = null;
           console.log(`[LessonInfoPanel] Lesson updated`, { title: updatedLesson.title, timestamp: new Date().toISOString() });

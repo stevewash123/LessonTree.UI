@@ -4,10 +4,11 @@
         <course-list
             [triggerRefresh]="refreshTrigger"
             [newNode]="newNode"
+            [courseEdited]="courseEdited" 
+            [nodeEdited]="nodeEdited" 
             (activeNodeChange)="onActiveNodeChange($event)"
             (addNodeRequested)="onAddNodeRequested($event)"
-            (nodeAdded)="onNodeAdded($event)"
-            (courseAdded)="onCourseAdded($event)"
+            (addCourseRequested)="onAddCourseRequested()"
             (courseSelected)="onCourseSelected($event)"
         ></course-list>
         @if (isOverlayActive) {
@@ -22,6 +23,8 @@
           (refreshTree)="onRefreshTree()"
           (nodeAdded)="onNodeAdded($event)"
           (courseAdded)="onCourseAdded($event)"
+          (nodeEdited)="onNodeEdited($event)"
+          (courseEdited)="onCourseEdited($event)"
           (modeChange)="onPanelModeChange($event)"
         ></info-panel>
       </as-split-area>

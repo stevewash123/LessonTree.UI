@@ -30,6 +30,7 @@ export class CoursePanelComponent implements OnChanges, OnInit {
   @Input() mode: PanelMode = 'view';
   @Output() modeChange = new EventEmitter<boolean>();
   @Output() courseAdded = new EventEmitter<Course>();
+  @Output() courseEdited = new EventEmitter<Course>();
   @Output() addNode = new EventEmitter<{ courseId: number; nodeType: PanelType }>(); // Use PanelType
 
   isEditing: boolean = false;
@@ -75,24 +76,33 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         next: (createdCourse) => {
           this.data = createdCourse;
           this.isEditing = false;
+          console.log(`[CoursePanel] Emitting courseAdded`, { title: createdCourse.title, timestamp: new Date().toISOString() });
+          this.courseAdded.emit(createdCourse); // Emit before modeChange
           this.modeChange.emit(false);
-          this.courseAdded.emit(createdCourse);
           console.log(`[CoursePanel] Course created`, { title: createdCourse.title, timestamp: new Date().toISOString() });
         },
         error: (error) => console.error(`[CoursePanel] Error creating course`, { error, timestamp: new Date().toISOString() })
       });
     } else {
-      this.apiService.updateCourse(this.data).subscribe({
-        next: (updatedCourse) => {
-          this.data = updatedCourse;
-          this.isEditing = false;
-          this.modeChange.emit(false);
-          this.originalData = null;
-          console.log(`[CoursePanel] Course updated`, { title: updatedCourse.title, timestamp: new Date().toISOString() });
-        },
-        error: (error) => console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() })
-      });
-    }
+        this.apiService.updateCourse(this.data).subscribe({
+          next: (updatedCourse) => {
+            this.data = updatedCourse;
+            this.isEditing = false;
+            if (this.originalData && this.originalData.title !== updatedCourse.title) {
+              console.log(`[CoursePanel] Emitting courseEdited due to title change`, { 
+                oldTitle: this.originalData.title, 
+                newTitle: updatedCourse.title, 
+                timestamp: new Date().toISOString() 
+              });
+              this.courseEdited.emit(updatedCourse);
+            }
+            this.modeChange.emit(false);
+            this.originalData = null;
+            console.log(`[CoursePanel] Course updated`, { title: updatedCourse.title, timestamp: new Date().toISOString() });
+          },
+          error: (error) => console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() })
+        });
+      }
   }
 
   cancel() {
