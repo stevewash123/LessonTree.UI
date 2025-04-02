@@ -302,20 +302,26 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
 
     // Update onDataBound to ensure correct node selection
     public onDataBound() {
-        console.log(`[${this.courseId}] onDataBound: Tree data bound, activeNodeId: ${this.activeNodeId}`);
+        console.log(`[${this.courseId}] onDataBound: Tree data bound, activeNodeId: ${this.activeNodeId}, isProgrammaticSelection: ${this.isProgrammaticSelection}`);
         if (this.syncFuncTree) {
-            console.log(`[${this.courseId}] onDataBound: Current expandedNodes`, this.syncFuncTree.expandedNodes);
-            if (this.activeNodeId) {
-                this.isProgrammaticSelection = true;
-                this.syncFuncTree.selectedNodes = [this.activeNodeId];
-                console.log(`[${this.courseId}] onDataBound: Set selectedNodes to ${this.activeNodeId}, actual selectedNodes:`, this.syncFuncTree.selectedNodes);
-            } else {
-                this.isProgrammaticSelection = true;
-                this.syncFuncTree.selectedNodes = [];
-                console.log(`[${this.courseId}] onDataBound: Cleared selectedNodes`);
-            }
+          console.log(`[${this.courseId}] onDataBound: Current expandedNodes`, this.syncFuncTree.expandedNodes);
+          if (this.activeNodeId) {
+            this.isProgrammaticSelection = true;
+            console.log(`[${this.courseId}] onDataBound: Setting isProgrammaticSelection to true for node ${this.activeNodeId}`);
+            this.syncFuncTree.selectedNodes = [this.activeNodeId];
+            console.log(`[${this.courseId}] onDataBound: Set selectedNodes to ${this.activeNodeId}, actual selectedNodes:`, this.syncFuncTree.selectedNodes);
+            this.isProgrammaticSelection = false;
+            console.log(`[${this.courseId}] onDataBound: Reset isProgrammaticSelection to false after selection`);
+          } else {
+            this.isProgrammaticSelection = true;
+            console.log(`[${this.courseId}] onDataBound: Setting isProgrammaticSelection to true to clear selection`);
+            this.syncFuncTree.selectedNodes = [];
+            console.log(`[${this.courseId}] onDataBound: Cleared selectedNodes`);
+            this.isProgrammaticSelection = false;
+            console.log(`[${this.courseId}] onDataBound: Reset isProgrammaticSelection to false after clearing`);
+          }
         }
-    }
+      }
 
     private validateTreeData(data: TreeNode[]): boolean {
         const isValid = Array.isArray(data) && data.every(node => 
@@ -339,26 +345,32 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
 
     public emitNodeSelected(args: any) {
         const nodeId = args.nodeData.id;
-        console.log(`[${this.courseId}] emitNodeSelected: Node selected: ${nodeId}, isProgrammatic: ${this.isProgrammaticSelection}`);
+        //console.log(`[${this.courseId}] emitNodeSelected: Node selected: ${nodeId}, isProgrammaticSelection: ${this.isProgrammaticSelection}`);
         
-        // Skip emitting if this is a programmatic selection
-        if (this.isProgrammaticSelection) {
-            this.isProgrammaticSelection = false;
-            return;
+        // Only skip if this is a programmatic selection triggered by code
+        if (this.isProgrammaticSelection && !args.isInteracted) {
+          //console.log(`[${this.courseId}] emitNodeSelected: Skipping emission due to programmatic selection without user interaction`);
+          this.isProgrammaticSelection = false; // Reset after skipping
+          //console.log(`[${this.courseId}] emitNodeSelected: Reset isProgrammaticSelection to false`);
+          return;
         }
-    
+        
         const node = this.findNodeById(this.treeData, nodeId);
         if (node) {
-            this.activeNodeId = nodeId;
-            if (this.syncFuncTree) {
-                this.isProgrammaticSelection = true; // Flag to prevent loop
-                this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
-            }
-            this.nodeSelected.emit({ node });
+          this.activeNodeId = nodeId;
+          if (this.syncFuncTree) {
+            this.isProgrammaticSelection = true;
+            //console.log(`[${this.courseId}] emitNodeSelected: Setting isProgrammaticSelection to true for sync`);
+            this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
+            this.isProgrammaticSelection = false;
+            //console.log(`[${this.courseId}] emitNodeSelected: Reset isProgrammaticSelection to false after sync`);
+          }
+          //console.log(`[${this.courseId}] emitNodeSelected: Emitting nodeSelected for ${nodeId}`);
+          this.nodeSelected.emit({ node });
         } else {
-            console.warn(`[${this.courseId}] emitNodeSelected: Node not found: ${nodeId}`);
+          //console.warn(`[${this.courseId}] emitNodeSelected: Node not found: ${nodeId}`);
         }
-    }
+      }
     
     public nodeDragging(args: any) {
         const currentX = args.event.pageX;
@@ -609,12 +621,15 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         if (this.syncFuncTree) {
           this.activeNodeId = nodeId;
           this.isProgrammaticSelection = true;
+          console.log(`[${this.courseId}] selectNode: Setting isProgrammaticSelection to true for node ${nodeId}`);
           this.syncFuncTree.selectedNodes = [nodeId];
           console.log(`[${this.courseId}] selectNode: Selected node ${nodeId}`);
+          this.isProgrammaticSelection = false;
+          console.log(`[${this.courseId}] selectNode: Reset isProgrammaticSelection to false`);
         }
-      }
+    }
 
-      public deleteNode(data: any) {
+    public deleteNode(data: any) {
         console.log(`[${this.courseId}] deleteNode: Deleting node`, { nodeId: data.id, timestamp: new Date().toISOString() });
         const nodeId = data.id;
         const node = this.findNodeById(this.treeData, nodeId);

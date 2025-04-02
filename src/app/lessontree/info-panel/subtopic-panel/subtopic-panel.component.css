@@ -63,3 +63,42 @@
     background-color: #e9e9e9; /* Gray background for readonly state */
     border: 1px solid #ccc;
   }
+
+  .status-controls {
+    display: flex;
+    justify-content: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.status-controls .form-group-inline {
+    margin-bottom: 0;
+}
+
+.radio-group {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.radio-group label {
+    margin-bottom: 0;
+    font-weight: normal;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.form-group.form-group-inline.checkbox-label label {
+    width: auto;
+    margin-right: 0.25rem;
+}
+
+.form-group.form-group-inline input[type="checkbox"] {
+    width: auto;
+    margin-left: 40px;
+    vertical-align: middle;
+    flex: none;
+}

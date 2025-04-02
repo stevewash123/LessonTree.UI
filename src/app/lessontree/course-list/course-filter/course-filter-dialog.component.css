@@ -1,0 +1,29 @@
+.filter-group {
+    margin-bottom: 1rem;
+  }
+  
+  .filter-group label {
+    font-weight: bold;
+    margin-right: 0.5rem;
+  }
+  
+  mat-radio-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+  }
+  
+  mat-checkbox {
+    margin-left: 0.5rem;
+  }
+  
+  mat-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }

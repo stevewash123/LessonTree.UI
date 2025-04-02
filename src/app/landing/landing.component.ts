@@ -20,27 +20,39 @@ import { Router } from '@angular/router';
     styleUrls: ['./landing.component.scss']
 })
 export class LandingComponent implements OnInit {
-  loginForm: FormGroup;
-
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router
-  ) {
-    this.loginForm = this.fb.group({
-      username: ['', Validators.required],
-      password: ['', Validators.required]
-    });
-  }
+    loginForm: FormGroup;
+    isLoading = false;
+    errorMessage: string | null = null;
+  
+    constructor(
+      private fb: FormBuilder,
+      private authService: AuthService,
+      private router: Router
+    ) {
+      this.loginForm = this.fb.group({
+        username: ['', Validators.required],
+        password: ['', Validators.required]
+      });
+    }
 
   ngOnInit(): void { }
 
   onSubmit() {
     if (this.loginForm.valid) {
+      this.isLoading = true;
+      this.errorMessage = null;
+
       const { username, password } = this.loginForm.value;
       this.authService.login(username, password).subscribe({
-        next: () => this.router.navigate(['/home']),
-        error: () => {} // Toastr handles errors from ApiService
+        next: () => {
+          this.isLoading = false;
+          this.router.navigate(['/home']);
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = 'Invalid username or password';
+          console.error('[LandingComponent] Login error:', error);
+        }
       });
     }
   }

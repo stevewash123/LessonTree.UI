@@ -2,122 +2,185 @@
     <h2 class="panel-title">Lesson Details</h2>
     @if (lessonDetail) {
       <div class="lesson-card">
+        <ul class="tabs">
+            <li
+              [class.active]="activeTab === 'main'"
+              [class.disabled]="isEditing || isStandardsEditing"
+              (click)="!isEditing && !isStandardsEditing && setActiveTab('main')"
+            >Main</li>
+            <li
+              [class.active]="activeTab === 'attachments'"
+              [class.disabled]="isEditing || isStandardsEditing"
+              (click)="!isEditing && !isStandardsEditing && setActiveTab('attachments')"
+            >Attachments</li>
+            <li
+              [class.active]="activeTab === 'standards'"
+              [class.disabled]="isEditing || isStandardsEditing"
+              (click)="!isEditing && !isStandardsEditing && setActiveTab('standards')"
+            >Standards</li>
+            <li
+              [class.active]="activeTab === 'specialNeeds'"
+              [class.disabled]="isEditing || isStandardsEditing"
+              (click)="!isEditing && !isStandardsEditing && setActiveTab('specialNeeds')"
+            >Special Needs</li>
+            <li
+              [class.active]="activeTab === 'notes'"
+              [class.disabled]="isEditing || isStandardsEditing"
+              (click)="!isEditing && !isStandardsEditing && setActiveTab('notes')"
+            >Notes</li>
+          </ul>
         <form>
-          <!-- Title -->
-          <div class="form-group">
-            <label for="title">Title:</label>
-            <input
-              id="title"
-              [readonly]="!isEditing"
-              [(ngModel)]="lessonDetail.title"
-              name="title"
-              [ngClass]="{'editing': isEditing}"
-            />
-          </div>
-  
-          <!-- Level and Class Time on the same row -->
-          <div class="form-row">
-            <div class="form-group half-width">
-              <label for="level">Level:</label>
-              <input
-                id="level"
-                [readonly]="!isEditing"
-                [(ngModel)]="lessonDetail.level"
-                name="level"
-                [ngClass]="{'editing': isEditing}"
-              />
-            </div>
-            <div class="form-group half-width">
-              <label for="classTime">Class Time:</label>
-              <input
-                id="classTime"
-                [readonly]="!isEditing"
-                [(ngModel)]="lessonDetail.classTime"
-                name="classTime"
-                [ngClass]="{'editing': isEditing}"
-              />
-            </div>
-          </div>
-            
-          <!-- Objective -->
-          <div class="form-group">
-            <label for="objective">Objective:</label>
-            <textarea
-              id="objective"
-              [readonly]="!isEditing"
-              [(ngModel)]="lessonDetail.objective"
-              name="objective"
-              [ngClass]="{'editing': isEditing}"
-            ></textarea>
-          </div>
-  
-          <!-- Method -->
-          <div class="form-group">
-            <label for="method">Method:</label>
-            <textarea
-              id="method"
-              [readonly]="!isEditing"
-              [(ngModel)]="lessonDetail.methods"
-              name="method"
-              [ngClass]="{'editing': isEditing}"
-            ></textarea>
-          </div>
-  
-          <!-- Materials (smaller height) -->
-          <div class="form-group">
-            <label for="materials">Materials:</label>
-            <textarea
-              id="materials"
-              [readonly]="!isEditing"
-              [(ngModel)]="lessonDetail.materials"
-              name="materials"
-              [ngClass]="{'editing': isEditing}"
-              style="height: 80px;"
-            ></textarea>
-          </div>
-  
-          <!-- Assessment -->
-          <div class="form-group">
-            <label for="assessment">Assessment:</label>
-            <textarea
-              id="assessment"
-              [readonly]="!isEditing"
-              [(ngModel)]="lessonDetail.assessment"
-              name="assessment"
-              [ngClass]="{'editing': isEditing}"
-              style="height: 80px;"
-            ></textarea>
-          </div>
-  
-          <!-- Special Needs -->
-          <div class="form-group">
-            <label for="specialNeeds">Special Needs:</label>
-            <textarea
-              id="specialNeeds"
-              [readonly]="!isEditing"
-              [(ngModel)]="lessonDetail.specialNeeds"
-              name="specialNeeds"
-              [ngClass]="{'editing': isEditing}"
-              style="height: 80px;"
-            ></textarea>
-          </div>
+            @if (activeTab === 'main') {
+                <div class="tab-content">
+                  <!-- Title -->
+                  <div class="form-group form-group-inline">
+                    <label for="title">Title:</label>
+                    <input
+                      id="title"
+                      [readonly]="!isEditing"
+                      [(ngModel)]="lessonDetail.title"
+                      name="title"
+                      [ngClass]="{'editing': isEditing}"
+                    />
+                  </div>
+              
+                  <!-- Level and Class Time on the same row -->
+                  <div class="form-row">
+                    <div class="form-group form-group-inline half-width">
+                      <label for="level">Level:</label>
+                      <input
+                        id="level"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="lessonDetail.level"
+                        name="level"
+                        [ngClass]="{'editing': isEditing}"
+                      />
+                    </div>
+                    <div class="form-group form-group-inline half-width">
+                      <label for="classTime">Class Time:</label>
+                      <input
+                        id="classTime"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="lessonDetail.classTime"
+                        name="classTime"
+                        [ngClass]="{'editing': isEditing}"
+                      />
+                    </div>
+                  </div>
+              
+                  <!-- Objective -->
+                  <div class="form-group">
+                    <label for="objective">Objective:</label>
+                    <textarea
+                      id="objective"
+                      [readonly]="!isEditing"
+                      [(ngModel)]="lessonDetail.objective"
+                      name="objective"
+                      [ngClass]="{'editing': isEditing}"
+                    ></textarea>
+                  </div>
+              
+                  <!-- Method -->
+                  <div class="form-group">
+                    <label for="method">Method:</label>
+                    <textarea
+                      id="method"
+                      [readonly]="!isEditing"
+                      [(ngModel)]="lessonDetail.methods"
+                      name="method"
+                      [ngClass]="{'editing': isEditing}"
+                    ></textarea>
+                  </div>
+              
+                  <!-- Assessment -->
+                  <div class="form-group">
+                    <label for="assessment">Assessment:</label>
+                    <textarea
+                      id="assessment"
+                      [readonly]="!isEditing"
+                      [(ngModel)]="lessonDetail.assessment"
+                      name="assessment"
+                      [ngClass]="{'editing': isEditing}"
+                    ></textarea>
+                  </div>
+              
+                  <!-- Materials -->
+                  <div class="form-group">
+                    <label for="materials">Materials:</label>
+                    <textarea
+                      id="materials"
+                      [readonly]="!isEditing"
+                      [(ngModel)]="lessonDetail.materials"
+                      name="materials"
+                      [ngClass]="{'editing': isEditing}"
+                    ></textarea>
+                  </div>
+                </div>
+                @if (!isEditing) {
+                    <div class="buttons">
+                      <button (click)="enterEditMode()">Edit</button>
+                    </div>
+                }
+                @if (isEditing) {
+                    <div class="buttons">
+                      <button (click)="save()">Save</button>
+                      <button (click)="cancel()">Cancel</button>
+                    </div>
+                }
+          }
           
+          @if (activeTab === 'attachments') {
+            <div class="tab-content">
+              <lesson-attachments
+                [lessonId]="lessonDetail!.id"
+                [attachments]="lessonDetail!.attachments"
+                [isEditing]="isEditing"
+                (attachmentsChanged)="onAttachmentsChanged($event)"
+              ></lesson-attachments>
+            </div>
+          }
+                    
+          @if (activeTab === 'standards') {
+            <div class="tab-content">
+                <lesson-standards
+                    [lessonDetail]="lessonDetail"
+                    [isEditing]="isEditing"
+                    (standardsChanged)="onStandardsChanged($event)"
+                    (isStandardsEditingChange)="onStandardsEditingChange($event)"
+                ></lesson-standards>
+              </div>
+          }
   
-          <!-- Edit Button -->
-          @if (!isEditing) {
-            <div class="buttons">
-              <button (click)="enterEditMode()">Edit</button>
+          @if (activeTab === 'specialNeeds') {
+            <div class="tab-content">
+              <div class="form-group">
+                <label for="specialNeeds">Special Needs:</label>
+                <textarea
+                  id="specialNeeds"
+                  [readonly]="!isEditing"
+                  [(ngModel)]="lessonDetail.specialNeeds"
+                  name="specialNeeds"
+                  [ngClass]="{'editing': isEditing}"
+                  style="height: 80px;"
+                ></textarea>
+              </div>
             </div>
           }
-          @if (isEditing) {
-            <div class="buttons">
-              <button (click)="save()">Save</button>
-              <button (click)="cancel()">Cancel</button>
+  
+          @if (activeTab === 'notes') {
+            <div class="tab-content">
+              <lesson-notes
+                [lessonId]="lessonDetail!.id"
+                [notes]="lessonDetail!.notes"
+                [isEditing]="isEditing"
+                (notesChanged)="onNotesChanged($event)"
+              ></lesson-notes>
             </div>
           }
+          
         </form>
       </div>
     } @else {
       <p>Loading...</p>
     }
-  </div>
+</div>

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Topic } from '../../../models/topic';
 import { ApiService } from '../../../core/services/api.service';
+import { UserService } from '../../../core/services/user.service';
 
 type PanelMode = 'view' | 'edit' | 'add';
 
@@ -14,27 +15,33 @@ type PanelMode = 'view' | 'edit' | 'add';
   styleUrls: ['./topic-panel.component.css']
 })
 export class TopicPanelComponent implements OnChanges, OnInit {
-    private _data: Topic | null = null;
+  private _data: Topic | null = null;
 
-    @Input()
-    set data(value: Topic | null) {
-      this._data = value;
-      console.log(`[TopicPanel] Data set`, { title: this._data?.title ?? 'New Topic', timestamp: new Date().toISOString() });
-    }
-    get data(): Topic | null {
-      return this._data;
-    }
-  
-    @Input() mode: PanelMode = 'view';
-    @Output() modeChange = new EventEmitter<boolean>();
-    @Output() topicAdded = new EventEmitter<Topic>(); // Renamed from nodeAdded
-    @Output() topicEdited = new EventEmitter<Topic>(); // New event for edit
+  @Input()
+  set data(value: Topic | null) {
+    this._data = value;
+    console.log(`[TopicPanel] Data set`, { title: this._data?.title ?? 'New Topic', timestamp: new Date().toISOString() });
+  }
+  get data(): Topic | null {
+    return this._data;
+  }
 
-    isEditing: boolean = false;
-    originalData: Topic | null = null;
+  @Input() mode: PanelMode = 'view';
+  @Output() modeChange = new EventEmitter<boolean>();
+  @Output() topicAdded = new EventEmitter<Topic>();
+  @Output() topicEdited = new EventEmitter<Topic>();
 
+  isEditing: boolean = false;
+  originalData: Topic | null = null;
 
-  constructor(private apiService: ApiService) {}
+  constructor(
+    private apiService: ApiService,
+    private userService: UserService
+  ) {}
+
+  get hasDistrictId(): boolean {
+    return !!this.userService.getDistrictId();
+  }
 
   ngOnInit(): void {
     this.updateEditingState();
@@ -51,7 +58,11 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     if (this.mode === 'edit' && this.data && !this.originalData) {
       this.originalData = { ...this.data };
       console.log(`[TopicPanel] Stored original data for editing: ${this.originalData.title}`);
-    } else if (this.mode === 'add') {
+    } else if (this.mode === 'add' && this.data) {
+      this.data.archived = false; // Ensure archived is false in add mode
+      if (!this.hasDistrictId) {
+        this.data.visibility = 'Private'; // Default to private if no district
+      }
       this.originalData = null;
       console.log('[TopicPanel] In add mode, cleared original data');
     }
@@ -76,27 +87,26 @@ export class TopicPanelComponent implements OnChanges, OnInit {
           this.isEditing = false;
           this.modeChange.emit(false);
           console.log(`[TopicPanel] Emitting topicAdded`, { title: createdTopic.title, timestamp: new Date().toISOString() });
-          this.topicAdded.emit(createdTopic); // Updated event name
+          this.topicAdded.emit(createdTopic);
           console.log(`[TopicPanel] Topic created`, { title: createdTopic.title, timestamp: new Date().toISOString() });
         },
         error: (error) => console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() })
       });
     } else {
       this.apiService.updateTopic(this.data).subscribe({
-        next: (updatedTopic) => {
-          this.data = updatedTopic;
+        next: () => {
           this.isEditing = false;
-          if (this.originalData && this.originalData.title !== updatedTopic.title) {
+          if (this.originalData && this.originalData.title !== this.data!.title) {
             console.log(`[TopicPanel] Emitting topicEdited due to title change`, { 
               oldTitle: this.originalData.title, 
-              newTitle: updatedTopic.title, 
+              newTitle: this.data!.title, 
               timestamp: new Date().toISOString() 
             });
-            this.topicEdited.emit(updatedTopic);
+            this.topicEdited.emit(this.data!);
           }
           this.modeChange.emit(false);
           this.originalData = null;
-          console.log(`[TopicPanel] Topic updated`, { title: updatedTopic.title, timestamp: new Date().toISOString() });
+          console.log(`[TopicPanel] Topic updated`, { title: this.data!.title, timestamp: new Date().toISOString() });
         },
         error: (error) => console.error(`[TopicPanel] Error updating topic`, { error, timestamp: new Date().toISOString() })
       });

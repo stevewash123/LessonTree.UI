@@ -5,6 +5,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../../models/course';
 import { ApiService } from '../../../core/services/api.service';
 import { PanelType } from '../info-panel.component'; // Import PanelType
+import { UserService } from '../../../core/services/user.service';
 
 type PanelMode = 'view' | 'edit' | 'add';
 
@@ -36,7 +37,14 @@ export class CoursePanelComponent implements OnChanges, OnInit {
   isEditing: boolean = false;
   originalData: Course | null = null;
 
-  constructor(private apiService: ApiService) {}
+  get hasDistrictId(): boolean {
+    return !!this.userService.getDistrictId();
+  }
+
+  constructor(
+    private apiService: ApiService,
+    private userService: UserService
+  ) {}
 
   ngOnInit(): void {
     this.updateEditingState();
@@ -47,13 +55,18 @@ export class CoursePanelComponent implements OnChanges, OnInit {
       this.updateEditingState();
     }
   }
+  
 
   private updateEditingState() {
     this.isEditing = this.mode === 'edit' || this.mode === 'add';
     if (this.mode === 'edit' && this.data && !this.originalData) {
       this.originalData = { ...this.data };
       console.log(`[CoursePanel] Stored original data for editing: ${this.originalData.title}`);
-    } else if (this.mode === 'add') {
+    } else if (this.mode === 'add' && this.data) {
+      this.data.archived = false; // Ensure archived is false in add mode
+      if (!this.hasDistrictId) {
+        this.data.visibility = 'Private'; // Default to private if no district
+      }
       this.originalData = null;
       console.log('[CoursePanel] In add mode, cleared original data');
     }
@@ -85,20 +98,19 @@ export class CoursePanelComponent implements OnChanges, OnInit {
       });
     } else {
         this.apiService.updateCourse(this.data).subscribe({
-          next: (updatedCourse) => {
-            this.data = updatedCourse;
+          next: () => {
             this.isEditing = false;
-            if (this.originalData && this.originalData.title !== updatedCourse.title) {
+            if (this.originalData && this.originalData.title !== this.data!.title) {
               console.log(`[CoursePanel] Emitting courseEdited due to title change`, { 
                 oldTitle: this.originalData.title, 
-                newTitle: updatedCourse.title, 
+                newTitle: this.data!.title, 
                 timestamp: new Date().toISOString() 
               });
-              this.courseEdited.emit(updatedCourse);
+              this.courseEdited.emit(this.data!);
             }
             this.modeChange.emit(false);
             this.originalData = null;
-            console.log(`[CoursePanel] Course updated`, { title: updatedCourse.title, timestamp: new Date().toISOString() });
+            console.log(`[CoursePanel] Course updated`, { title: this.data!.title, timestamp: new Date().toISOString() });
           },
           error: (error) => console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() })
         });
@@ -114,14 +126,5 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     this.modeChange.emit(false);
     this.originalData = null;
     console.log(`[CoursePanel] Cancelled ${this.mode} mode`);
-  }
-
-  onAddTopic() {
-    if (this.data && this.data.id) {
-      console.log('[CoursePanel] Emitting add node request for Topic under course:', { courseId: this.data.id });
-      this.addNode.emit({ courseId: this.data.id, nodeType: 'Topic' });
-    } else {
-      console.warn('[CoursePanel] Cannot add topic: Course ID is missing');
-    }
   }
 }

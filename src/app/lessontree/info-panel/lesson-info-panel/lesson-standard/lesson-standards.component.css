@@ -1,0 +1,63 @@
+.standards-container {
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .standards-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+  }
+  
+  .editing .standards-list {
+    border: 2px solid #007bff;
+  }
+  
+  .standard-item {
+    margin-bottom: 0.75rem;
+    padding: 0.5rem;
+    background-color: #f9f9f9;
+    border-radius: 0.25rem;
+  }
+  
+  .standard-title {
+    font-weight: bold;
+  }
+  
+  .standard-description {
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+  }
+  
+  .standard-topic {
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+    color: #555;
+  }
+  
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  
+  button {
+    padding: 0.625rem 0.9375rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+  }
+  
+  button:hover {
+    background-color: #0056b3;
+  }

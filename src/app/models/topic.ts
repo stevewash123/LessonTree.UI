@@ -8,10 +8,11 @@ export interface Topic {
     title: string;
     description: string;
     courseId: number;
-    hasChildren: boolean; // Removed hasSubTopics per API update
+    hasChildren: boolean;
     subTopics?: SubTopic[];
     lessons?: Lesson[];
-    visibility: string;
+    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
+    archived: boolean;
 }
 
 export function createTopicNode(topic: Topic): TreeNode {

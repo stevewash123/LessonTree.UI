@@ -37,14 +37,14 @@ export class LessonTreeContainerComponent {
 
   get isOverlayActive(): boolean {
     const active = this.panelMode === 'add' || this.panelMode === 'edit';
-    console.log(`[LessonTreeContainer] isOverlayActive checked: ${active} (panelMode: ${this.panelMode})`, { timestamp: new Date().toISOString() });
+    //console.log(`[LessonTreeContainer] isOverlayActive checked: ${active} (panelMode: ${this.panelMode})`, { timestamp: new Date().toISOString() });
     return active;
   }
 
   onActiveNodeChange(node: TreeNode): void {
     this.currentActiveNode = node;
     this.selectedCourse = null;
-    console.log(`[LessonTreeContainer] Active node changed to ${node.id}`, { timestamp: new Date().toISOString() });
+    //console.log(`[LessonTreeContainer] Active node changed to ${node.id}`, { timestamp: new Date().toISOString() });
   }
 
   onCourseSelected(course: Course): void {

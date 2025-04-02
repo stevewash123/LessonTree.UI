@@ -1,0 +1,76 @@
+.notes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.note-item {
+    border: 1px solid #ddd;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+}
+
+.note-item.new-note {
+    border: 2px solid #007bff;
+}
+
+.note-item:not(.new-note) {
+    background-color: #e9e9e9; /* Grey background for saved notes */
+    margin-bottom: 0.5rem; /* Thin margin between saved notes */
+}
+
+.note-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.note-date {
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.note-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.note-container textarea {
+    flex: 1;
+    padding: 0.25rem;
+    resize: vertical;
+    min-height: 60px;
+}
+
+.note-container textarea[readonly] {
+    background-color: #e9e9e9; /* Ensure saved notes textarea is grey */
+    border: 1px solid #ccc;
+}
+
+.note-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.saved-notes {
+    overflow-y: auto;
+    flex: 1;
+    border: none; /* Borderless as requested */
+    max-height: 410px; /* Adjusted to show 4 notes before scrolling */
+}
+
+textarea.editing {
+    border: 2px solid #007bff;
+}
+
+@media (max-width: 600px) {
+    .note-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .note-actions {
+        margin-top: 0.5rem;
+    }
+}

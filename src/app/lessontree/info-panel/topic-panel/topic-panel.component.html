@@ -1,9 +1,60 @@
-<!-- Partial File: topic-panel.component.html -->
 <div class="topic-panel-wrapper">
     <h2 class="panel-title">Topic</h2>
     @if (data) {
       <div class="topic-card">
         <form>
+          @if (data.archived || (isEditing && mode !== 'add')) {
+            <div class="status-controls">
+              <div class="form-group form-group-inline checkbox-label">
+                <label for="archived">Archived:</label>
+                <input
+                  type="checkbox"
+                  id="archived"
+                  [readonly]="!isEditing"
+                  [disabled]="!isEditing"
+                  [(ngModel)]="data.archived"
+                  name="archived"
+                />
+              </div>
+              @if (hasDistrictId) {
+                <div class="form-group form-group-inline">
+                  <label>Visibility:</label>
+                  <div class="radio-group">
+                    <label>
+                      <input
+                        type="radio"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="data.visibility"
+                        name="visibility"
+                        value="public"
+                        [disabled]="!isEditing"
+                      /> Public
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="data.visibility"
+                        name="visibility"
+                        value="private"
+                        [disabled]="!isEditing"
+                      /> Private
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="data.visibility"
+                        name="visibility"
+                        value="team"
+                        [disabled]="!isEditing"
+                      /> Team
+                    </label>
+                  </div>
+                </div>
+              }
+            </div>
+          }
           <div class="form-group">
             <label for="title">Title:</label>
             <input
@@ -24,7 +75,7 @@
               [ngClass]="{'editing': isEditing}"
             ></textarea>
           </div>
-          @if (mode === 'view') {
+          @if (!isEditing) {
             <div class="buttons">
               <button (click)="enterEditMode()">Edit</button>
             </div>

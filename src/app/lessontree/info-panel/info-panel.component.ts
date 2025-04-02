@@ -45,25 +45,25 @@ export class InfoPanelComponent implements OnChanges {
 
   get lessonDetail(): LessonDetail | null {
     const isLesson = this.activeNode?.nodeType === 'Lesson' || (this.mode === 'add' && this.addPanelType === 'Lesson');
-    console.log(`[InfoPanel] LessonDetail get`, { isLesson, data: this.data, timestamp: new Date().toISOString() });
+    //console.log(`[InfoPanel] LessonDetail get`, { isLesson, data: this.data, timestamp: new Date().toISOString() });
     return isLesson ? (this.data as LessonDetail) : null;
   }
 
   get topic(): Topic | null {
     const isTopic = this.activeNode?.nodeType === 'Topic' || (this.mode === 'add' && this.addPanelType === 'Topic');
-    console.log(`[InfoPanel] Topic get`, { isTopic, data: this.data, timestamp: new Date().toISOString() });
+    //console.log(`[InfoPanel] Topic get`, { isTopic, data: this.data, timestamp: new Date().toISOString() });
     return isTopic ? (this.data as Topic) : null;
   }
 
   get subtopic(): SubTopic | null {
     const isSubTopic = this.activeNode?.nodeType === 'SubTopic' || (this.mode === 'add' && this.addPanelType === 'SubTopic');
-    console.log(`[InfoPanel] Subtopic get`, { isSubTopic, data: this.data, timestamp: new Date().toISOString() });
+    //console.log(`[InfoPanel] Subtopic get`, { isSubTopic, data: this.data, timestamp: new Date().toISOString() });
     return isSubTopic ? (this.data as SubTopic) : null;
   }
 
   get course(): Course | null {
     const isCourse = this.selectedCourse !== null && (this.mode !== 'add' || this.addPanelType === 'Course');
-    console.log(`[InfoPanel] Course get`, { isCourse, data: this.data, selectedCourse: this.selectedCourse, timestamp: new Date().toISOString() });
+    //console.log(`[InfoPanel] Course get`, { isCourse, data: this.data, selectedCourse: this.selectedCourse, timestamp: new Date().toISOString() });
     return isCourse ? this.selectedCourse : null;
   }
 
@@ -149,7 +149,7 @@ export class InfoPanelComponent implements OnChanges {
     this.parentNode = parentNode || null;
     this.addPanelType = panelType;
     console.log(`[InfoPanel] Initiating add mode`, { panelType: panelType, parentId: parentNode?.id ?? 'none', courseId, timestamp: new Date().toISOString() });
-
+  
     switch (panelType) {
       case 'Course':
         this.data = {
@@ -224,7 +224,8 @@ export class InfoPanelComponent implements OnChanges {
           attachments: [],
           visibility: 'Private',
           teamId: undefined,
-          archived: false
+          archived: false,
+          notes: [] // Added to satisfy LessonDetail interface
         };
         break;
     }

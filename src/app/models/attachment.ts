@@ -4,4 +4,5 @@ export interface Attachment {
     fileName: string;
     fileSize: number;
     contentType: string;
+    description: string;
   }

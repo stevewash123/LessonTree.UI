@@ -9,9 +9,9 @@ export interface SubTopic {
     topicId: number;
     courseId: number;
     lessons: Lesson[];
-    hasChildren: boolean; // Removed isDefault per API update    
-    archived: boolean; // Added
-    visibility: string;
+    hasChildren: boolean;
+    archived: boolean;
+    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
 }
 
 export function createSubTopicNode(subTopic: SubTopic): TreeNode {

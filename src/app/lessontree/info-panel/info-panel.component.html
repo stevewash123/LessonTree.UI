@@ -1,7 +1,5 @@
 <div class="info-panel-wrapper">
-    {{mode}}  {{!!selectedCourse}} 
     @if (activeNode || selectedCourse || mode === 'add') {
-        {{selectedCourse}}
       @if ((selectedCourse && mode !== 'add') || (mode === 'add' && addPanelType === 'Course')) {
         @if (course) {
           <course-panel

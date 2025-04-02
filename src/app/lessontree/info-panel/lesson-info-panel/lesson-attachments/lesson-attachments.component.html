@@ -1,0 +1,56 @@
+<div class="attachments-table">
+    <table>
+      <thead>
+        <tr>
+          <th>File Name</th>
+          <th>File Size</th>
+          <th>Content Type</th>
+          <th>Description</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (attachment of attachments; track attachment.id) {
+          <tr>
+            <td>{{ attachment.fileName }}</td>
+            <td>{{ attachment.fileSize | number }} bytes</td>
+            <td>{{ attachment.contentType }}</td>
+            <td>
+              @if (editingAttachmentId === attachment.id) {
+                <textarea
+                  [(ngModel)]="attachment.description"
+                  [name]="'description-' + attachment.id"
+                  class="editing"
+                  rows="2"
+                ></textarea>
+              } @else {
+                {{ attachment.description || 'No description' }}
+              }
+            </td>
+            <td class="actions">
+              @if (editingAttachmentId === attachment.id) {
+                <mat-icon (click)="saveAttachment(attachment)" title="Save">save</mat-icon>
+                <mat-icon (click)="cancelAttachmentEdit(attachment)" title="Cancel">close</mat-icon>
+              } @else {
+                <mat-icon (click)="deleteAttachment(attachment)" title="Delete" [class.disabled]="!isEditing">delete</mat-icon>
+              }
+            </td>
+          </tr>
+        }
+        @if (!attachments!.length) {
+          <tr>
+            <td colspan="5">No attachments available.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <div class="upload-section">
+        <button (click)="triggerFileInput()">Upload File</button>
+        <input
+          #fileInput
+          type="file"
+          style="display: none;"
+          (change)="onFileSelected($event)"
+        />
+      </div>
+  </div>

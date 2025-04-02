@@ -1,4 +1,5 @@
 import { Attachment } from "./attachment";
+import { Note } from "./note";
 import { Standard } from "./standard";
 import { TreeNode } from "./tree-node";
 
@@ -6,11 +7,11 @@ export interface Lesson {
     id: number;
     nodeId: string;
     courseId: number;
-    subTopicId?: number; // Nullable per API
-    topicId?: number;    // Added: Nullable per API, for direct Topic parenting
+    subTopicId?: number;
+    topicId?: number;
     title: string;
-    objective: string;   // Required per your intent
-    visibility: string;
+    objective: string;
+    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
     teamId?: number;
     archived: boolean;
 }
@@ -35,4 +36,5 @@ export interface LessonDetail extends Lesson {
     assessment?: string;
     standards: Standard[];
     attachments: Attachment[];
+    notes: Note[];
 }

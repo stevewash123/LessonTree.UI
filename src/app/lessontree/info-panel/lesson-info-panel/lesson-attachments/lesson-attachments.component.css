@@ -1,0 +1,62 @@
+.attachments-table {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.attachments-table table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1rem;
+}
+
+.attachments-table th,
+.attachments-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.attachments-table th {
+    background-color: #f0f0f0;
+    font-weight: bold;
+}
+
+.attachments-table td.actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.attachments-table mat-icon.disabled {
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+.attachments-table textarea {
+    width: 100%;
+    padding: 0.25rem;
+    box-sizing: border-box;
+    resize: vertical;
+}
+
+textarea.editing {
+    border: 2px solid #007bff;
+}
+
+.upload-section {
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.upload-section button {
+    padding: 0.625rem 0.9375rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+}
+
+.upload-section button:hover {
+    background-color: #0056b3;
+}

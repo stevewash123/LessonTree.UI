@@ -1,5 +1,8 @@
-<div>
-    <h2 class="courses-header">Courses</h2>
+<div class="course-list-wrapper">
+    <div class="course-header-container">
+        <h2 class="courses-header">Courses</h2>
+        <mat-icon class="filter-icon" (click)="openFilterDialog()" matTooltip="Filter Courses">filter_list</mat-icon>
+    </div>
     @for (course of courses; track $index) {        
       <mat-card class="course-card">
         <mat-list-item>
@@ -46,4 +49,4 @@
     <div class="add-course-button">
       <button mat-raised-button color="primary" (click)="addCourse()">Add Course</button>
     </div>    
-  </div>
+</div>

@@ -1,0 +1,51 @@
+<div class="standards-container" [ngClass]="{'editing': isStandardsEditing}">
+    <div class="standards-list">
+      @if (standardMode === 'viewStandards') {
+        @for (standard of lessonDetail.standards; track standard.id) {
+          <div class="standard-item">
+            <div class="standard-title">{{ standard.title }}</div>
+            @if (standard.description) {
+              <div class="standard-description">{{ standard.description }}</div>
+            }
+            @if (standardTopicIds.get(standard.id)) {
+              <div class="standard-topic">Topic: {{ standardTopicIds.get(standard.id) }}</div>
+            }
+          </div>
+        } @empty {
+          <p>No standards assigned to this lesson.</p>
+        }
+      }
+      @if (standardMode === 'editStandards') {
+        @for (standard of allStandards; track standard.id) {
+          <div class="standard-item">
+            <label class="checkbox-label">
+              <input
+                type="checkbox"
+                [checked]="selectedStandards.has(standard.id)"
+                (change)="toggleStandard(standard.id)"
+              />
+              {{ standard.title }}
+            </label>
+            @if (standard.description) {
+              <div class="standard-description">{{ standard.description }}</div>
+            }
+            @if (standardTopicIds.get(standard.id)) {
+              <div class="standard-topic">Topic: {{ standardTopicIds.get(standard.id) }}</div>
+            }
+          </div>
+        }
+      }
+    </div>
+  
+    @if (!isEditing) {
+      <div class="buttons">
+        @if (standardMode === 'viewStandards') {
+          <button (click)="enterEditStandardsMode()">Edit Standards</button>
+        }
+        @if (standardMode === 'editStandards') {
+          <button (click)="saveStandards()">Save Standards</button>
+          <button (click)="cancelStandards()">Cancel</button>
+        }
+      </div>
+    }
+  </div>

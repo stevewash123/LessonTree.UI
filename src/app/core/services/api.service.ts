@@ -9,6 +9,8 @@ import { SubTopic } from '../../models/subTopic';
 import { Lesson, LessonDetail } from '../../models/lesson';
 import { Course } from '../../models/course';
 import { Attachment } from '../../models/attachment';
+import { Note } from '../../models/note';
+import { Standard } from '../../models/standard';
 
 interface ApiOptions {
     headers?: HttpHeaders | { [header: string]: string | string[] };
@@ -50,6 +52,16 @@ export class ApiService {
         return throwError(() => error);
     }
 
+    /** Maps visibility string to its corresponding VisibilityType enum integer value */
+    private mapVisibilityToEnum(visibility: string | undefined): number {
+        const visibilityMap: { [key: string]: number } = {
+            'Private': 0, // VisibilityType.Private
+            'Team': 1,    // VisibilityType.Team
+            'Public': 2   // VisibilityType.Public
+        };
+        return visibility ? visibilityMap[visibility] ?? 0 : 0; // Default to Private (0) if undefined or invalid
+    }
+
     /** Generic GET method with data transformation and error handling */
     get<T>(endpoint: string, options?: ApiOptions): Observable<T> {
         console.log('ApiService: GET', {
@@ -75,6 +87,61 @@ export class ApiService {
         );
     }
 
+    /** Generic POST method */
+    post<T>(endpoint: string, body: any, options?: ApiOptions): Observable<T> {
+        console.log('ApiService: POST', {
+            url: `${this.baseUrl}/${endpoint}`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.post<T>(`${this.baseUrl}/${endpoint}`, body, options).pipe(
+            map(response => this.transformResponse<T>(response)),
+            catchError(error => this.handleError(error, options))
+        );
+    }
+
+    /** Generic PUT method */
+    put<T>(endpoint: string, body: any, options?: ApiOptions): Observable<T> {
+        console.log('ApiService: PUT', {
+            url: `${this.baseUrl}/${endpoint}`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.put<T>(`${this.baseUrl}/${endpoint}`, body, options).pipe(
+            map(response => this.transformResponse<T>(response)),
+            catchError(error => this.handleError(error, options))
+        );
+    }
+    
+    /** Fetch courses with filtering by archived status and visibility */
+    getCourses(courseFilter: 'active' | 'archived' | 'both', visibilityFilter: 'private' | 'team' | null): Observable<Course[]> {
+        let params = new HttpParams();
+
+        // Filter by archived status
+        if (courseFilter === 'active') {
+            params = params.set('filter', 'Active');
+        } else if (courseFilter === 'archived') {
+            params = params.set('filter', 'Archived');
+        } // 'both' means no filter parameter
+
+        // Map visibility filter to API enum values
+        if (visibilityFilter) {
+            const visibilityMap: { [key: string]: number } = {
+                'private': 0, // VisibilityType.Private
+                'team': 1     // VisibilityType.Team
+            };
+            params = params.set('visibility', visibilityMap[visibilityFilter].toString());
+        }
+
+        const options: ApiOptions = { params };
+        console.log('ApiService: Fetching courses', {
+            url: `${this.baseUrl}/course`,
+            params: params.toString(),
+            timestamp: new Date().toISOString()
+        });
+        return this.get<Course[]>('course', options);
+    }
+    
     /** Create a new Course */
     createCourse(course: Course): Observable<Course> {
         console.log('ApiService: POST createCourse', {
@@ -89,7 +156,12 @@ export class ApiService {
 
     /** Update a Course (immediate properties only) */
     updateCourse(course: Partial<Course>): Observable<Course> {
-        const body = { id: course.id, title: course.title, description: course.description };
+        const body = {
+            id: course.id,
+            title: course.title,
+            description: course.description,
+            visibility: this.mapVisibilityToEnum(course.visibility)
+        };
         console.log('ApiService: PUT updateCourse', {
             url: `${this.baseUrl}/course/${course.id}`,
             body,
@@ -114,7 +186,12 @@ export class ApiService {
 
     /** Update a Topic (immediate properties only) */
     updateTopic(topic: Partial<Topic>): Observable<Topic> {
-        const body = { id: topic.id, title: topic.title, description: topic.description, visibility: topic.visibility};
+        const body = {
+            id: topic.id,
+            title: topic.title,
+            description: topic.description,
+            visibility: this.mapVisibilityToEnum(topic.visibility)
+        };
         console.log('ApiService: PUT updateTopic', {
             url: `${this.baseUrl}/topic/${topic.id}`,
             body,
@@ -139,7 +216,12 @@ export class ApiService {
 
     /** Update a SubTopic (immediate properties only) */
     updateSubTopic(subTopic: Partial<SubTopic>): Observable<SubTopic> {
-        const body = { id: subTopic.id, title: subTopic.title, description: subTopic.description, visibility: subTopic.visibility };
+        const body = {
+            id: subTopic.id,
+            title: subTopic.title,
+            description: subTopic.description,
+            visibility: this.mapVisibilityToEnum(subTopic.visibility)
+        };
         console.log('ApiService: PUT updateSubTopic', {
             url: `${this.baseUrl}/subtopic/${subTopic.id}`,
             body,
@@ -167,7 +249,7 @@ export class ApiService {
         const body = {
             id: lesson.id,
             title: lesson.title,
-            visibility: lesson.visibility,
+            visibility: this.mapVisibilityToEnum(lesson.visibility),
             teamId: lesson.teamId,
             level: lesson.level,
             objective: lesson.objective,
@@ -250,7 +332,7 @@ export class ApiService {
     uploadAttachment(lessonId: number, file: File): Observable<Attachment> {
         const formData = new FormData();
         formData.append('file', file, file.name);
-        const url = `${this.baseUrl}/lesson/${lessonId}/document`;
+        const url = `${this.baseUrl}/lesson/${lessonId}/attachments`;
         console.log('ApiService: POST uploadAttachment', {
             url,
             fileName: file.name,
@@ -297,6 +379,105 @@ export class ApiService {
         return this.get<Lesson[]>(url);
     }
 
+    /** Create a new Note */
+    createNote(note: Partial<Note>): Observable<Note> {
+        const body = {
+            content: note.content,
+            visibility: this.mapVisibilityToEnum(note.visibility),
+            teamId: note.teamId,
+            courseId: note.courseId,
+            topicId: note.topicId,
+            subTopicId: note.subTopicId,
+            lessonId: note.lessonId
+        };
+        console.log('ApiService: POST createNote', {
+            url: `${this.baseUrl}/note`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.post<Note>(`${this.baseUrl}/note`, body).pipe(
+            map(response => this.transformResponse<Note>(response)),
+            catchError(error => this.handleError(error))
+        );
+    }
+
+    /** Update an existing Note */
+    updateNote(note: Partial<Note>): Observable<Note> {
+        const body = {
+            id: note.id,
+            content: note.content,
+            visibility: this.mapVisibilityToEnum(note.visibility),
+            teamId: note.teamId,
+            courseId: note.courseId,
+            topicId: note.topicId,
+            subTopicId: note.subTopicId,
+            lessonId: note.lessonId
+        };
+        console.log('ApiService: PUT updateNote', {
+            url: `${this.baseUrl}/note/${note.id}`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.put<Note>(`${this.baseUrl}/note/${note.id}`, body).pipe(
+            map(response => this.transformResponse<Note>(response)),
+            catchError(error => this.handleError(error))
+        );
+    }
+
+    /** Delete a Note */
+    deleteNote(id: number): Observable<void> {
+        return this.delete<void>(`note/${id}`);
+    }
+
+    getStandards(): Observable<Standard[]> {
+        return this.get<Standard[]>('standard');
+    }
+
+    /** Fetch a standard by ID */
+    getStandard(id: number): Observable<Standard> {
+        return this.get<Standard>(`standard/${id}`);
+    }
+
+    /** Create a new Standard */
+    createStandard(standard: Partial<Standard>): Observable<Standard> {
+        const body = {
+            title: standard.title,
+            courseId: standard.courseId,
+            topicId: standard.topicId,
+            description: standard.description,
+            standardType: standard.standardType
+        };
+        return this.post<Standard>('standard', body);
+    }
+
+    /** Update a Standard */
+    updateStandard(standard: Partial<Standard>): Observable<void> {
+        const body = {
+            id: standard.id,
+            title: standard.title,
+            courseId: standard.courseId,
+            topicId: standard.topicId,
+            description: standard.description,
+            standardType: standard.standardType
+        };
+        return this.put<void>(`standard/${standard.id}`, body);
+    }
+
+    /** Delete a Standard */
+    deleteStandard(id: number): Observable<void> {
+        return this.delete<void>(`standard/${id}`);
+    }
+
+    /** Fetch standards by course ID with optional district ID */
+    getStandardsByCourse(courseId: number, districtId?: number): Observable<Standard[]> {
+        let params = new HttpParams().set('courseId', courseId.toString());
+        if (districtId !== undefined) {
+            params = params.set('districtId', districtId.toString());
+        }
+        const options: ApiOptions = { params };
+        return this.get<Standard[]>(`standard/course/${courseId}`, options);
+    }
+
     /** Transform keys to camelCase and ensure specific fields are arrays */
     private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {
         if (Array.isArray(obj)) {
@@ -312,6 +493,15 @@ export class ApiService {
                 }
                 if (camelKey === 'subTopics' || camelKey === 'lessons' || camelKey === 'topics' || camelKey === 'attachments') {
                     value = Array.isArray(value) ? value : [];
+                }
+                // Transform visibility from number to string
+                if (camelKey === 'visibility' && typeof value === 'number') {
+                    const visibilityMap: { [key: number]: string } = {
+                        0: 'Private',
+                        1: 'Team',
+                        2: 'Public'
+                    };
+                    value = visibilityMap[value] || 'Private'; // Default to 'Private' if unknown
                 }
 
                 acc[camelKey] = this.transformKeysToCamelCaseAndEnsureArrays(value);

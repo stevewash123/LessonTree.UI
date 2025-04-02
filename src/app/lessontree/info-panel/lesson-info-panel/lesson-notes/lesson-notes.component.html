@@ -1,0 +1,43 @@
+<div class="notes-list">
+    <!-- New Note Textarea (always present at top) -->
+    <div class="note-item new-note">
+      <div class="form-group">
+        <div class="note-container">
+          <textarea
+            #newNoteTextarea
+            [(ngModel)]="newNote.content"
+            name="new-note"
+            [ngClass]="{'editing': true}"
+            placeholder="Enter new note..."
+          ></textarea>
+          <div class="note-actions">
+            <mat-icon (click)="saveNote(newNote)" title="Save">save</mat-icon>
+            <mat-icon (click)="clearNewNote()" title="Cancel">close</mat-icon>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <!-- Scrollable Existing Notes -->
+    <div class="saved-notes">
+      @for (note of notes; track note.id) {
+        <div class="note-item">
+          <div class="note-header">
+            <span class="note-date">{{ note.createdDate | date:'short' }}</span>
+          </div>
+          <div class="form-group">
+            <div class="note-container">
+              <textarea
+                [readonly]="true"
+                [(ngModel)]="note.content"
+                [name]="'note-' + note.id"
+              ></textarea>
+              <div class="note-actions">
+                <mat-icon (click)="deleteNote(note)" title="Delete">delete</mat-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
