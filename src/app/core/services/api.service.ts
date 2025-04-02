@@ -172,25 +172,24 @@ export class ApiService {
         );
     }
 
-    /** Create a new Topic */
     createTopic(topic: Topic): Observable<Topic> {
         console.log('ApiService: POST createTopic', {
             url: `${this.baseUrl}/topic`,
             body: topic,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<Topic>(`${this.baseUrl}/topic`, topic).pipe(
+        return this.http.post<Topic>(`${this.baseUrl}/topic`, { ...topic, visibility: this.mapVisibilityToEnum(topic.visibility) }).pipe(
             catchError(error => this.handleError(error))
         );
     }
-
-    /** Update a Topic (immediate properties only) */
+    
     updateTopic(topic: Partial<Topic>): Observable<Topic> {
         const body = {
             id: topic.id,
             title: topic.title,
             description: topic.description,
-            visibility: this.mapVisibilityToEnum(topic.visibility)
+            visibility: this.mapVisibilityToEnum(topic.visibility),
+            sortOrder: topic.sortOrder // Include sortOrder
         };
         console.log('ApiService: PUT updateTopic', {
             url: `${this.baseUrl}/topic/${topic.id}`,
@@ -201,26 +200,25 @@ export class ApiService {
             catchError(error => this.handleError(error))
         );
     }
-
-    /** Create a new SubTopic */
+    
     createSubTopic(subTopic: SubTopic): Observable<SubTopic> {
         console.log('ApiService: POST createSubTopic', {
             url: `${this.baseUrl}/subtopic`,
             body: subTopic,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<SubTopic>(`${this.baseUrl}/subtopic`, subTopic).pipe(
+        return this.http.post<SubTopic>(`${this.baseUrl}/subtopic`, { ...subTopic, visibility: this.mapVisibilityToEnum(subTopic.visibility) }).pipe(
             catchError(error => this.handleError(error))
         );
     }
-
-    /** Update a SubTopic (immediate properties only) */
+    
     updateSubTopic(subTopic: Partial<SubTopic>): Observable<SubTopic> {
         const body = {
             id: subTopic.id,
             title: subTopic.title,
             description: subTopic.description,
-            visibility: this.mapVisibilityToEnum(subTopic.visibility)
+            visibility: this.mapVisibilityToEnum(subTopic.visibility),
+            sortOrder: subTopic.sortOrder // Include sortOrder
         };
         console.log('ApiService: PUT updateSubTopic', {
             url: `${this.baseUrl}/subtopic/${subTopic.id}`,
@@ -231,20 +229,18 @@ export class ApiService {
             catchError(error => this.handleError(error))
         );
     }
-
-    /** Create a new Lesson */
+    
     createLesson(lesson: Lesson): Observable<Lesson> {
         console.log('ApiService: POST createLesson', {
             url: `${this.baseUrl}/lesson`,
             body: lesson,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<Lesson>(`${this.baseUrl}/lesson`, lesson).pipe(
+        return this.http.post<Lesson>(`${this.baseUrl}/lesson`, { ...lesson, visibility: this.mapVisibilityToEnum(lesson.visibility) }).pipe(
             catchError(error => this.handleError(error))
         );
     }
-
-    /** Update a Lesson (immediate properties only) */
+    
     updateLesson(lesson: Partial<LessonDetail>): Observable<LessonDetail> {
         const body = {
             id: lesson.id,
@@ -257,7 +253,8 @@ export class ApiService {
             classTime: lesson.classTime,
             methods: lesson.methods,
             specialNeeds: lesson.specialNeeds,
-            assessment: lesson.assessment
+            assessment: lesson.assessment,
+            sortOrder: lesson.sortOrder // Include sortOrder
         };
         console.log('ApiService: PUT updateLesson', {
             url: `${this.baseUrl}/lesson/${lesson.id}`,
@@ -265,6 +262,43 @@ export class ApiService {
             timestamp: new Date().toISOString()
         });
         return this.http.put<LessonDetail>(`${this.baseUrl}/lesson/${lesson.id}`, body).pipe(
+            catchError(error => this.handleError(error))
+        );
+    }
+    
+    // New endpoints for sorting
+    updateTopicSortOrder(topicId: number, sortOrder: number): Observable<void> {
+        const body = { topicId, sortOrder };
+        console.log('ApiService: PUT updateTopicSortOrder', {
+            url: `${this.baseUrl}/topic/${topicId}/sortOrder`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.put<void>(`${this.baseUrl}/topic/${topicId}/sortOrder`, body).pipe(
+            catchError(error => this.handleError(error))
+        );
+    }
+    
+    updateSubTopicSortOrder(subTopicId: number, sortOrder: number): Observable<void> {
+        const body = { subTopicId, sortOrder };
+        console.log('ApiService: PUT updateSubTopicSortOrder', {
+            url: `${this.baseUrl}/subtopic/${subTopicId}/sortOrder`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.put<void>(`${this.baseUrl}/subtopic/${subTopicId}/sortOrder`, body).pipe(
+            catchError(error => this.handleError(error))
+        );
+    }
+    
+    updateLessonSortOrder(lessonId: number, sortOrder: number): Observable<void> {
+        const body = { lessonId, sortOrder };
+        console.log('ApiService: PUT updateLessonSortOrder', {
+            url: `${this.baseUrl}/lesson/${lessonId}/sortOrder`,
+            body,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.put<void>(`${this.baseUrl}/lesson/${lessonId}/sortOrder`, body).pipe(
             catchError(error => this.handleError(error))
         );
     }

@@ -11,7 +11,8 @@ export interface SubTopic {
     lessons: Lesson[];
     hasChildren: boolean;
     archived: boolean;
-    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
+    visibility: 'Private' | 'Team' | 'Public'; 
+    sortOrder: number;
 }
 
 export function createSubTopicNode(subTopic: SubTopic): TreeNode {

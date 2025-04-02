@@ -13,6 +13,7 @@ export interface Topic {
     lessons?: Lesson[];
     visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
     archived: boolean;
+    sortOrder: number;
 }
 
 export function createTopicNode(topic: Topic): TreeNode {

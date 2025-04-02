@@ -225,7 +225,8 @@ export class InfoPanelComponent implements OnChanges {
           visibility: 'Private',
           teamId: undefined,
           archived: false,
-          notes: [] // Added to satisfy LessonDetail interface
+          notes: [],
+          sortOrder: 0 // Added to satisfy LessonDetail interface
         };
         break;
     }

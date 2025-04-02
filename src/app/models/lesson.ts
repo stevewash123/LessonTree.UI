@@ -14,6 +14,7 @@ export interface Lesson {
     visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
     teamId?: number;
     archived: boolean;
+    sortOrder: number;
 }
 
 export function createLessonNode(lesson: Lesson): TreeNode {

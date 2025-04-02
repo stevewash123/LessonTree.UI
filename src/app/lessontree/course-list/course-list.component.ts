@@ -394,47 +394,58 @@ export class CourseListComponent implements OnInit, OnChanges {
     });
   }
 
-  onLessonMoved(event: { lesson: Lesson, sourceSubTopicId: number, targetSubTopicId: number }): void {
-    console.log('[CourseList] onLessonMoved: Lesson moved event:', event, { timestamp: new Date().toISOString() });
-    const { lesson, sourceSubTopicId, targetSubTopicId } = event;
+  onLessonMoved(event: { lesson: Lesson, sourceSubTopicId?: number, targetSubTopicId?: number, targetTopicId?: number }): void {
+        console.log('[CourseList] onLessonMoved: Lesson moved event:', event, { timestamp: new Date().toISOString() });
+        const { lesson, sourceSubTopicId, targetSubTopicId, targetTopicId } = event;
 
-    let sourceSubTopic: SubTopic | undefined;
-    let targetSubTopic: SubTopic | undefined;
+        let sourceSubTopic: SubTopic | undefined;
+        let targetSubTopic: SubTopic | undefined;
+        let targetTopic: Topic | undefined;
 
-    for (const course of this.courses) {
-      if (!course.topics) continue;
-      for (const topic of course.topics) {
-        if (!topic.subTopics) continue;
-        if (!sourceSubTopic) {
-          sourceSubTopic = topic.subTopics.find(st => st.id === sourceSubTopicId);
+        for (const course of this.courses) {
+            if (!course.topics) continue;
+            for (const topic of course.topics) {
+                if (targetTopicId && topic.id === targetTopicId) {
+                    targetTopic = topic;
+                }
+                if (!topic.subTopics) continue;
+                if (!sourceSubTopic) {
+                    sourceSubTopic = topic.subTopics.find(st => st.id === sourceSubTopicId);
+                }
+                if (!targetSubTopic && targetSubTopicId) {
+                    targetSubTopic = topic.subTopics.find(st => st.id === targetSubTopicId);
+                }
+                if ((sourceSubTopic && targetSubTopic) || (sourceSubTopic && targetTopic)) break;
+            }
+            if ((sourceSubTopic && targetSubTopic) || (sourceSubTopic && targetTopic)) break;
         }
-        if (!targetSubTopic) {
-          targetSubTopic = topic.subTopics.find(st => st.id === targetSubTopicId);
+
+        if (!sourceSubTopic || (!targetSubTopic && !targetTopic)) {
+            console.error('[CourseList] onLessonMoved: Source or target not found:', { sourceSubTopicId, targetSubTopicId, targetTopicId }, { timestamp: new Date().toISOString() });
+            this.toastr.error('Failed to update course data after moving lesson', 'Error');
+            this.loadCourses();
+            return;
         }
-        if (sourceSubTopic && targetSubTopic) break;
-      }
-      if (sourceSubTopic && targetSubTopic) break;
-    }
 
-    if (!sourceSubTopic || !targetSubTopic) {
-      console.error('[CourseList] onLessonMoved: Source or target subtopic not found:', { sourceSubTopicId, targetSubTopicId }, { timestamp: new Date().toISOString() });
-      this.toastr.error('Failed to update course data after moving lesson', 'Error');
-      this.loadCourses();
-      return;
-    }
+        sourceSubTopic.lessons = sourceSubTopic.lessons.filter(l => l.id !== lesson.id);
+        console.log(`[CourseList] onLessonMoved: Removed lesson ${lesson.id} from source subTopic ${sourceSubTopicId}`, { timestamp: new Date().toISOString() });
 
-    sourceSubTopic.lessons = sourceSubTopic.lessons.filter(l => l.id !== lesson.id);
-    console.log(`[CourseList] onLessonMoved: Removed lesson ${lesson.id} from source subTopic ${sourceSubTopicId}`, { timestamp: new Date().toISOString() });
+        if (targetSubTopic) {
+            if (!targetSubTopic.lessons) targetSubTopic.lessons = [];
+            targetSubTopic.lessons.push(lesson);
+            lesson.subTopicId = targetSubTopicId;
+            lesson.topicId = undefined;
+            console.log(`[CourseList] onLessonMoved: Added lesson ${lesson.id} to target subTopic ${targetSubTopicId}`, { timestamp: new Date().toISOString() });
+        } else if (targetTopic) {
+            if (!targetTopic.lessons) targetTopic.lessons = [];
+            targetTopic.lessons.push(lesson);
+            lesson.subTopicId = undefined;
+            lesson.topicId = targetTopicId;
+            console.log(`[CourseList] onLessonMoved: Added lesson ${lesson.id} to target topic ${targetTopicId}`, { timestamp: new Date().toISOString() });
+        }
 
-    if (!targetSubTopic.lessons) targetSubTopic.lessons = [];
-    targetSubTopic.lessons.push(lesson);
-    console.log(`[CourseList] onLessonMoved: Added lesson ${lesson.id} to target subTopic ${targetSubTopicId}`, { timestamp: new Date().toISOString() });
-
-    lesson.subTopicId = targetSubTopicId;
-
-    console.log('[CourseList] onLessonMoved: Skipping full refresh to preserve tree expanded state', { timestamp: new Date().toISOString() });
-    this.cdr.detectChanges();
-    this.toastr.success(`Moved Lesson ${lesson.title} from SubTopic ${sourceSubTopic.title} to SubTopic ${targetSubTopic.title}`);
+        this.cdr.detectChanges();
+        this.toastr.success(`Moved Lesson ${lesson.title} from SubTopic ${sourceSubTopic.title} to ${targetSubTopic ? `SubTopic ${targetSubTopic.title}` : `Topic ${targetTopic!.title}`}`);
   }
 
   triggerChangeDetection(): void {
