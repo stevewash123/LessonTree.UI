@@ -11,6 +11,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { BehaviorSubject, combineLatest, Subscription } from 'rxjs';
+import { CommonModule } from '@angular/common';
 
 interface LessonMovedEvent {
     lesson: Lesson;
@@ -23,6 +24,7 @@ interface LessonMovedEvent {
     selector: 'app-tree',
     standalone: true,
     imports: [
+        CommonModule,
         TreeViewModule,
         MatIconModule,
         MatButtonModule,
@@ -45,8 +47,17 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
 
     @ViewChild('treeview') syncFuncTree!: TreeViewComponent;
 
+    public cssClass: string = "custom";
     public treeData: TreeNode[] = [];
-    public treeFields: object = { dataSource: this.treeData, id: 'id', text: 'text', child: 'child', hasChildren: 'hasChildren', iconCss: 'iconCss' };
+    public treeFields: object = { 
+        dataSource: this.treeData, 
+        id: 'id', 
+        text: 'text', 
+        child: 'child', 
+        hasChildren: 'hasChildren', 
+        iconCss: 'iconCss',
+        cssClass: 'nodeType'
+    };
     private activeNodeId: string | null = null;
     private isViewInitialized: boolean = false;
     private pendingTopics: Topic[] | null = null;
@@ -57,6 +68,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
     private viewInitializedSubject = new BehaviorSubject<boolean>(false);
     private initializationSubscription: Subscription | null = null;
     private isProgrammaticSelection: boolean = false;
+    private nodeSelectedTimeout: any = null;
 
     constructor(
         private apiService: ApiService,
@@ -79,6 +91,9 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
     ngOnDestroy() {
         if (this.initializationSubscription) {
             this.initializationSubscription.unsubscribe();
+        }
+        if (this.nodeSelectedTimeout) {
+            clearTimeout(this.nodeSelectedTimeout);
         }
     }
 
@@ -135,6 +150,20 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         }
 
         this.cdr.detectChanges();
+    }
+
+    // Method to return a symbol/icon for each node type
+    public getNodeTypeIcon(nodeType: string): string {
+        switch (nodeType) {
+            case 'Topic':
+                return '📁'; // Folder icon for Topics
+            case 'SubTopic':
+                return '📂'; // Open folder icon for SubTopics
+            case 'Lesson':
+                return '📄'; // Page icon for Lessons
+            default:
+                return '❓'; // Question mark for unknown types
+        }
     }
 
     private addNodeToTree(newNode: TreeNode) {
@@ -233,7 +262,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
             timestamp: new Date().toISOString() 
         });
         const newTreeData = topics
-            .sort((a, b) => a.sortOrder - b.sortOrder) // Sort Topics
+            .sort((a, b) => a.sortOrder - b.sortOrder)
             .map(t => {
                 const topicNode = createTopicNode(t);
                 console.log(`[${this.courseId}] updateTreeData: Processing topic`, { 
@@ -247,11 +276,11 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
                 const children: TreeNode[] = [];
                 if (t.subTopics?.length) {
                     children.push(...t.subTopics
-                        .sort((a, b) => a.sortOrder - b.sortOrder) // Sort SubTopics
+                        .sort((a, b) => a.sortOrder - b.sortOrder)
                         .map(st => {
                             const subTopicNode = createSubTopicNode(st);
                             subTopicNode.child = st.lessons
-                                ?.sort((a, b) => a.sortOrder - b.sortOrder) // Sort Lessons under SubTopic
+                                ?.sort((a, b) => a.sortOrder - b.sortOrder)
                                 .map(l => createLessonNode(l)) || [];
                             subTopicNode.hasChildren = (st.lessons?.length ?? 0) > 0;
                             console.log(`[${this.courseId}] updateTreeData: Processing subtopic`, { 
@@ -266,7 +295,7 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
                 }
                 if (t.lessons?.length) {
                     children.push(...t.lessons
-                        .sort((a, b) => a.sortOrder - b.sortOrder) // Sort Lessons under Topic
+                        .sort((a, b) => a.sortOrder - b.sortOrder)
                         .map(l => createLessonNode(l)));
                 }
                 topicNode.child = children;
@@ -373,8 +402,14 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
                 this.syncFuncTree.selectedNodes = this.activeNodeId ? [this.activeNodeId] : [];
                 this.isProgrammaticSelection = false;
             }
-            console.log(`[${this.courseId}] emitNodeSelected: Emitting nodeSelected for ${nodeId}`, { timestamp: new Date().toISOString() });
-            this.nodeSelected.emit({ node });
+
+            if (this.nodeSelectedTimeout) {
+                clearTimeout(this.nodeSelectedTimeout);
+            }
+            this.nodeSelectedTimeout = setTimeout(() => {
+                console.log(`[${this.courseId}] emitNodeSelected: Emitting nodeSelected for ${nodeId}`, { timestamp: new Date().toISOString() });
+                this.nodeSelected.emit({ node });
+            }, 100);
         } else {
             console.warn(`[${this.courseId}] emitNodeSelected: Node not found: ${nodeId}`, { timestamp: new Date().toISOString() });
         }

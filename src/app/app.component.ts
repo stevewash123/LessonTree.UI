@@ -16,7 +16,7 @@ import { AuthService } from './core/services/auth.service';
         RouterOutlet
     ],
     templateUrl: './app.component.html',
-    styleUrls: ['./app.component.scss']
+    styleUrls: ['./app.component.css']
 })
 export class AppComponent {
   constructor(public authService: AuthService) { }

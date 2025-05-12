@@ -6,7 +6,7 @@ import { Router } from '@angular/router';
     selector: 'app-user-config',
     imports: [MatButtonModule],
     templateUrl: './user-config.component.html',
-    styleUrls: ['./user-config.component.scss']
+    styleUrls: ['./user-config.component.css']
 })
 export class UserConfigComponent {
   constructor(private router: Router) { }

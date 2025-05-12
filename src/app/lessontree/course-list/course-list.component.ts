@@ -1,6 +1,5 @@
 import { Component, OnInit, ChangeDetectorRef, Output, EventEmitter, Input, SimpleChanges, OnChanges } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
-import { ApiService } from '../../core/services/api.service';
 import { Course } from '../../models/course';
 import { Topic } from '../../models/topic';
 import { MatCardModule } from '@angular/material/card';
@@ -15,7 +14,6 @@ import { SubTopic } from '../../models/subTopic';
 import { Lesson } from '../../models/lesson';
 import { CommonModule } from '@angular/common';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { PanelType } from '../info-panel/info-panel.component';
 import { CourseFilterDialogComponent } from './course-filter/course-filter-dialog.component';
 import { UserService } from '../../core/services/user.service';
 
@@ -37,6 +35,7 @@ import { UserService } from '../../core/services/user.service';
   styleUrls: ['./course-list.component.css']
 })
 export class CourseListComponent implements OnInit, OnChanges {
+  @Input() courses: Course[] = []; // Now received from LessonTreeContainerComponent
   @Input() triggerRefresh: boolean = false;
   @Input() newNode: TreeNode | null = null;
   @Input() courseEdited: Course | null = null;
@@ -45,17 +44,15 @@ export class CourseListComponent implements OnInit, OnChanges {
   @Output() addNodeRequested = new EventEmitter<{ parentNode?: TreeNode; nodeType: NodeType; courseId?: number }>();
   @Output() addCourseRequested = new EventEmitter<void>();
   @Output() courseSelected = new EventEmitter<Course>();
+  @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>(); // Pass through to LessonTreeContainerComponent
+  @Output() lessonMoved = new EventEmitter<{ lesson: Lesson, sourceSubTopicId?: number, targetSubTopicId?: number, targetTopicId?: number }>(); // Pass through
 
-  courses: Course[] = [];
   expandedCourseIds: number[] = [];
   refreshTrigger: boolean = false;
   activeNode: TreeNode | null = null;
   treeActiveNode: TreeNode | null = null;
-  courseFilter: 'active' | 'archived' | 'both' = 'active';
-  visibilityFilter: 'private' | 'team' = 'private';
 
   constructor(
-    private apiService: ApiService,
     private toastr: ToastrService,
     private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
@@ -64,48 +61,24 @@ export class CourseListComponent implements OnInit, OnChanges {
 
   ngOnInit(): void {
     console.log('[CourseList] Component initialized', { timestamp: new Date().toISOString() });
-    this.loadCourses();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['triggerRefresh'] && changes['triggerRefresh'].currentValue !== changes['triggerRefresh'].previousValue) {
       console.log(`[CourseList] Refresh triggered`, { newValue: changes['triggerRefresh'].currentValue, timestamp: new Date().toISOString() });
-      this.loadCourses();
       this.triggerChangeDetection();
     }
 
     if (changes['newNode'] && changes['newNode'].currentValue) {
       const node = changes['newNode'].currentValue as TreeNode;
       console.log(`[CourseList] New node received`, { nodeId: node.id, type: node.nodeType, timestamp: new Date().toISOString() });
-      const courseId = this.getCourseIdForNode(node);
-      if (courseId) {
-        const course = this.courses.find(c => c.id === courseId);
-        if (course) {
-          if (node.nodeType === 'SubTopic' && course.topics) {
-            const topic = course.topics.find(t => t.id === (node.original as SubTopic).topicId);
-            if (topic) {
-              if (!topic.subTopics) topic.subTopics = [];
-              topic.subTopics.push(node.original as SubTopic);
-              console.log(`[CourseList] Added SubTopic to course ${courseId}`, { topicId: topic.id, subTopicId: node.id, timestamp: new Date().toISOString() });
-            }
-          }
-          this.treeActiveNode = node;
-          this.triggerChangeDetection();
-        } else {
-          console.warn(`[CourseList] Course not found for new node`, { courseId, nodeId: node.id, timestamp: new Date().toISOString() });
-          this.loadCourses();
-        }
-      }
+      this.treeActiveNode = node;
+      this.triggerChangeDetection();
     }
 
     if (changes['courseEdited'] && changes['courseEdited'].currentValue) {
       const editedCourse = changes['courseEdited'].currentValue as Course;
       console.log(`[CourseList] Course edited received`, { courseId: editedCourse.id, title: editedCourse.title, timestamp: new Date().toISOString() });
-      const courseIndex = this.courses.findIndex(c => c.id === editedCourse.id);
-      if (courseIndex !== -1) {
-        this.courses[courseIndex] = { ...editedCourse };
-        console.log(`[CourseList] Updated course in list`, { courseId: editedCourse.id, timestamp: new Date().toISOString() });
-      }
       this.courseSelected.emit(editedCourse);
       this.triggerChangeDetection();
     }
@@ -113,69 +86,10 @@ export class CourseListComponent implements OnInit, OnChanges {
     if (changes['nodeEdited'] && changes['nodeEdited'].currentValue) {
       const editedNode = changes['nodeEdited'].currentValue as TreeNode;
       console.log(`[CourseList] Node edited received`, { nodeId: editedNode.id, type: editedNode.nodeType, timestamp: new Date().toISOString() });
-      const courseId = this.getCourseIdForNode(editedNode);
-      if (courseId) {
-        const course = this.courses.find(c => c.id === courseId);
-        if (course && course.topics) {
-          this.updateNodeInCourse(course, editedNode);
-          this.treeActiveNode = editedNode;
-          this.activeNode = editedNode;
-          this.activeNodeChange.emit(editedNode);
-          console.log(`[CourseList] Updated node in course ${courseId}`, { nodeId: editedNode.id, timestamp: new Date().toISOString() });
-          this.triggerChangeDetection();
-        } else {
-          console.warn(`[CourseList] Course not found for edited node`, { courseId, nodeId: editedNode.id, timestamp: new Date().toISOString() });
-          this.loadCourses();
-        }
-      }
-    }
-  }
-
-  private updateNodeInCourse(course: Course, editedNode: TreeNode): void {
-    if (!course.topics) return;
-
-    const updateNode = (topics: Topic[]): boolean => {
-      for (let i = 0; i < topics.length; i++) {
-        if (editedNode.nodeType === 'Topic' && topics[i].nodeId === editedNode.id) {
-          topics[i] = { ...editedNode.original as Topic };
-          console.log(`[CourseList] Updated Topic`, { nodeId: editedNode.id, title: topics[i].title, timestamp: new Date().toISOString() });
-          return true;
-        }
-        if (topics[i] && topics[i].subTopics && topics[i].subTopics!.length > 0) {
-          for (let j = 0; j < topics[i].subTopics!.length; j++) {
-            if (editedNode.nodeType === 'SubTopic' && topics[i].subTopics![j].nodeId === editedNode.id) {
-              topics[i].subTopics![j] = { ...editedNode.original as SubTopic };
-              console.log(`[CourseList] Updated SubTopic`, { nodeId: editedNode.id, title: topics[i].subTopics![j].title, timestamp: new Date().toISOString() });
-              return true;
-            }
-            if (topics[i]!.subTopics![j].lessons && topics[i].subTopics![j].lessons.length > 0) {
-              for (let k = 0; k < topics[i].subTopics![j].lessons.length; k++) {
-                if (editedNode.nodeType === 'Lesson' && topics[i].subTopics![j].lessons[k].nodeId === editedNode.id) {
-                  topics[i].subTopics![j].lessons[k] = { ...editedNode.original as Lesson };
-                  console.log(`[CourseList] Updated Lesson`, { nodeId: editedNode.id, title: topics[i].subTopics![j].lessons[k].title, timestamp: new Date().toISOString() });
-                  return true;
-                }
-              }
-            }
-          }
-        }
-        if (topics[i] && topics[i].lessons && topics[i].lessons!.length > 0) {
-          for (let k = 0; k < topics[i].lessons!.length; k++) {
-            if (editedNode.nodeType === 'Lesson' && topics[i].lessons![k].nodeId === editedNode.id) {
-              topics[i].lessons![k] = { ...editedNode.original as Lesson };
-              console.log(`[CourseList] Updated Lesson`, { nodeId: editedNode.id, title: topics[i].lessons![k].title, timestamp: new Date().toISOString() });
-              return true;
-            }
-          }
-        }
-      }
-      return false;
-    };
-
-    if (updateNode(course.topics)) {
-      console.log(`[CourseList] Node updated in course ${course.id}`, { nodeId: editedNode.id, timestamp: new Date().toISOString() });
-    } else {
-      console.warn(`[CourseList] Edited node not found in course ${course.id}`, { nodeId: editedNode.id, timestamp: new Date().toISOString() });
+      this.treeActiveNode = editedNode;
+      this.activeNode = editedNode;
+      this.activeNodeChange.emit(editedNode);
+      this.triggerChangeDetection();
     }
   }
 
@@ -184,41 +98,18 @@ export class CourseListComponent implements OnInit, OnChanges {
     const dialogRef = this.dialog.open(CourseFilterDialogComponent, {
       width: '300px',
       data: {
-        courseFilter: this.courseFilter,
-        visibilityFilter: this.visibilityFilter,
-        districtId: districtId // Assuming districtId is available in component
+        districtId: districtId
       }
     });
 
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        this.courseFilter = result.courseFilter;
-        this.visibilityFilter = result.visibilityFilter;
         console.log('[CourseList] Filters applied from dialog', { 
-          courseFilter: this.courseFilter, 
-          visibilityFilter: this.visibilityFilter, 
+          courseFilter: result.courseFilter, 
+          visibilityFilter: result.visibilityFilter, 
           timestamp: new Date().toISOString() 
         });
-        this.loadCourses();
-      }
-    });
-  }
-
-  loadCourses(): void {
-    console.log('[CourseList] Loading courses from API', { 
-      courseFilter: this.courseFilter, 
-      visibilityFilter: this.visibilityFilter, 
-      timestamp: new Date().toISOString() 
-    });
-
-    this.apiService.getCourses(this.courseFilter, this.visibilityFilter).subscribe({
-      next: (courses) => {
-        this.courses = courses;
-        console.log('[CourseList] Courses loaded successfully:', this.courses.map(c => ({ id: c.id, title: c.title, archived: c.archived, visibility: c.visibility })), { timestamp: new Date().toISOString() });
-      },
-      error: (err) => {
-        console.error('[CourseList] Failed to load courses:', err, { timestamp: new Date().toISOString() });
-        this.toastr.error('Failed to load courses: ' + err.message, 'Error', { timeOut: 0 });
+        // Emit filter change event to parent if needed, or handle differently
       }
     });
   }
@@ -317,135 +208,13 @@ export class CourseListComponent implements OnInit, OnChanges {
   }
 
   onTopicMoved(event: TopicMovedEvent): void {
-    console.log('[CourseList] onTopicMoved: Topic moved event received:', event, { timestamp: new Date().toISOString() });
-    const { topic, sourceCourseId, targetCourseId: initialTargetCourseId, targetNodeId } = event;
-    const sourceCourse = this.courses.find(c => c.id === sourceCourseId);
-
-    if (!sourceCourse) {
-      console.error('[CourseList] onTopicMoved: Source course not found for ID:', sourceCourseId, { timestamp: new Date().toISOString() });
-      this.toastr.error('Source course not found', 'Error');
-      this.loadCourses();
-      return;
-    }
-
-    let targetCourseId = initialTargetCourseId;
-    let targetCourse: Course | undefined;
-
-    if (targetCourseId === null && targetNodeId) {
-      console.log('[CourseList] onTopicMoved: Resolving targetCourseId using targetNodeId:', targetNodeId, { timestamp: new Date().toISOString() });
-      for (const course of this.courses) {
-        if (course.topics) {
-          const foundTopic = course.topics.find(t => t.nodeId === targetNodeId);
-          if (foundTopic) {
-            targetCourseId = course.id;
-            targetCourse = course;
-            console.log('[CourseList] onTopicMoved: Target course resolved:', targetCourseId, 'Title:', course.title, { timestamp: new Date().toISOString() });
-            break;
-          }
-        }
-      }
-      if (!targetCourseId) {
-        console.error('[CourseList] onTopicMoved: Could not resolve target course for targetNodeId:', targetNodeId, { timestamp: new Date().toISOString() });
-        this.toastr.error('Target course not found for the dropped node', 'Error');
-        return;
-      }
-    } else if (targetCourseId !== null) {
-      targetCourse = this.courses.find(c => c.id === targetCourseId);
-      console.log('[CourseList] onTopicMoved: Target course provided:', targetCourseId, 'Title:', targetCourse?.title, { timestamp: new Date().toISOString() });
-    } else {
-      console.error('[CourseList] onTopicMoved: Both targetCourseId and targetNodeId are null or undefined', { timestamp: new Date().toISOString() });
-      this.toastr.error('Invalid target for topic move', 'Error');
-      return;
-    }
-
-    if (!targetCourse) {
-      console.error('[CourseList] onTopicMoved: Target course not found for ID:', targetCourseId, { timestamp: new Date().toISOString() });
-      this.toastr.error('Target course not found', 'Error');
-      this.loadCourses();
-      return;
-    }
-
-    console.log(`[CourseList] onTopicMoved: Moving topic ${topic.title} (ID: ${topic.id}) from course ${sourceCourse.title} (ID: ${sourceCourseId}) to course ${targetCourse.title} (ID: ${targetCourseId})`, { timestamp: new Date().toISOString() });
-    this.apiService.moveTopic(topic.id, targetCourseId!).subscribe({
-      next: () => {
-        console.log(`[CourseList] onTopicMoved: Successfully moved topic ${topic.title} to course ${targetCourse!.title}`, { timestamp: new Date().toISOString() });
-        if (!sourceCourse.topics) sourceCourse.topics = [];
-        if (!targetCourse!.topics) targetCourse!.topics = [];
-        sourceCourse.topics = sourceCourse.topics.filter(t => t.id !== topic.id);
-        targetCourse!.topics.push(topic);
-        topic.courseId = targetCourseId!;
-
-        if (!this.expandedCourseIds.includes(targetCourse!.id)) {
-          this.expandedCourseIds.push(targetCourse!.id);
-        }
-        if (!this.expandedCourseIds.includes(sourceCourse.id)) {
-          this.expandedCourseIds.push(sourceCourse.id);
-        }
-
-        this.refreshTrigger = !this.refreshTrigger;
-        this.cdr.detectChanges();
-        this.toastr.success(`Moved Topic ${topic.title} from Course ${sourceCourse.title} to Course ${targetCourse!.title}`);
-      },
-      error: (err) => {
-        console.error('[CourseList] onTopicMoved: Failed to move topic via API:', err, { timestamp: new Date().toISOString() });
-        this.toastr.error('Failed to move topic', 'Error');
-        this.loadCourses();
-      }
-    });
+    console.log('[CourseList] onTopicMoved: Passing through event', event, { timestamp: new Date().toISOString() });
+    this.nodeDragStop.emit(event);
   }
 
   onLessonMoved(event: { lesson: Lesson, sourceSubTopicId?: number, targetSubTopicId?: number, targetTopicId?: number }): void {
-        console.log('[CourseList] onLessonMoved: Lesson moved event:', event, { timestamp: new Date().toISOString() });
-        const { lesson, sourceSubTopicId, targetSubTopicId, targetTopicId } = event;
-
-        let sourceSubTopic: SubTopic | undefined;
-        let targetSubTopic: SubTopic | undefined;
-        let targetTopic: Topic | undefined;
-
-        for (const course of this.courses) {
-            if (!course.topics) continue;
-            for (const topic of course.topics) {
-                if (targetTopicId && topic.id === targetTopicId) {
-                    targetTopic = topic;
-                }
-                if (!topic.subTopics) continue;
-                if (!sourceSubTopic) {
-                    sourceSubTopic = topic.subTopics.find(st => st.id === sourceSubTopicId);
-                }
-                if (!targetSubTopic && targetSubTopicId) {
-                    targetSubTopic = topic.subTopics.find(st => st.id === targetSubTopicId);
-                }
-                if ((sourceSubTopic && targetSubTopic) || (sourceSubTopic && targetTopic)) break;
-            }
-            if ((sourceSubTopic && targetSubTopic) || (sourceSubTopic && targetTopic)) break;
-        }
-
-        if (!sourceSubTopic || (!targetSubTopic && !targetTopic)) {
-            console.error('[CourseList] onLessonMoved: Source or target not found:', { sourceSubTopicId, targetSubTopicId, targetTopicId }, { timestamp: new Date().toISOString() });
-            this.toastr.error('Failed to update course data after moving lesson', 'Error');
-            this.loadCourses();
-            return;
-        }
-
-        sourceSubTopic.lessons = sourceSubTopic.lessons.filter(l => l.id !== lesson.id);
-        console.log(`[CourseList] onLessonMoved: Removed lesson ${lesson.id} from source subTopic ${sourceSubTopicId}`, { timestamp: new Date().toISOString() });
-
-        if (targetSubTopic) {
-            if (!targetSubTopic.lessons) targetSubTopic.lessons = [];
-            targetSubTopic.lessons.push(lesson);
-            lesson.subTopicId = targetSubTopicId;
-            lesson.topicId = undefined;
-            console.log(`[CourseList] onLessonMoved: Added lesson ${lesson.id} to target subTopic ${targetSubTopicId}`, { timestamp: new Date().toISOString() });
-        } else if (targetTopic) {
-            if (!targetTopic.lessons) targetTopic.lessons = [];
-            targetTopic.lessons.push(lesson);
-            lesson.subTopicId = undefined;
-            lesson.topicId = targetTopicId;
-            console.log(`[CourseList] onLessonMoved: Added lesson ${lesson.id} to target topic ${targetTopicId}`, { timestamp: new Date().toISOString() });
-        }
-
-        this.cdr.detectChanges();
-        this.toastr.success(`Moved Lesson ${lesson.title} from SubTopic ${sourceSubTopic.title} to ${targetSubTopic ? `SubTopic ${targetSubTopic.title}` : `Topic ${targetTopic!.title}`}`);
+    console.log('[CourseList] onLessonMoved: Passing through event', event, { timestamp: new Date().toISOString() });
+    this.lessonMoved.emit(event);
   }
 
   triggerChangeDetection(): void {

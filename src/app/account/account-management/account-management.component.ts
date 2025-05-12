@@ -16,7 +16,7 @@ import { ApiService } from '../../core/services/api.service';
         MatListModule
     ],
     templateUrl: './account-management.component.html',
-    styleUrls: ['./account-management.component.scss']
+    styleUrls: ['./account-management.component.css']
 })
 export class AccountManagementComponent implements OnInit {
   userForm: FormGroup;

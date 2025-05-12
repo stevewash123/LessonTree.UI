@@ -10,6 +10,11 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+/* Adjust padding for course-card when it contains the tree */
+.course-card:has(.tree-view-container) {
+    padding-right: 0; /* Remove right padding to allow tree nodes to reach the edge */
+}
+
 .course-item {
     display: flex;
     align-items: center;
@@ -54,8 +59,10 @@
 }
 
 .tree-view-container {
-    padding: 0 16px 8px 16px;
+    padding: 0;
     display: block;
+    background-color: #fafafa;
+    border-radius: 4px;
 }
 
 button[mat-raised-button] {
@@ -118,18 +125,19 @@ button[mat-raised-button] {
     width: 100%;
     box-sizing: border-box;
 }
+
 .course-header-container {
     display: flex;
     align-items: center;
     margin-bottom: 1rem;
-    gap: 12px; /* Add spacing between "Courses" and the filter icon */
+    gap: 12px;
 }
 
 .courses-header {
     margin-left: 40px;
     font-size: 18px;
     margin-bottom: 0;
-    line-height: 24px; /* Ensure consistent vertical alignment */
+    line-height: 24px;
 }
 
 .filter-icon {
@@ -137,5 +145,5 @@ button[mat-raised-button] {
     font-size: 24px;
     width: 24px;
     height: 24px;
-    line-height: 24px; /* Align vertically with the header */
+    line-height: 24px;
 }

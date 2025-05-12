@@ -11,6 +11,7 @@ export interface Lesson {
     topicId?: number;
     title: string;
     objective: string;
+    description?: string; // Added description property
     visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
     teamId?: number;
     archived: boolean;

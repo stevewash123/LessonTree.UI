@@ -2,6 +2,7 @@
     <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
       <as-split-area [size]="sizes[0]" class="left-split-area">
         <course-list
+            [courses]="courses"
             [triggerRefresh]="refreshTrigger"
             [newNode]="newNode"
             [courseEdited]="courseEdited" 
@@ -10,6 +11,8 @@
             (addNodeRequested)="onAddNodeRequested($event)"
             (addCourseRequested)="onAddCourseRequested()"
             (courseSelected)="onCourseSelected($event)"
+            (nodeDragStop)="onTopicMoved($event)"
+            (lessonMoved)="onLessonMoved($event)"
         ></course-list>
         @if (isOverlayActive) {
           <div class="overlay" [ngClass]="{'disabled': isOverlayActive}"></div>
