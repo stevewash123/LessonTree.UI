@@ -25,24 +25,25 @@
           </div>
         </mat-list-item>
         @if (expandedCourseIds.includes(course.id)) {  
-          @if (course.topics) {  
-            <div class="tree-view-container">
-                <app-tree
-                [topics]="course.topics"
-                [courseId]="course.id"
-                [courseManagement]="this"
-                [refreshTrigger]="refreshTrigger"
-                [activeNode]="treeActiveNode"
-                [newNode]="newNode"
-                (nodeDragStop)="onTopicMoved($event)"
-                (nodeSelected)="onNodeSelected($event)"
-                (lessonMoved)="onLessonMoved($event)"
-                (addNodeRequested)="onAddNodeRequested($event)"
-              ></app-tree>
-            </div>
-          } @else {  
-            <p>Loading topics...</p>
-          }
+            @if (course.topics) {  
+              <div class="tree-view-container">
+                <app-tree style="width:100%"
+                  [topics]="course.topics"
+                  [courseId]="course.id"
+                  [courseManagement]="this"
+                  [refreshTrigger]="refreshTrigger"
+                  [activeNode]="treeActiveNode"
+                  [newNode]="newNode"
+                  (nodeDragStop)="onTopicMoved($event)"
+                  (nodeSelected)="onNodeSelected($event)"
+                  (lessonMoved)="onLessonMoved($event)"
+                  (addNodeRequested)="onAddNodeRequested($event)"
+                ></app-tree>
+              </div>
+            } 
+            @else {
+                <p>Loading topics...</p>
+            }
         }
       </mat-card>
     }

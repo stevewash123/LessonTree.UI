@@ -256,73 +256,56 @@ export class TreeWrapperComponent implements OnChanges, AfterViewInit, OnDestroy
         }
     }
 
+    // In tree-wrapper.component.ts
     private updateTreeData(topics: Topic[] = this.topics) {
-        console.log(`[${this.courseId}] updateTreeData: Updating with topics`, { 
-            topicsCount: topics.length, 
-            timestamp: new Date().toISOString() 
-        });
-        const newTreeData = topics
+    console.log(`[${this.courseId}] updateTreeData: Updating with topics`, { 
+      topicsCount: topics.length, 
+      timestamp: new Date().toISOString() 
+    });
+    const newTreeData = topics
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(t => {
+        const topicNode = createTopicNode(t);
+        const children: TreeNode[] = [];
+        if (t.subTopics?.length) {
+          children.push(...t.subTopics
             .sort((a, b) => a.sortOrder - b.sortOrder)
-            .map(t => {
-                const topicNode = createTopicNode(t);
-                console.log(`[${this.courseId}] updateTreeData: Processing topic`, { 
-                    title: t.title, 
-                    subTopicsCount: t.subTopics?.length ?? 0, 
-                    lessonsCount: t.lessons?.length ?? 0, 
-                    sortOrder: t.sortOrder, 
-                    timestamp: new Date().toISOString() 
-                });
-
-                const children: TreeNode[] = [];
-                if (t.subTopics?.length) {
-                    children.push(...t.subTopics
-                        .sort((a, b) => a.sortOrder - b.sortOrder)
-                        .map(st => {
-                            const subTopicNode = createSubTopicNode(st);
-                            subTopicNode.child = st.lessons
-                                ?.sort((a, b) => a.sortOrder - b.sortOrder)
-                                .map(l => createLessonNode(l)) || [];
-                            subTopicNode.hasChildren = (st.lessons?.length ?? 0) > 0;
-                            console.log(`[${this.courseId}] updateTreeData: Processing subtopic`, { 
-                                title: st.title, 
-                                lessonsCount: st.lessons?.length ?? 0, 
-                                sortOrder: st.sortOrder, 
-                                hasChildren: subTopicNode.hasChildren, 
-                                timestamp: new Date().toISOString() 
-                            });
-                            return subTopicNode;
-                        }));
-                }
-                if (t.lessons?.length) {
-                    children.push(...t.lessons
-                        .sort((a, b) => a.sortOrder - b.sortOrder)
-                        .map(l => createLessonNode(l)));
-                }
-                topicNode.child = children;
-                topicNode.hasChildren = children.length > 0;
-
-                return topicNode;
-            });
-
-        if (!this.validateTreeData(newTreeData)) {
-            console.warn(`[${this.courseId}] updateTreeData: Invalid tree data`, { 
-                data: newTreeData, 
-                timestamp: new Date().toISOString() 
-            });
-            return;
+            .map(st => {
+              const subTopicNode = createSubTopicNode(st);
+              subTopicNode.child = st.lessons
+                ?.sort((a, b) => a.sortOrder - b.sortOrder)
+                .map(l => createLessonNode(l)) ?? [];
+              subTopicNode.hasChildren = (st.lessons?.length ?? 0) > 0;
+              return subTopicNode;
+            }));
         }
-
-        this.treeData = newTreeData;
-        this.treeFields = { ...this.treeFields, dataSource: this.treeData };
-        if (this.syncFuncTree) {
-            console.log(`[${this.courseId}] updateTreeData: Binding data`, { 
-                treeDataLength: this.treeData.length, 
-                timestamp: new Date().toISOString() 
-            });
-            this.syncFuncTree.dataBind();
+        if (t.lessons?.length) {
+          children.push(...t.lessons
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map(l => createLessonNode(l)));
         }
+        topicNode.child = children;
+        topicNode.hasChildren = children.length > 0;
+        return topicNode;
+      });
+  
+    if (!this.validateTreeData(newTreeData)) {
+      console.warn(`[${this.courseId}] updateTreeData: Invalid tree data`, { 
+        data: newTreeData, 
+        timestamp: new Date().toISOString() 
+      });
+      return;
     }
-
+  
+    this.treeData = newTreeData;
+    this.treeFields = { ...this.treeFields, dataSource: this.treeData };
+    if (this.syncFuncTree) {
+      this.syncFuncTree.dataBind();
+      // Ensure nodes are expanded if needed
+      this.syncFuncTree.expandAll();
+    }
+    }
+  
     private sortTreeData() {
         this.treeData.sort((a, b) => (a.original as Topic).sortOrder - (b.original as Topic).sortOrder);
         this.treeData.forEach(node => {

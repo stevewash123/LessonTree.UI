@@ -18,28 +18,30 @@
         (dataBound)="onDataBound()"
       >          
         <ng-template #nodeTemplate let-data>
-          <div class="node-container" [ngClass]="data.nodeType.toLowerCase()">
-            <span class="node-type-icon">{{ getNodeTypeIcon(data.nodeType) }}</span>
-            <div class="node-content">
-              <span class="node-title">{{data.text}}</span>
-              @if (data.nodeType === 'Lesson' && data.original.objective && data.original.objective !== '[No objective available]') {
-                <span class="node-description">{{data.original.objective}}</span>
-              } @else if (data.nodeType !== 'Lesson' && data.original.description && data.original.description !== '[No description available]') {
-                <span class="node-description">{{data.original.description}}</span>
-              }
+          <div class="treeviewdiv">
+            <div class="node-container" [ngClass]="data.nodeType.toLowerCase()">
+              <span class="node-type-icon">{{ getNodeTypeIcon(data.nodeType) }}</span>
+              <div class="node-content">
+                <span class="node-title">{{ data.text }}</span>
+                @if (data.nodeType === 'Lesson' && data.original?.objective && data.original.objective !== '[No objective available]') {
+                  <span class="node-description">{{ data.original.objective }}</span>
+                } @else if (data.nodeType !== 'Lesson' && data.original?.description && data.original.description !== '[No description available]') {
+                  <span class="node-description">{{ data.original.description }}</span>
+                }
+              </div>
+              <div class="node-actions">
+                <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete">
+                  <mat-icon>delete</mat-icon>
+                </button>
+                <button mat-icon-button (click)="addChildNode(data); $event.stopPropagation()" matTooltip="Add Child">
+                  <mat-icon>add_circle</mat-icon>
+                </button>
+              </div>
             </div>
-            <span class="node-actions">
-              <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete">
-                <mat-icon>delete</mat-icon>
-              </button>
-              <button mat-icon-button (click)="addChildNode(data); $event.stopPropagation()" matTooltip="Add Child">
-                <mat-icon>add_circle</mat-icon>
-              </button>
-            </span>
           </div>
         </ng-template>
       </ejs-treeview>
     </div>
-} @else {
+  } @else {
     <p>No tree data available. Check console logs for details.</p>
-}
+  }

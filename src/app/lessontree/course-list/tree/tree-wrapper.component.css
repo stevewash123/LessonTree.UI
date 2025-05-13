@@ -1,77 +1,81 @@
 #treeparent {
     display: block;
-    max-width: none;
     max-height: 320px;
-    margin: 0;
-    padding: 0;
     overflow: auto;
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     background-color: #ffffff;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     width: 100%;
-}
-
-/* Custom class for treeview nodes */
-.custom .e-list-item {
-    padding: 8px 0;
+    box-sizing: border-box;
     margin: 0;
+    min-width: 0; /* Prevent Flexbox shrinkage */
+  }
+  
+  .custom .e-treeview {
+    width: 100% !important; /* Ensure Syncfusion tree fills treeparent */
+  }
+  
+  .custom .e-ul {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .custom .e-list-item {
+    padding: 8px 0;
     border-bottom: 1px solid #f0f0f0;
     transition: background-color 0.2s ease;
     width: 100%;
-}
-
-.custom .e-list-item:hover {
+  }
+  
+  .custom .e-list-item:hover {
     background-color: #f9f9f9;
-}
-
-/* Remove padding and margins from the ul element inside ejs-treeview */
-.custom .e-ul {
-    padding: 0;
-    margin: 0;
+  }
+  
+  .custom .e-text-content {
+    padding-left: 24px;
+    padding-right: 0;
     width: 100%;
-}
-
-/* Remove padding from e-text-content to allow node-container to reach the right edge */
-.custom .e-text-content {
-    padding-left: 8px; /* Keep left padding for collapse/expand icons */
-    padding-right: 0; /* Remove right padding */
+  }
+  
+  .custom .e-list-text {
     width: 100%;
-}
-
-/* Node height */
-.custom .e-list-item .e-fullrow {
+  }
+  
+  .custom .e-list-item .e-fullrow {
     min-height: 48px;
     display: flex;
     align-items: center;
     width: 100%;
-}
-
-/* Node container */
-.node-container {
+  }
+  
+  .treeviewdiv {
+    width: 100%;
+  }
+  
+  .node-container {
     display: flex;
     align-items: center;
     width: 100%;
     padding: 4px 8px;
     border-radius: 4px;
     box-sizing: border-box;
-}
-
-/* Background colors for each node type with increased contrast */
-.node-container.topic {
+  }
+  
+  .node-container.topic {
     background-color: #99c2ff;
-}
-
-.node-container.subtopic {
+  }
+  
+  .node-container.subtopic {
     background-color: #99ff99;
-}
-
-.node-container.lesson {
+  }
+  
+  .node-container.lesson {
     background-color: #ffeb99;
-}
-
-/* Node type icon */
-.node-type-icon {
+  }
+  
+  .node-type-icon {
     width: 24px;
     height: 24px;
     line-height: 24px;
@@ -79,66 +83,58 @@
     margin-right: 12px;
     font-size: 16px;
     color: #666;
-}
-
-/* Node content (title and description) */
-.node-content {
+    flex-shrink: 0;
+  }
+  
+  .node-content {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 48px;
     justify-content: center;
-}
-
-/* Node title */
-.node-title {
+  }
+  
+  .node-title {
     font-size: 15px;
     font-weight: 500;
     color: #333;
-}
-
-/* Node description */
-.node-description {
+  }
+  
+  .node-description {
     font-size: 12px;
     color: #666;
     margin-top: 2px;
-}
-
-/* Node actions */
-.node-actions {
+  }
+  
+  .node-actions {
     display: flex;
     gap: 4px;
-    opacity: 1;
     width: 64px;
     justify-content: flex-end;
     padding-right: 8px;
-    margin-right: 0;
-}
-
-/* Button styling */
-.node-actions button {
+    flex-shrink: 0;
+  }
+  
+  .node-actions button {
     color: #666;
-}
-
-.node-actions button:hover {
+  }
+  
+  .node-actions button:hover {
     color: #333;
-}
-
-/* Reduce indentation for collapse/expand icons */
-.custom .e-list-item .e-icons {
-    margin-left: 0px;
-}
-
-/* Hierarchical indentation for child nodes */
-.custom .e-list-item.e-level-2 {
-    padding-left: 16px;
-}
-
-.custom .e-list-item.e-level-3 {
-    padding-left: 42px;
-}
-
-/* Remove border from the last node */
-.custom .e-list-item:last-child {
+  }
+  
+  .custom .e-list-item.e-level-2 {
+    padding-left: 40px;
+  }
+  
+  .custom .e-list-item.e-level-3 {
+    padding-left: 64px;
+  }
+  
+  .custom .e-list-item:last-child {
     border-bottom: none;
-}
+  }
+  
+  .custom .e-list-item .e-icons {
+    margin-left: 0;
+  }
