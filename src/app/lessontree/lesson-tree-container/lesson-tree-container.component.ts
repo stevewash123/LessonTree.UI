@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core';
 import { InfoPanelComponent, PanelMode, PanelType } from '../info-panel/info-panel.component';
 import { SplitComponent, SplitAreaComponent } from 'angular-split';
 import { CourseListComponent } from '../course-list/course-list.component';
-import { NodeType, TopicMovedEvent, TreeNode } from '../../models/tree-node';
+import { NodeType, TopicMovedEvent, TreeData } from '../../models/tree-node';
 import { Course } from '../../models/course';
 import { CommonModule } from '@angular/common';
 import { ApiService } from '../../core/services/api.service';
@@ -26,14 +26,12 @@ import { Lesson } from '../../models/lesson';
 })
 export class LessonTreeContainerComponent {
   sizes: number[] = [50, 50];
-  currentActiveNode: TreeNode | null = null;
-  selectedCourse: Course | null = null;
-  refreshTrigger: boolean = false;
-  panelMode: PanelMode = 'view';
-  newNode: TreeNode | null = null;
-  nodeEdited: TreeNode | null = null;
-  courseEdited: Course | null = null;
-  courses: Course[] = []; // Moved from CourseListComponent
+  currentActiveNode: TreeData | null = null;
+  selectedCourse: Course | null = null; // Keep this for now to avoid breaking other parts
+  refreshTrigger: boolean = false;panelMode: PanelMode = 'view';
+  newNode: TreeData | null = null;
+  nodeEdited: TreeData | null = null;
+  courses: Course[] = [];
   courseFilter: 'active' | 'archived' | 'both' = 'active';
   visibilityFilter: 'private' | 'team' = 'private';
 
@@ -72,15 +70,8 @@ export class LessonTreeContainerComponent {
     });
   }
 
-  onActiveNodeChange(node: TreeNode): void {
+  onActiveNodeChange(node: TreeData): void {
     this.currentActiveNode = node;
-    this.selectedCourse = null;
-  }
-
-  onCourseSelected(course: Course): void {
-    this.selectedCourse = course;
-    this.currentActiveNode = null;
-    console.log(`[LessonTreeContainer] Course selected: ${course.title}, id: ${course.id}`, { timestamp: new Date().toISOString() });
   }
 
   onDragEnd(event: any): void {
@@ -91,24 +82,11 @@ export class LessonTreeContainerComponent {
     }
   }
 
-  onAddNodeRequested(event: { parentNode?: TreeNode; nodeType: NodeType; courseId?: number }): void {
+  onAddNodeRequested(event: { parentNode?: TreeData; nodeType: NodeType; courseId?: number }): void {
     console.log(`[LessonTreeContainer] Handling add node request: ${event.nodeType}`, { timestamp: new Date().toISOString() });
     this.infoPanel.initiateAddMode(event.parentNode, event.nodeType, event.courseId);
   }
 
-  onAddCourseRequested(): void {
-    console.log('[LessonTreeContainer] onAddCourseRequested: Initiating add course', { timestamp: new Date().toISOString() });
-    this.selectedCourse = {
-      id: 0,
-      title: '',
-      description: '',
-      hasChildren: false,
-      archived: false,
-      visibility: 'Private'
-    };
-    this.infoPanel.initiateAddMode(undefined, 'Course', undefined);
-    console.log(`[LessonTreeContainer] Assigned empty course to selectedCourse and set mode to add`, { timestamp: new Date().toISOString() });
-  }
 
   onRefreshTree(): void {
     console.log(`[LessonTreeContainer] Handling refreshTree event`, { timestamp: new Date().toISOString() });
@@ -117,7 +95,7 @@ export class LessonTreeContainerComponent {
     console.log(`[LessonTreeContainer] Toggled refreshTrigger for tree refresh`, { newValue: this.refreshTrigger, timestamp: new Date().toISOString() });
   }
 
-  onNodeAdded(node: TreeNode): void {
+  onNodeAdded(node: TreeData): void {
     console.log(`[LessonTreeContainer] Received nodeAdded event`, { nodeId: node.id, type: node.nodeType, timestamp: new Date().toISOString() });
     this.currentActiveNode = node;
     console.log(`[LessonTreeContainer] Set active node`, { nodeId: node.id, timestamp: new Date().toISOString() });
@@ -126,34 +104,13 @@ export class LessonTreeContainerComponent {
     this.updateCoursesWithNewNode(node);
   }
 
-  onCourseAdded(course: Course): void {
-    console.log(`[LessonTreeContainer] New course added: ${course.title}, id: ${course.id}`, { timestamp: new Date().toISOString() });
-    this.refreshTrigger = !this.refreshTrigger;
-    this.selectedCourse = course;
-    this.courses.push(course); // Add the new course to the list
-    console.log(`[LessonTreeContainer] Updated refreshTrigger and selectedCourse`, { refreshTrigger: this.refreshTrigger, timestamp: new Date().toISOString() });
-  }
-
-  onNodeEdited(node: TreeNode): void {
+  onNodeEdited(node: TreeData): void {
     console.log(`[LessonTreeContainer] Received nodeEdited event`, { nodeId: node.id, type: node.nodeType, timestamp: new Date().toISOString() });
     this.currentActiveNode = node;
     console.log(`[LessonTreeContainer] Set active node`, { nodeId: node.id, timestamp: new Date().toISOString() });
     this.nodeEdited = node;
     console.log(`[LessonTreeContainer] Set nodeEdited for propagation`, { nodeId: node.id, timestamp: new Date().toISOString() });
     this.updateCoursesWithEditedNode(node);
-  }
-
-  onCourseEdited(course: Course): void {
-    console.log(`[LessonTreeContainer] Course edited: ${course.title}, id: ${course.id}`, { timestamp: new Date().toISOString() });
-    this.refreshTrigger = !this.refreshTrigger;
-    this.selectedCourse = course;
-    this.courseEdited = course;
-    const courseIndex = this.courses.findIndex(c => c.id === course.id);
-    if (courseIndex !== -1) {
-      this.courses[courseIndex] = course;
-      console.log(`[LessonTreeContainer] Updated course in list`, { courseId: course.id, timestamp: new Date().toISOString() });
-    }
-    console.log(`[LessonTreeContainer] Updated refreshTrigger, selectedCourse, and set courseEdited`, { refreshTrigger: this.refreshTrigger, timestamp: new Date().toISOString() });
   }
 
   onPanelModeChange(mode: PanelMode): void {
@@ -285,100 +242,167 @@ export class LessonTreeContainerComponent {
     this.toastr.success(`Moved Lesson ${lesson.title} from SubTopic ${sourceSubTopic.title} to ${targetSubTopic ? `SubTopic ${targetSubTopic.title}` : `Topic ${targetTopic!.title}`}`);
   }
 
-  // Utility method to update courses with a new node
-  private updateCoursesWithNewNode(node: TreeNode): void {
-    const courseId = this.getCourseIdForNode(node);
+  private updateCoursesWithNewNode(node: TreeData): void {
+    const courseId = node.courseId;
     if (!courseId) {
-      console.warn('[LessonTreeContainer] updateCoursesWithNewNode: Course ID not found for node', { nodeId: node.id, timestamp: new Date().toISOString() });
+      console.warn('[LessonTreeContainer] updateCoursesWithNewNode: Course ID not found for node', { 
+        nodeId: node.nodeId, 
+        timestamp: new Date().toISOString() 
+      });
       this.loadCourses();
       return;
     }
-
+  
     const course = this.courses.find(c => c.id === courseId);
     if (!course) {
-      console.warn('[LessonTreeContainer] updateCoursesWithNewNode: Course not found', { courseId, nodeId: node.id, timestamp: new Date().toISOString() });
+      console.warn('[LessonTreeContainer] updateCoursesWithNewNode: Course not found', { 
+        courseId, 
+        nodeId: node.nodeId, 
+        timestamp: new Date().toISOString() 
+      });
       this.loadCourses();
       return;
     }
-
-    if (node.nodeType === 'Topic') {
-      if (!course.topics) course.topics = [];
-      course.topics.push(node.original as Topic);
-      console.log(`[LessonTreeContainer] Added Topic to course ${courseId}`, { topicId: node.id, timestamp: new Date().toISOString() });
-    } else if (node.nodeType === 'SubTopic') {
-      const topic = course.topics?.find(t => t.id === (node.original as SubTopic).topicId);
-      if (topic) {
-        if (!topic.subTopics) topic.subTopics = [];
-        topic.subTopics.push(node.original as SubTopic);
-        console.log(`[LessonTreeContainer] Added SubTopic to course ${courseId}`, { topicId: topic.id, subTopicId: node.id, timestamp: new Date().toISOString() });
-      }
-    } else if (node.nodeType === 'Lesson') {
-      const lesson = node.original as Lesson;
-      if (lesson.subTopicId) {
-        const topicWithSubTopic = course.topics?.find(t => t.subTopics?.some(st => st.id === lesson.subTopicId));
-        const subTopic = topicWithSubTopic?.subTopics?.find(st => st.id === lesson.subTopicId);
-        if (subTopic) {
-          if (!subTopic.lessons) subTopic.lessons = [];
-          subTopic.lessons.push(lesson);
-          console.log(`[LessonTreeContainer] Added Lesson to subTopic ${lesson.subTopicId}`, { lessonId: lesson.id, timestamp: new Date().toISOString() });
-        }
-      } else if (lesson.topicId) {
-        const topic = course.topics?.find(t => t.id === lesson.topicId);
+  
+    switch (node.nodeType) {
+      case 'Topic':
+        if (!course.topics) course.topics = [];
+        course.topics.push(node as Topic);
+        console.log(`[LessonTreeContainer] Added Topic to course ${courseId}`, { 
+          topicId: node.id, 
+          timestamp: new Date().toISOString() 
+        });
+        break;
+        
+      case 'SubTopic':
+        const subTopic = node as SubTopic;
+        const topic = course.topics?.find(t => t.id === subTopic.topicId);
         if (topic) {
-          if (!topic.lessons) topic.lessons = [];
-          topic.lessons.push(lesson);
-          console.log(`[LessonTreeContainer] Added Lesson to topic ${lesson.topicId}`, { lessonId: lesson.id, timestamp: new Date().toISOString() });
+          if (!topic.subTopics) topic.subTopics = [];
+          topic.subTopics.push(subTopic);
+          console.log(`[LessonTreeContainer] Added SubTopic to course ${courseId}`, { 
+            topicId: topic.id, 
+            subTopicId: node.id, 
+            timestamp: new Date().toISOString() 
+          });
         }
-      }
+        break;
+        
+      case 'Lesson':
+        const lesson = node as Lesson;
+        if (lesson.subTopicId) {
+          const topicWithSubTopic = course.topics?.find(t => 
+            t.subTopics?.some(st => st.id === lesson.subTopicId)
+          );
+          
+          const subTopic = topicWithSubTopic?.subTopics?.find(st => 
+            st.id === lesson.subTopicId
+          );
+          
+          if (subTopic) {
+            if (!subTopic.lessons) subTopic.lessons = [];
+            subTopic.lessons.push(lesson);
+            console.log(`[LessonTreeContainer] Added Lesson to subTopic ${lesson.subTopicId}`, { 
+              lessonId: lesson.id, 
+              timestamp: new Date().toISOString() 
+            });
+          }
+        } else if (lesson.topicId) {
+          const topic = course.topics?.find(t => t.id === lesson.topicId);
+          if (topic) {
+            if (!topic.lessons) topic.lessons = [];
+            topic.lessons.push(lesson);
+            console.log(`[LessonTreeContainer] Added Lesson to topic ${lesson.topicId}`, { 
+              lessonId: lesson.id, 
+              timestamp: new Date().toISOString() 
+            });
+          }
+        }
+        break;
+        
+      case 'Course':
+        // Should not happen - Courses are added directly to the courses array
+        console.warn('[LessonTreeContainer] Attempted to add Course inside updateCoursesWithNewNode', { 
+          courseId: node.id, 
+          timestamp: new Date().toISOString() 
+        });
+        break;
     }
   }
-
-  // Utility method to update courses with an edited node
-  private updateCoursesWithEditedNode(node: TreeNode): void {
-    const courseId = this.getCourseIdForNode(node);
+  
+  // Update the updateCoursesWithEditedNode method
+  private updateCoursesWithEditedNode(node: TreeData): void {
+    const courseId = node.courseId;
     if (!courseId) {
-      console.warn('[LessonTreeContainer] updateCoursesWithEditedNode: Course ID not found for node', { nodeId: node.id, timestamp: new Date().toISOString() });
+      console.warn('[LessonTreeContainer] updateCoursesWithEditedNode: Course ID not found for node', { 
+        nodeId: node.nodeId, 
+        timestamp: new Date().toISOString() 
+      });
       this.loadCourses();
       return;
     }
-
+  
     const course = this.courses.find(c => c.id === courseId);
     if (!course || !course.topics) {
-      console.warn('[LessonTreeContainer] updateCoursesWithEditedNode: Course or topics not found', { courseId, nodeId: node.id, timestamp: new Date().toISOString() });
+      console.warn('[LessonTreeContainer] updateCoursesWithEditedNode: Course or topics not found', { 
+        courseId, 
+        nodeId: node.nodeId, 
+        timestamp: new Date().toISOString() 
+      });
       this.loadCourses();
       return;
     }
-
+  
+    // Simple update function that supports nested entities
     const updateNode = (topics: Topic[]): boolean => {
       for (let i = 0; i < topics.length; i++) {
-        if (node.nodeType === 'Topic' && topics[i].nodeId === node.id) {
-          topics[i] = { ...node.original as Topic };
-          console.log(`[LessonTreeContainer] Updated Topic`, { nodeId: node.id, title: topics[i].title, timestamp: new Date().toISOString() });
+        if (node.nodeType === 'Topic' && topics[i].nodeId === node.nodeId) {
+          topics[i] = { ...node as Topic };
+          console.log(`[LessonTreeContainer] Updated Topic`, { 
+            nodeId: node.nodeId, 
+            title: topics[i].title, 
+            timestamp: new Date().toISOString() 
+          });
           return true;
         }
+        
         if (topics[i] && topics[i].subTopics && topics[i].subTopics!.length > 0) {
           for (let j = 0; j < topics[i].subTopics!.length; j++) {
-            if (node.nodeType === 'SubTopic' && topics[i].subTopics![j].nodeId === node.id) {
-              topics[i].subTopics![j] = { ...node.original as SubTopic };
-              console.log(`[LessonTreeContainer] Updated SubTopic`, { nodeId: node.id, title: topics[i].subTopics![j].title, timestamp: new Date().toISOString() });
+            if (node.nodeType === 'SubTopic' && topics[i].subTopics![j].nodeId === node.nodeId) {
+              topics[i].subTopics![j] = { ...node as SubTopic };
+              console.log(`[LessonTreeContainer] Updated SubTopic`, { 
+                nodeId: node.nodeId, 
+                title: topics[i].subTopics![j].title, 
+                timestamp: new Date().toISOString() 
+              });
               return true;
             }
+            
             if (topics[i]!.subTopics![j].lessons && topics[i].subTopics![j].lessons.length > 0) {
               for (let k = 0; k < topics[i].subTopics![j].lessons.length; k++) {
-                if (node.nodeType === 'Lesson' && topics[i].subTopics![j].lessons[k].nodeId === node.id) {
-                  topics[i].subTopics![j].lessons[k] = { ...node.original as Lesson };
-                  console.log(`[LessonTreeContainer] Updated Lesson`, { nodeId: node.id, title: topics[i].subTopics![j].lessons[k].title, timestamp: new Date().toISOString() });
+                if (node.nodeType === 'Lesson' && topics[i].subTopics![j].lessons[k].nodeId === node.nodeId) {
+                  topics[i].subTopics![j].lessons[k] = { ...node as Lesson };
+                  console.log(`[LessonTreeContainer] Updated Lesson`, { 
+                    nodeId: node.nodeId, 
+                    title: topics[i].subTopics![j].lessons[k].title, 
+                    timestamp: new Date().toISOString() 
+                  });
                   return true;
                 }
               }
             }
           }
         }
+        
         if (topics[i] && topics[i].lessons && topics[i].lessons!.length > 0) {
           for (let k = 0; k < topics[i].lessons!.length; k++) {
-            if (node.nodeType === 'Lesson' && topics[i].lessons![k].nodeId === node.id) {
-              topics[i].lessons![k] = { ...node.original as Lesson };
-              console.log(`[LessonTreeContainer] Updated Lesson`, { nodeId: node.id, title: topics[i].lessons![k].title, timestamp: new Date().toISOString() });
+            if (node.nodeType === 'Lesson' && topics[i].lessons![k].nodeId === node.nodeId) {
+              topics[i].lessons![k] = { ...node as Lesson };
+              console.log(`[LessonTreeContainer] Updated Lesson`, { 
+                nodeId: node.nodeId, 
+                title: topics[i].lessons![k].title, 
+                timestamp: new Date().toISOString() 
+              });
               return true;
             }
           }
@@ -386,21 +410,19 @@ export class LessonTreeContainerComponent {
       }
       return false;
     };
-
+  
     if (updateNode(course.topics)) {
-      console.log(`[LessonTreeContainer] Node updated in course ${course.id}`, { nodeId: node.id, timestamp: new Date().toISOString() });
+      console.log(`[LessonTreeContainer] Node updated in course ${course.id}`, { 
+        nodeId: node.nodeId, 
+        timestamp: new Date().toISOString() 
+      });
     } else {
-      console.warn(`[LessonTreeContainer] Edited node not found in course ${course.id}`, { nodeId: node.id, timestamp: new Date().toISOString() });
+      console.warn(`[LessonTreeContainer] Edited node not found in course ${course.id}`, { 
+        nodeId: node.nodeId, 
+        timestamp: new Date().toISOString() 
+      });
       this.loadCourses();
     }
   }
-
-  private getCourseIdForNode(node: TreeNode): number | null {
-    if (node && node.original) {
-      if (node.nodeType === 'Topic') return (node.original as Topic).courseId;
-      if (node.nodeType === 'SubTopic') return (node.original as SubTopic).courseId;
-      if (node.nodeType === 'Lesson') return (node.original as Lesson).courseId;
-    }
-    return null;
-  }
+  
 }

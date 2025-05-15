@@ -1,3 +1,4 @@
+// src/app/lessontree/course-list/course-list.component.ts
 import { Component, OnInit, ChangeDetectorRef, Output, EventEmitter, Input, SimpleChanges, OnChanges } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { Course } from '../../models/course';
@@ -9,7 +10,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
 import { TreeWrapperComponent } from './tree/tree-wrapper.component';
-import { NodeSelectedEvent, NodeType, TopicMovedEvent, TreeNode } from '../../models/tree-node';
+import { NodeSelectedEvent, NodeType, TopicMovedEvent, TreeData, TreeNode } from '../../models/tree-node';
 import { SubTopic } from '../../models/subTopic';
 import { Lesson } from '../../models/lesson';
 import { CommonModule } from '@angular/common';
@@ -37,24 +38,19 @@ import { UserService } from '../../core/services/user.service';
 export class CourseListComponent implements OnInit, OnChanges {
   @Input() courses: Course[] = []; // Now received from LessonTreeContainerComponent
   @Input() triggerRefresh: boolean = false;
-  @Input() newNode: TreeNode | null = null;
-  @Input() courseEdited: Course | null = null;
-  @Input() nodeEdited: TreeNode | null = null;
-  @Output() activeNodeChange = new EventEmitter<TreeNode>();
-  @Output() addNodeRequested = new EventEmitter<{ parentNode?: TreeNode; nodeType: NodeType; courseId?: number }>();
+  @Input() newNode: TreeData | null = null;
+  @Input() nodeEdited: TreeData | null = null;
+  @Output() activeNodeChange = new EventEmitter<TreeData>();
+  @Output() addNodeRequested = new EventEmitter<{ parentNode?: TreeData; nodeType: NodeType; courseId?: number }>();
   @Output() addCourseRequested = new EventEmitter<void>();
-  @Output() courseSelected = new EventEmitter<Course>();
-  @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>(); // Pass through to LessonTreeContainerComponent
-  @Output() lessonMoved = new EventEmitter<{ lesson: Lesson, sourceSubTopicId?: number, targetSubTopicId?: number, targetTopicId?: number }>(); // Pass through
+   @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>(); // Pass through to LessonTreeContainerComponent
+  @Output() lessonMoved = new EventEmitter<{ lesson: Lesson, sourceSubTopicId?: number, targetSubTopicId?: number, targetTopicId?: number }>();
 
-  expandedCourseIds: number[] = [];
   refreshTrigger: boolean = false;
-  activeNode: TreeNode | null = null;
   treeActiveNode: TreeNode | null = null;
 
   constructor(
     private toastr: ToastrService,
-    private cdr: ChangeDetectorRef,
     private dialog: MatDialog,
     private userService: UserService
   ) {}
@@ -66,30 +62,23 @@ export class CourseListComponent implements OnInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['triggerRefresh'] && changes['triggerRefresh'].currentValue !== changes['triggerRefresh'].previousValue) {
       console.log(`[CourseList] Refresh triggered`, { newValue: changes['triggerRefresh'].currentValue, timestamp: new Date().toISOString() });
-      this.triggerChangeDetection();
+      this.refreshTrigger = !this.refreshTrigger;
     }
 
     if (changes['newNode'] && changes['newNode'].currentValue) {
       const node = changes['newNode'].currentValue as TreeNode;
       console.log(`[CourseList] New node received`, { nodeId: node.id, type: node.nodeType, timestamp: new Date().toISOString() });
       this.treeActiveNode = node;
-      this.triggerChangeDetection();
-    }
-
-    if (changes['courseEdited'] && changes['courseEdited'].currentValue) {
-      const editedCourse = changes['courseEdited'].currentValue as Course;
-      console.log(`[CourseList] Course edited received`, { courseId: editedCourse.id, title: editedCourse.title, timestamp: new Date().toISOString() });
-      this.courseSelected.emit(editedCourse);
-      this.triggerChangeDetection();
     }
 
     if (changes['nodeEdited'] && changes['nodeEdited'].currentValue) {
-      const editedNode = changes['nodeEdited'].currentValue as TreeNode;
-      console.log(`[CourseList] Node edited received`, { nodeId: editedNode.id, type: editedNode.nodeType, timestamp: new Date().toISOString() });
-      this.treeActiveNode = editedNode;
-      this.activeNode = editedNode;
+      const editedNode = changes['nodeEdited'].currentValue as TreeData;
+      console.log(`[CourseList] Node edited received`, { nodeId: editedNode.nodeId, type: editedNode.nodeType, timestamp: new Date().toISOString() });
+            
+      // For all nodes, emit to activeNodeChange
       this.activeNodeChange.emit(editedNode);
-      this.triggerChangeDetection();
+      
+      // We no longer need to track treeActiveNode here
     }
   }
 
@@ -116,84 +105,17 @@ export class CourseListComponent implements OnInit, OnChanges {
 
   addTopic(courseId: number): void {
     console.log(`[CourseList] addTopic: Requesting to add Topic to Course ID: ${courseId}`, { timestamp: new Date().toISOString() });
-    this.addNodeRequested.emit({ nodeType: 'Topic', courseId });
-    this.toastr.info(`Adding topic to course with ID: ${courseId}`, 'Info');
-  }
-
-  toggleCourse(courseId: number): void {
+    
+    // Find the course in the courses array
     const course = this.courses.find(c => c.id === courseId);
-    if (!course) {
-      console.warn('[CourseList] toggleCourse: Course not found for id:', courseId, { timestamp: new Date().toISOString() });
-      return;
+    if (course) {
+      this.addNodeRequested.emit({ 
+        parentNode: course, 
+        nodeType: 'Topic', 
+        courseId 
+      });
+      this.toastr.info(`Adding topic to course with ID: ${courseId}`, 'Info');
     }
-
-    console.log('[CourseList] toggleCourse: Before toggle - courseId:', courseId, 'expandedCourseIds:', [...this.expandedCourseIds], { timestamp: new Date().toISOString() });
-
-    const isExpanded = this.expandedCourseIds.includes(courseId);
-    if (isExpanded) {
-      this.expandedCourseIds = this.expandedCourseIds.filter(id => id !== courseId);
-      console.log('[CourseList] toggleCourse: Collapsed course:', courseId, 'New expandedCourseIds:', [...this.expandedCourseIds], { timestamp: new Date().toISOString() });
-    } else {
-      if (this.expandedCourseIds.length >= 2) {
-        const removedCourseId = this.expandedCourseIds.shift();
-        console.log('[CourseList] toggleCourse: Removed oldest expanded course:', removedCourseId, { timestamp: new Date().toISOString() });
-      }
-      this.expandedCourseIds.push(courseId);
-      console.log('[CourseList] toggleCourse: Expanded course:', courseId, 'New expandedCourseIds:', [...this.expandedCourseIds], { timestamp: new Date().toISOString() });
-
-      if (!course.topics) {
-        console.warn('[CourseList] toggleCourse: Topics not loaded for course:', course.id, 'Expected topics to be pre-loaded.', { timestamp: new Date().toISOString() });
-      }
-      this.selectFirstTopic(course);
-    }
-
-    this.triggerChangeDetection();
-  }
-
-  private selectFirstTopic(course: Course): void {
-    if (course.topics && course.topics.length > 0) {
-      const firstTopic = course.topics[0];
-      const firstNode: TreeNode = {
-        id: firstTopic.nodeId,
-        text: firstTopic.title,
-        nodeType: 'Topic',
-        original: firstTopic
-      };
-      const activeNodeCourseId = this.getCourseIdForNode(this.activeNode);
-      if (activeNodeCourseId !== course.id) {
-        this.treeActiveNode = firstNode;
-        this.activeNode = firstNode;
-        this.activeNodeChange.emit(this.activeNode);
-        console.log('[CourseList] selectFirstTopic: Selected first topic as active node:', firstNode, { timestamp: new Date().toISOString() });
-      }
-    }
-  }
-
-  private getCourseIdForNode(node: TreeNode | null): number | null {
-    if (node && node.original) {
-      if (node.nodeType === 'Topic') return (node.original as Topic).courseId;
-      if (node.nodeType === 'SubTopic') return (node.original as SubTopic).courseId;
-      if (node.nodeType === 'Lesson') return (node.original as Lesson).courseId;
-    }
-    return null;
-  }
-
-  onNodeSelected(event: NodeSelectedEvent): void {
-    this.treeActiveNode = event.node;
-    this.activeNode = event.node;
-    this.activeNodeChange.emit(this.activeNode);
-    console.log('[CourseList] onNodeSelected: Node selected in tree:', event.node, { timestamp: new Date().toISOString() });
-  }
-
-  selectCourse(course: Course): void {
-    this.toggleCourse(course.id);
-    this.courseSelected.emit(course);
-    console.log('[CourseList] selectCourse: Selected course:', course.title, 'id:', course.id, { timestamp: new Date().toISOString() });
-  }
-
-  editCourse(course: Course): void {
-    console.log('[CourseList] editCourse: Edit Course:', course, { timestamp: new Date().toISOString() });
-    this.toastr.info(`Editing course: ${course.title}`, 'Info');
   }
 
   deleteCourse(courseId: number): void {
@@ -217,16 +139,33 @@ export class CourseListComponent implements OnInit, OnChanges {
     this.lessonMoved.emit(event);
   }
 
-  triggerChangeDetection(): void {
-    this.refreshTrigger = !this.refreshTrigger;
-    console.log(`[CourseList] Triggered change detection`, { refreshTrigger: this.refreshTrigger, timestamp: new Date().toISOString() });
-    this.cdr.detectChanges();
+  onNodeSelected(node: TreeData): void {
+    console.log(`[CourseList] onNodeSelected: Node selected in tree:`, node, { timestamp: new Date().toISOString() });
+    this.activeNodeChange.emit(node);    
   }
 
-  onAddNodeRequested(event: { parentNode: TreeNode; nodeType: NodeType }): void {
-    console.log(`[CourseList] Add node requested: ${event.nodeType} under ${event.parentNode?.id || 'no parent'}`, { timestamp: new Date().toISOString() });
-    const courseId = this.getCourseIdForNode(event.parentNode) ?? undefined;
+  onAddNodeRequested(event: { parentNode: TreeData; nodeType: NodeType }): void {
+    console.log(`[CourseList] Add node requested: ${event.nodeType} under ${event.parentNode?.nodeId || 'no parent'}`, { timestamp: new Date().toISOString() });
+    
+    let courseId: number | undefined;
+    
+    if (event.parentNode.nodeType === 'Course') {
+      courseId = event.parentNode.id;
+    } else if (event.parentNode.nodeType === 'Topic') {
+      courseId = (event.parentNode as Topic).courseId;
+    } else if (event.parentNode.nodeType === 'SubTopic') {
+      courseId = (event.parentNode as SubTopic).courseId;
+    } else if (event.parentNode.nodeType === 'Lesson') {
+      courseId = (event.parentNode as Lesson).courseId;
+    }
+    
     console.log(`[CourseList] Propagating addNodeRequested with courseId: ${courseId}`, { timestamp: new Date().toISOString() });
-    this.addNodeRequested.emit({ parentNode: event.parentNode, nodeType: event.nodeType, courseId });
+    this.addNodeRequested.emit({ 
+      parentNode: event.parentNode, 
+      nodeType: event.nodeType, 
+      courseId 
+    });
   }
+
+  
 }

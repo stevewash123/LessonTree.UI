@@ -1,6 +1,7 @@
+<!-- src/app/lessontree/info-panel/info-panel.component.html -->
 <div class="info-panel-wrapper">
-    @if (activeNode || selectedCourse || mode === 'add') {
-      @if ((selectedCourse && mode !== 'add') || (mode === 'add' && addPanelType === 'Course')) {
+    @if (activeNode || mode === 'add') {
+      @if ((activeNode?.nodeType === 'Course' && mode !== 'add') || (mode === 'add' && addPanelType === 'Course')) {
         @if (course) {
           <course-panel
             [data]="course"
@@ -46,6 +47,6 @@
         }
       }
     } @else {
-      <p>Select a node or course to view or add a new item.</p>
+      <p>Select a node to view or add a new item.</p>
     }
   </div>

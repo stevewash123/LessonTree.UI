@@ -2,16 +2,27 @@
 // course.ts
 
 import { Standard } from "./standard";
-import { Topic } from "./topic";
+import { createTopicNode, Topic } from "./topic";
+import { TreeData, TreeNode } from "./tree-node";
 
 // Models a Course entity with optional topics for lazy loading
-export interface Course {
-    id: number;
+export interface Course extends TreeData {
     title: string;
     description: string;
     hasChildren: boolean;
     archived: boolean;
-    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
+    visibility: 'Private' | 'Team' | 'Public';
     topics?: Topic[];
-    //standards?: Standard[];
-}
+    nodeType: 'Course'; // Override to specify the concrete type
+  }
+
+  export function createCourseNode(course: Course): TreeNode {
+    return {
+      id: course.nodeId,
+      text: course.title,
+      nodeType: 'Course',
+      hasChildren: course.hasChildren,
+      original: course,
+      iconCss: 'material-icons course-icon'
+    };
+  }

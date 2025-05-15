@@ -1,9 +1,7 @@
 import { createLessonNode, Lesson } from "./lesson";
-import { TreeNode } from "./tree-node";
+import { TreeData, TreeNode} from "./tree-node";
 
-export interface SubTopic {
-    id: number;
-    nodeId: string;
+export interface SubTopic extends TreeData {
     title: string;
     description: string;
     topicId: number;
@@ -11,9 +9,10 @@ export interface SubTopic {
     lessons: Lesson[];
     hasChildren: boolean;
     archived: boolean;
-    visibility: 'Private' | 'Team' | 'Public'; 
+    visibility: 'Private' | 'Team' | 'Public';
     sortOrder: number;
-}
+    nodeType: 'SubTopic';
+  }
 
 export function createSubTopicNode(subTopic: SubTopic): TreeNode {
     return {

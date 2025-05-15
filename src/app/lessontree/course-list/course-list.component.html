@@ -1,53 +1,29 @@
+<!-- src/app/lessontree/course-list/course-list.component.html -->
 <div class="course-list-wrapper">
     <div class="course-header-container">
-        <h2 class="courses-header">Courses</h2>
-        <mat-icon class="filter-icon" (click)="openFilterDialog()" matTooltip="Filter Courses">filter_list</mat-icon>
+      <h2 class="courses-header">Courses ({{courses.length || 0}})</h2>
+      <mat-icon class="filter-icon" (click)="openFilterDialog()" matTooltip="Filter Courses">filter_list</mat-icon>
     </div>
-    @for (course of courses; track $index) {        
+    
+    @for (course of courses; track course.id) {        
       <mat-card class="course-card">
-        <mat-list-item>
-          <div class="course-item">
-            <mat-icon 
-              class="expand-icon" 
-              (click)="toggleCourse(course.id)"
-            >{{ expandedCourseIds.includes(course.id) ? 'expand_more' : 'chevron_right' }}</mat-icon>
-            <span class="course-title" (click)="selectCourse(course)">{{ course.title }}</span>
-            <span class="course-description" (click)="selectCourse(course)">{{ course.description }}</span>
-            <span class="course-actions">
-              <button mat-icon-button (click)="deleteCourse(course.id)" matTooltip="Delete Course">
-                <mat-icon>delete</mat-icon>
-              </button>
-              <div class="spacer"></div>
-              <button mat-icon-button (click)="addTopic(course.id)" matTooltip="Add Topic">
-                <mat-icon>add_circle</mat-icon>
-              </button>
-            </span>
-          </div>
-        </mat-list-item>
-        @if (expandedCourseIds.includes(course.id)) {  
-            @if (course.topics) {  
-              <div class="tree-view-container">
-                <app-tree style="width:100%"
-                  [topics]="course.topics"
-                  [courseId]="course.id"
-                  [courseManagement]="this"
-                  [refreshTrigger]="refreshTrigger"
-                  [activeNode]="treeActiveNode"
-                  [newNode]="newNode"
-                  (nodeDragStop)="onTopicMoved($event)"
-                  (nodeSelected)="onNodeSelected($event)"
-                  (lessonMoved)="onLessonMoved($event)"
-                  (addNodeRequested)="onAddNodeRequested($event)"
-                ></app-tree>
-              </div>
-            } 
-            @else {
-                <p>Loading topics...</p>
-            }
-        }
+        <div class="tree-view-container">
+          <app-tree
+            style="width:100%"
+            [course]="course"
+            [courseManagement]="this"
+            [refreshTrigger]="refreshTrigger"
+            [newNode]="newNode"
+            (nodeDragStop)="onTopicMoved($event)"
+            (nodeSelected)="onNodeSelected($event)"
+            (lessonMoved)="onLessonMoved($event)"
+            (addNodeRequested)="onAddNodeRequested($event)"
+          ></app-tree>
+        </div>
       </mat-card>
     }
+    
     <div class="add-course-button">
       <button mat-raised-button color="primary" (click)="addCourse()">Add Course</button>
     </div>    
-</div>
+  </div>

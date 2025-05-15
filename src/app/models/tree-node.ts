@@ -3,7 +3,8 @@ import { Lesson } from "./lesson";
 import { SubTopic } from "./subTopic";
 import { Topic } from "./topic";
 
-export type NodeType = 'Topic' | 'SubTopic' | 'Lesson';
+export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+
 
 export interface TreeNode {
     id: string;
@@ -12,10 +13,17 @@ export interface TreeNode {
     text: string;
     expanded?: boolean;
     child?: TreeNode[];
-    original?: Topic | SubTopic | Lesson; 
+    original?: TreeData; 
     iconCss?: string;
     [key: string]: any;
 }
+
+export interface TreeData {
+    id: number;
+    courseId: number;
+    nodeId: string;
+    nodeType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+  }
 
 export interface TopicMovedEvent {
     topic: Topic;
@@ -25,7 +33,7 @@ export interface TopicMovedEvent {
 }
 
 export interface NodeSelectedEvent {
-    node: TreeNode;
+    node: TreeData;
 }
 
 // did this in another branch, but haven't needed to here yet. 

@@ -1,20 +1,19 @@
 import { Lesson } from "./lesson";
 import { createSubTopicNode, SubTopic } from "./subTopic";
-import { TreeNode } from "./tree-node";
+import { TreeData, TreeNode } from "./tree-node";
 
-export interface Topic {
-    id: number;
-    nodeId: string;
+export interface Topic extends TreeData {
     title: string;
     description: string;
     courseId: number;
     hasChildren: boolean;
     subTopics?: SubTopic[];
     lessons?: Lesson[];
-    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
+    visibility: 'Private' | 'Team' | 'Public';
     archived: boolean;
     sortOrder: number;
-}
+    nodeType: 'Topic';
+  }
 
 export function createTopicNode(topic: Topic): TreeNode {
     return {

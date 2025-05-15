@@ -2,6 +2,7 @@
     display: block;
     max-height: 320px;
     overflow: auto;
+    overflow-x: hidden; /* Prevent horizontal scrollbar */
     border: 1px solid #e0e0e0;
     border-radius: 6px;
     background-color: #ffffff;
@@ -9,11 +10,12 @@
     width: 100%;
     box-sizing: border-box;
     margin: 0;
-    min-width: 0; /* Prevent Flexbox shrinkage */
+    padding-right: 8px; /* Add some padding to accommodate the scrollbar */
   }
   
   .custom .e-treeview {
     width: 100% !important; /* Ensure Syncfusion tree fills treeparent */
+    overflow-x: hidden !important;
   }
   
   .custom .e-ul {
@@ -22,38 +24,80 @@
     margin: 0;
   }
   
+  /* List item styles - control width to prevent overflow */
   .custom .e-list-item {
-    padding: 8px 0;
+    padding: 4px 0; /* Reduced padding between rows */
     border-bottom: 1px solid #f0f0f0;
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
     width: 100%;
+    max-width: 100%; /* Limit maximum width */
+    box-sizing: border-box;
+    position: relative; /* Needed for proper positioning of children */
   }
   
   .custom .e-list-item:hover {
     background-color: #f9f9f9;
   }
   
+  /* Only style the direct selected item, not its children */
+  .custom .e-list-item.e-active > .node-container,
+  .custom .e-list-item.e-active > .e-text-content .node-container {
+    border: 1px solid rgba(63, 81, 181, 0.5); /* Indigo border */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Brighten colors when selected - target only direct node */
+  .custom .e-list-item.e-active > .e-text-content .node-container.course {
+    background-color: #cedcf0; /* Brighter blue-gray */
+  }
+  
+  .custom .e-list-item.e-active > .e-text-content .node-container.topic {
+    background-color: #b3e5fc; /* Brighter cyan */
+  }
+  
+  .custom .e-list-item.e-active > .e-text-content .node-container.subtopic {
+    background-color: #c8e6c9; /* Brighter green */
+  }
+  
+  .custom .e-list-item.e-active > .e-text-content .node-container.lesson {
+    background-color: #fff9c4; /* Brighter yellow */
+  }
+  
+  /* Work with SyncFusion's fullrow */
+  .custom .e-fullrow {
+    opacity: 0 !important; /* Hide by default */
+    min-height: 38px; /* Reduced height */
+    z-index: -1; /* Place behind content */
+  }
+  
+  .custom .e-list-item.e-active > .e-fullrow {
+    opacity: 0.05 !important; /* Very subtle background when active */
+    background-color: #3f51b5; /* Indigo to match theme */
+  }
+  
+  /* Fix for text content and list text - control width */
   .custom .e-text-content {
-    padding-left: 24px;
+    padding-left: 8px; /* Reduced to allow room for expansion icon */
     padding-right: 0;
-    width: 100%;
+    width: 100%; /* Use 100% instead of calculating */
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
   }
   
   .custom .e-list-text {
     width: 100%;
-  }
-  
-  .custom .e-list-item .e-fullrow {
-    min-height: 48px;
-    display: flex;
-    align-items: center;
-    width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
   }
   
   .treeviewdiv {
-    width: 100%;
+    width: 100% !important; /* Full width */
+    box-sizing: border-box;
+    overflow: hidden; /* Prevent overflow */
   }
   
+  /* Node container - controlled width to prevent overflow */
   .node-container {
     display: flex;
     align-items: center;
@@ -61,80 +105,154 @@
     padding: 4px 8px;
     border-radius: 4px;
     box-sizing: border-box;
+    overflow: hidden; /* Prevent content overflow */
+    position: relative; /* For proper positioning */
+    transition: all 0.2s ease;
+    min-height: 34px; /* Reduced height */
+  }
+  
+  /* More subtle colors for different node types */
+  .node-container.course {
+    background-color: #e1e8f0; /* Subtle blue-gray */
   }
   
   .node-container.topic {
-    background-color: #99c2ff;
+    background-color: #e0f7fa; /* Subtle cyan */
   }
   
   .node-container.subtopic {
-    background-color: #99ff99;
+    background-color: #e8f5e9; /* Subtle green */
   }
   
   .node-container.lesson {
-    background-color: #ffeb99;
+    background-color: #fff8e1; /* Subtle yellow */
   }
   
+  /* Node type icon - keep consistent with what's working */
   .node-type-icon {
-    width: 24px;
-    height: 24px;
-    line-height: 24px;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
     text-align: center;
-    margin-right: 12px;
+    margin-right: 8px;
     font-size: 16px;
     color: #666;
     flex-shrink: 0;
   }
   
+  /* Node content */
   .node-content {
     flex: 1;
+    min-width: 0; /* Prevent flex item overflow */
     display: flex;
-    flex-direction: column;
-    min-height: 48px;
-    justify-content: center;
+    flex-direction: row; /* Changed to row to place description inline */
+    align-items: center; /* Center vertically */
+    padding-right: 60px; /* Make room for action buttons */
+    gap: 8px; /* Space between title and description */
+    overflow: hidden;
   }
   
+  /* Node title and description */
   .node-title {
-    font-size: 15px;
+    font-size: 14px; /* Slightly smaller */
     font-weight: 500;
     color: #333;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 0; /* Don't shrink title */
+    min-width: 120px; /* Minimum width for title */
   }
   
   .node-description {
     font-size: 12px;
     color: #666;
-    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1; /* Let description fill remaining space */
   }
   
+  /* Node actions - positioned absolute and styled similar to node-type-icon */
   .node-actions {
     display: flex;
-    gap: 4px;
-    width: 64px;
-    justify-content: flex-end;
-    padding-right: 8px;
+    gap: 4px; /* Slightly more space between buttons */
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  /* Style buttons similar to how the emoji icons are styled */
+  .node-actions button {
+    width: 20px;
+    height: 20px;
+    min-width: 20px; /* Prevent flex shrinking */
+    min-height: 20px;
+    padding: 0; /* Remove padding that might be affecting size */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
     flex-shrink: 0;
   }
   
-  .node-actions button {
-    color: #666;
+  .node-actions button mat-icon {
+    font-size: 16px; /* Match the size used by emoji icons */
+    width: 16px;
+    height: 16px;
+    line-height: normal;
+    text-align: center;
   }
   
   .node-actions button:hover {
     color: #333;
   }
   
+  /* Fix indentation for hierarchy levels */
+  .custom .e-list-item.e-level-1 {
+    padding-left: 8px;
+  }
+  
   .custom .e-list-item.e-level-2 {
-    padding-left: 40px;
+    padding-left: 24px;
   }
   
   .custom .e-list-item.e-level-3 {
-    padding-left: 64px;
+    padding-left: 40px;
   }
   
+  .custom .e-list-item.e-level-4 {
+    padding-left: 56px;
+  }
+  
+  /* Extra indentation for empty rows */
+  .custom .e-list-item:not(.e-has-child) .e-text-content {
+    padding-left: 16px; /* Additional padding for rows without children */
+  }
+  
+  /* Fix for the last child item */
   .custom .e-list-item:last-child {
     border-bottom: none;
   }
   
+  /* Fix for expand/collapse icons */
   .custom .e-list-item .e-icons {
     margin-left: 0;
+    font-size: 12px;
+  }
+  
+  /* Custom scrollbar */
+  #treeparent::-webkit-scrollbar {
+    width: 8px;
+    height: 0; /* No horizontal scrollbar */
+  }
+  
+  #treeparent::-webkit-scrollbar-thumb {
+    background-color: #ccc;
+    border-radius: 4px;
+  }
+  
+  #treeparent::-webkit-scrollbar-track {
+    background-color: #f5f5f5;
   }

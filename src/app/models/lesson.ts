@@ -1,22 +1,21 @@
 import { Attachment } from "./attachment";
 import { Note } from "./note";
 import { Standard } from "./standard";
-import { TreeNode } from "./tree-node";
+import { TreeData, TreeNode } from "./tree-node";
 
-export interface Lesson {
-    id: number;
-    nodeId: string;
+export interface Lesson extends TreeData {
     courseId: number;
     subTopicId?: number;
     topicId?: number;
     title: string;
     objective: string;
-    description?: string; // Added description property
-    visibility: 'Private' | 'Team' | 'Public'; // Restricted to specific values
+    description?: string;
+    visibility: 'Private' | 'Team' | 'Public';
     teamId?: number;
     archived: boolean;
     sortOrder: number;
-}
+    nodeType: 'Lesson';
+  }
 
 export function createLessonNode(lesson: Lesson): TreeNode {
     return {
