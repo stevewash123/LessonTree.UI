@@ -38,7 +38,7 @@
   .custom .e-list-item:hover {
     background-color: #f9f9f9;
   }
-  
+
   /* Only style the direct selected item, not its children */
   .custom .e-list-item.e-active > .node-container,
   .custom .e-list-item.e-active > .e-text-content .node-container {

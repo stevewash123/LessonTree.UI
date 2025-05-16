@@ -363,10 +363,8 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     public emitNodeSelected(args: any) {
-        const nodeId = args.nodeData.id;
-        const node = this.findNodeById(this.treeData, nodeId);
-        if (node && node.original) {
-          this.nodeSelected.emit(node.original as TreeData);
+        if (args.nodeData && args.nodeData.original) {
+          this.nodeSelected.emit(args.nodeData.original as TreeData);
         }
     }
 
