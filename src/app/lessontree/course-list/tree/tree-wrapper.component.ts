@@ -222,7 +222,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
             nodeType: 'Course',
             hasChildren: (this.course.topics?.length ?? 0) > 0,
             original: this.course,
-            expanded: true // Auto-expand the course node
+            expanded: false
         };
     
         console.log('Created course node:', courseNode);

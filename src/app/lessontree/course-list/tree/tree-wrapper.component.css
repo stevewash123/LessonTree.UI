@@ -5,7 +5,7 @@
     overflow-x: hidden; /* Prevent horizontal scrollbar */
     border: 1px solid #e0e0e0;
     border-radius: 6px;
-    background-color: #ffffff;
+    background-color: #e1e8f0; /* Match the course background color */
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     width: 100%;
     box-sizing: border-box;
@@ -236,10 +236,27 @@
     border-bottom: none;
   }
   
-  /* Fix for expand/collapse icons */
+  /* Fix for expand/collapse icons - nicer chevrons */
   .custom .e-list-item .e-icons {
     margin-left: 0;
-    font-size: 12px;
+    font-size: 14px;
+    color: #5c7099; /* Blueish gray to match theme */
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Use custom chevron styles */
+  .custom .e-list-item .e-icons.e-icon-collapsible::before {
+    content: "▼"; /* Unicode down triangle */
+    font-size: 10px;
+  }
+  
+  .custom .e-list-item .e-icons.e-icon-expandable::before {
+    content: "►"; /* Unicode right triangle */
+    font-size: 10px;
   }
   
   /* Custom scrollbar */
