@@ -4,10 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../../models/course';
 import { ApiService } from '../../../core/services/api.service';
-import { PanelType } from '../info-panel.component'; // Import PanelType
 import { UserService } from '../../../core/services/user.service';
+import { PanelMode } from '../../../core/services/panel-state.service';
+import { NodeType } from '../../../models/tree-node';
 
-type PanelMode = 'view' | 'edit' | 'add';
 
 @Component({
   selector: 'course-panel',
@@ -32,7 +32,6 @@ export class CoursePanelComponent implements OnChanges, OnInit {
   @Output() modeChange = new EventEmitter<boolean>();
   @Output() courseAdded = new EventEmitter<Course>();
   @Output() courseEdited = new EventEmitter<Course>();
-  @Output() addNode = new EventEmitter<{ courseId: number; nodeType: PanelType }>(); // Use PanelType
 
   isEditing: boolean = false;
   originalData: Course | null = null;

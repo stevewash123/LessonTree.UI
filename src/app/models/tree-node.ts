@@ -36,6 +36,12 @@ export interface NodeSelectedEvent {
     node: TreeData;
 }
 
+export interface AddNodeEvent {
+    parentNode: TreeData | null;
+    nodeType: NodeType;
+    courseId?: number;
+}
+
 // did this in another branch, but haven't needed to here yet. 
 // export interface SyncfusionNode {
 //     id: string;

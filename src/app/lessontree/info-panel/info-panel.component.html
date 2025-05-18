@@ -1,16 +1,15 @@
 <!-- src/app/lessontree/info-panel/info-panel.component.html -->
 <div class="info-panel-wrapper">
-    @if (activeNode || mode === 'add') {
+    @if ((activeNode || mode === 'add')) {
       @if ((activeNode?.nodeType === 'Course' && mode !== 'add') || (mode === 'add' && addPanelType === 'Course')) {
         @if (course) {
-          <course-panel
-            [data]="course"
-            [mode]="mode"
-            (modeChange)="handleModeChange($event)"
-            (courseAdded)="onCourseAdded($event)"
-            (courseEdited)="onCourseEdited($event)"
-            (addNode)="initiateAddMode(undefined, 'Topic', $event.courseId)"
-          ></course-panel>
+            <course-panel
+                [data]="course"
+                [mode]="mode"
+                (modeChange)="handleModeChange($event)"
+                (courseAdded)="handleNodeAdded($event)"
+                (courseEdited)="handleNodeEdited($event)"
+            ></course-panel>
         }
       }
       @if ((activeNode?.nodeType === 'Topic' && mode !== 'add') || (mode === 'add' && addPanelType === 'Topic')) {
@@ -19,30 +18,30 @@
                 [data]="topic" 
                 [mode]="mode" 
                 (modeChange)="handleModeChange($event)" 
-                (topicAdded)="onTopicAdded($event)"
-                (topicEdited)="onTopicEdited($event)"
+                (topicAdded)="handleNodeAdded($event)"
+                (topicEdited)="handleNodeEdited($event)"
             ></topic-panel>
         }
       }
       @if ((activeNode?.nodeType === 'SubTopic' && mode !== 'add') || (mode === 'add' && addPanelType === 'SubTopic')) {
         @if (subtopic) {
-          <subtopic-panel
+            <subtopic-panel
             [data]="subtopic"
             [mode]="mode"
             (modeChange)="handleModeChange($event)"
-            (subTopicAdded)="onSubTopicAdded($event)" 
-            (subTopicEdited)="onSubTopicEdited($event)"
+            (subTopicAdded)="handleNodeAdded($event)" 
+            (subTopicEdited)="handleNodeEdited($event)"
           ></subtopic-panel>
         }
       }
       @if ((activeNode?.nodeType === 'Lesson' && mode !== 'add') || (mode === 'add' && addPanelType === 'Lesson')) {
         @if (lessonDetail) {
-          <lesson-info-panel
+            <lesson-info-panel
             [lessonDetail]="lessonDetail"
             [mode]="mode"
             (modeChange)="handleModeChange($event)"
-            (lessonAdded)="onLessonAdded($event)"
-            (lessonEdited)="onLessonEdited($event)"
+            (lessonAdded)="handleNodeAdded($event)"
+            (lessonEdited)="handleNodeEdited($event)"
           ></lesson-info-panel>
         }
       }

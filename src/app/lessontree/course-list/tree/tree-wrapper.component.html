@@ -1,7 +1,7 @@
 <div id="treeparent">
     <ejs-treeview
         #treeview
-        id="treeview-{{course?.id}}"
+        id="treeview-{{course.id}}"
         [cssClass]="cssClass"
         [fields]="treeFields"
         [enablePersistence]="false"
@@ -37,14 +37,14 @@
             <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete Course">
               <mat-icon>delete</mat-icon>
             </button>
-            <button mat-icon-button (click)="addChildNode(data); $event.stopPropagation()" matTooltip="Add Topic">
+            <button mat-icon-button (click)="initiateAddChildNode(data); $event.stopPropagation()" matTooltip="Add Topic">
               <mat-icon>add_circle</mat-icon>
             </button>
           } @else {
             <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete">
               <mat-icon>delete</mat-icon>
             </button>
-            <button mat-icon-button (click)="addChildNode(data); $event.stopPropagation()" matTooltip="Add Child">
+            <button mat-icon-button (click)="initiateAddChildNode(data); $event.stopPropagation()" matTooltip="Add Child">
               <mat-icon>add_circle</mat-icon>
             </button>
           }

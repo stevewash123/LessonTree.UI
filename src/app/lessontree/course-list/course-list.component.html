@@ -8,22 +8,19 @@
     @for (course of courses; track course.id) {        
       <mat-card class="course-card">
         <div class="tree-view-container">
-          <app-tree
+            <app-tree
             style="width:100%"
             [course]="course"
-            [courseManagement]="this"
             [refreshTrigger]="refreshTrigger"
             [newNode]="newNode"
             (nodeDragStop)="onTopicMoved($event)"
-            (nodeSelected)="onNodeSelected($event)"
             (lessonMoved)="onLessonMoved($event)"
-            (addNodeRequested)="onAddNodeRequested($event)"
           ></app-tree>
         </div>
       </mat-card>
     }
     
     <div class="add-course-button">
-      <button mat-raised-button color="primary" (click)="addCourse()">Add Course</button>
+      <button mat-raised-button color="primary" (click)="initiateAddCourse()">Add Course</button>
     </div>    
   </div>

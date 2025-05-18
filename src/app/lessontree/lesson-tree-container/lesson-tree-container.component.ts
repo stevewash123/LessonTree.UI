@@ -1,5 +1,5 @@
 import { Component, ViewChild } from '@angular/core';
-import { InfoPanelComponent, PanelMode, PanelType } from '../info-panel/info-panel.component';
+import { InfoPanelComponent } from '../info-panel/info-panel.component';
 import { SplitComponent, SplitAreaComponent } from 'angular-split';
 import { CourseListComponent } from '../course-list/course-list.component';
 import { NodeType, TopicMovedEvent, TreeData } from '../../models/tree-node';
@@ -10,6 +10,7 @@ import { ToastrService } from 'ngx-toastr';
 import { Topic } from '../../models/topic';
 import { SubTopic } from '../../models/subTopic';
 import { Lesson } from '../../models/lesson';
+import { PanelMode, PanelStateService } from '../../core/services/panel-state.service';
 
 @Component({
   selector: 'lesson-tree-container',
@@ -25,31 +26,30 @@ import { Lesson } from '../../models/lesson';
   styleUrls: ['./lesson-tree-container.component.css']
 })
 export class LessonTreeContainerComponent {
-  sizes: number[] = [50, 50];
-  currentActiveNode: TreeData | null = null;
-  selectedCourse: Course | null = null; // Keep this for now to avoid breaking other parts
-  refreshTrigger: boolean = false;panelMode: PanelMode = 'view';
-  newNode: TreeData | null = null;
-  nodeEdited: TreeData | null = null;
-  courses: Course[] = [];
-  courseFilter: 'active' | 'archived' | 'both' = 'active';
-  visibilityFilter: 'private' | 'team' = 'private';
+    sizes: number[] = [50, 50];
+    refreshTrigger: boolean = false;
+    newNode: TreeData | null = null;
+    nodeEdited: TreeData | null = null;
+    courses: Course[] = [];
+    courseFilter: 'active' | 'archived' | 'both' = 'active';
+    visibilityFilter: 'private' | 'team' = 'private';
 
   @ViewChild('infoPanel') infoPanel!: InfoPanelComponent;
 
   constructor(
     private apiService: ApiService,
-    private toastr: ToastrService
-  ) {
-    console.log(`[LessonTreeContainer] Component initialized with panelMode: ${this.panelMode}`, { timestamp: new Date().toISOString() });
-    this.loadCourses(); // Fetch courses on initialization
-  }
+    private toastr: ToastrService,
+    private panelStateService: PanelStateService
+    ) {
+        console.log(`[LessonTreeContainer] Component initialized`, { timestamp: new Date().toISOString() });
+        this.loadCourses();
+    }
 
+  // Computed property for overlay state
   get isOverlayActive(): boolean {
-    const active = this.panelMode === 'add' || this.panelMode === 'edit';
-    return active;
+    return this.panelStateService.isOverlayActive();
   }
-
+  
   // Moved from CourseListComponent
   loadCourses(): void {
     console.log('[LessonTreeContainer] Loading courses from API', { 
@@ -70,10 +70,6 @@ export class LessonTreeContainerComponent {
     });
   }
 
-  onActiveNodeChange(node: TreeData): void {
-    this.currentActiveNode = node;
-  }
-
   onDragEnd(event: any): void {
     console.log('[LessonTreeContainer] Drag end event:', event, { timestamp: new Date().toISOString() });
     if (event.sizes) {
@@ -82,12 +78,6 @@ export class LessonTreeContainerComponent {
     }
   }
 
-  onAddNodeRequested(event: { parentNode?: TreeData; nodeType: NodeType; courseId?: number }): void {
-    console.log(`[LessonTreeContainer] Handling add node request: ${event.nodeType}`, { timestamp: new Date().toISOString() });
-    this.infoPanel.initiateAddMode(event.parentNode, event.nodeType, event.courseId);
-  }
-
-
   onRefreshTree(): void {
     console.log(`[LessonTreeContainer] Handling refreshTree event`, { timestamp: new Date().toISOString() });
     this.refreshTrigger = !this.refreshTrigger;
@@ -95,10 +85,8 @@ export class LessonTreeContainerComponent {
     console.log(`[LessonTreeContainer] Toggled refreshTrigger for tree refresh`, { newValue: this.refreshTrigger, timestamp: new Date().toISOString() });
   }
 
-  onNodeAdded(node: TreeData): void {
+  handleNodeAdded(node: TreeData): void {
     console.log(`[LessonTreeContainer] Received nodeAdded event`, { nodeId: node.id, type: node.nodeType, timestamp: new Date().toISOString() });
-    this.currentActiveNode = node;
-    console.log(`[LessonTreeContainer] Set active node`, { nodeId: node.id, timestamp: new Date().toISOString() });
     this.newNode = node;
     console.log(`[LessonTreeContainer] Set newNode for propagation`, { nodeId: node.id, timestamp: new Date().toISOString() });
     this.updateCoursesWithNewNode(node);
@@ -106,16 +94,10 @@ export class LessonTreeContainerComponent {
 
   onNodeEdited(node: TreeData): void {
     console.log(`[LessonTreeContainer] Received nodeEdited event`, { nodeId: node.id, type: node.nodeType, timestamp: new Date().toISOString() });
-    this.currentActiveNode = node;
     console.log(`[LessonTreeContainer] Set active node`, { nodeId: node.id, timestamp: new Date().toISOString() });
     this.nodeEdited = node;
     console.log(`[LessonTreeContainer] Set nodeEdited for propagation`, { nodeId: node.id, timestamp: new Date().toISOString() });
     this.updateCoursesWithEditedNode(node);
-  }
-
-  onPanelModeChange(mode: PanelMode): void {
-    this.panelMode = mode;
-    console.log(`[LessonTreeContainer] Panel mode changed to ${mode}`, { timestamp: new Date().toISOString() });
   }
 
   // Handle node drag-and-drop updates
@@ -424,5 +406,8 @@ export class LessonTreeContainerComponent {
       this.loadCourses();
     }
   }
+  
+  
+  
   
 }

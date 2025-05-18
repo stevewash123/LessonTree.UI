@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ViewChild, AfterViewInit, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ViewChild, AfterViewInit, OnInit, inject, effect } from '@angular/core';
 import { TreeViewComponent } from '@syncfusion/ej2-angular-navigations';
 import { CourseListComponent } from '../course-list.component';
 import { Topic } from '../../../models/topic';
@@ -13,6 +13,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { CommonModule } from '@angular/common';
 import { Course } from '../../../models/course';
 import { createTopicNode } from '../../../models/topic';
+import { NodeSelectionService } from '../../../core/services/node-selection.service';
+import { PanelStateService } from '../../../core/services/panel-state.service';
 
 interface LessonMovedEvent {
     lesson: Lesson;
@@ -34,17 +36,12 @@ interface LessonMovedEvent {
     templateUrl: './tree-wrapper.component.html',
     styleUrls: ['./tree-wrapper.component.css']
 })
-export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
+export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {  
     @Input() course!: Course;
-    @Input() courseManagement!: CourseListComponent;
     @Input() refreshTrigger!: boolean;
     @Input() newNode: TreeData | null = null;
     @Output() nodeDragStop = new EventEmitter<TopicMovedEvent>();
     @Output() lessonMoved = new EventEmitter<LessonMovedEvent>();
-    @Output() nodeSelected = new EventEmitter<TreeData>();
-    @Output() addNodeRequested = new EventEmitter<{ parentNode: TreeData; nodeType: NodeType }>();
-
-
 
     @ViewChild('treeview') syncFuncTree!: TreeViewComponent;
 
@@ -63,7 +60,22 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
     private dragStartY: number = 0;
     private allowDrag: boolean = false;
 
-    constructor(private apiService: ApiService) {}
+    constructor(
+        private apiService: ApiService,
+        private nodeSelectionService: NodeSelectionService,
+        private panelStateService: PanelStateService
+      ) {
+        // Set up an effect to handle selections from other sources
+        effect(() => {
+          const node = this.nodeSelectionService.selectedNode();
+          const source = this.nodeSelectionService.selectionSource();
+          
+          // Only process selections from sources other than the tree
+          if (source !== 'tree' && node) {
+            this.handleExternalSelection(node);
+          }
+        });
+      }
 
     ngOnInit() {
         // Initialize the tree with course data
@@ -363,10 +375,55 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
     }
 
     public emitNodeSelected(args: any) {
-        if (args.nodeData && args.nodeData.original) {
-          this.nodeSelected.emit(args.nodeData.original as TreeData);
+        console.log('[Tree] Node selected in tree:', {
+          nodeId: args.nodeData?.id || 'none',
+          timestamp: new Date().toISOString()
+        });
+        
+        if (args.nodeData && args.nodeData.id) {
+          // Find the node in our tree data using the ID from the event
+          const selectedTreeNode = this.findNodeById(this.treeData, args.nodeData.id);
+          
+          if (selectedTreeNode && selectedTreeNode.original) {
+            console.log('[Tree] Found node in tree data:', {
+              nodeId: selectedTreeNode.original.nodeId, 
+              nodeType: selectedTreeNode.original.nodeType,
+              timestamp: new Date().toISOString()
+            });
+            
+            // Update the service
+            this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
+          } else {
+            console.warn('[Tree] Node not found in tree data:', {
+              nodeId: args.nodeData.id,
+              timestamp: new Date().toISOString()
+            });
+          }
         }
-    }
+      }
+
+      private handleExternalSelection(node: TreeData) {
+        if (!this.syncFuncTree || !this.treeData?.length) {
+          return;
+        }
+        
+        console.log(`[Tree] Handling external selection for node: ${node.nodeId}`, { timestamp: new Date().toISOString() });
+        
+        // Find the corresponding node in our tree
+        const nodeInTree = this.findNodeById(this.treeData, node.nodeId);
+        
+        if (nodeInTree) {
+          // Use the SyncFusion API to select this node without triggering events
+          try {
+            this.syncFuncTree.selectedNodes = [nodeInTree.id];
+            console.log(`[Tree] Updated tree selection to match external selection`, { timestamp: new Date().toISOString() });
+          } catch (err) {
+            console.error(`[Tree] Error updating tree selection:`, err, { timestamp: new Date().toISOString() });
+          }
+        } else {
+          console.warn(`[Tree] External node not found in tree`, { nodeId: node.nodeId, timestamp: new Date().toISOString() });
+        }
+      }
 
     public onNodeDragStart(args: any) {
         this.dragStartX = args.event.pageX;
@@ -667,27 +724,33 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
         return findSubTopicInNodes(this.treeData);
     }
 
-    public addChildNode(data: any) {
+    public initiateAddChildNode(data: any) {
         const nodeId = data.id;
         const node = this.findNodeById(this.treeData, nodeId);
+        
         if (!node || !node.original) {
+          console.warn('[Tree] Could not find node data for add child action:', { nodeId, timestamp: new Date().toISOString() });
           return;
         }
-      
+        
         const treeData = node.original as TreeData;
+        console.log(`[Tree] initiateAddChildNode requested for: ${treeData.nodeId}`, { nodeType: treeData.nodeType, timestamp: new Date().toISOString() });
         
         if (treeData.nodeType === 'Course') {
-          this.addNodeRequested.emit({ parentNode: treeData, nodeType: 'Topic' });
+          // For courses, add a Topic
+          this.panelStateService.initiateAddMode('Topic', treeData, treeData.id);
         } else if (treeData.nodeType === 'Topic') {
           const topic = treeData as Topic;
           const hasSubTopics = (topic.subTopics?.length ?? 0) > 0;
+          // For topics, add either a SubTopic (if already has subtopics) or Lesson
           const childType = hasSubTopics ? 'SubTopic' : 'Lesson';
-          this.addNodeRequested.emit({ parentNode: treeData, nodeType: childType });
+          this.panelStateService.initiateAddMode(childType, treeData);
         } else if (treeData.nodeType === 'SubTopic') {
-          this.addNodeRequested.emit({ parentNode: treeData, nodeType: 'Lesson' });
+          // For subtopics, add a Lesson
+          this.panelStateService.initiateAddMode('Lesson', treeData);
         }
-    }
-
+      }
+    
     public deleteNode(data: any) {
         const nodeId = data.id;
         const node = this.findNodeById(this.treeData, nodeId);
@@ -700,7 +763,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit, OnChanges {
             this.apiService.deleteCourse(course.id).subscribe({
                 next: () => {
                     // Let the parent component handle removal from the UI
-                    this.courseManagement.deleteCourse(course.id);
+                    //this.courseManagement.deleteCourse(course.id);
                 },
                 error: (err: any) => console.error(`Failed to delete Course`, err)
             });

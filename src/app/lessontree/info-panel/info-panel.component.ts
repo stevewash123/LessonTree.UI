@@ -1,20 +1,21 @@
-// src/app/lessontree/info-panel/info-panel.component.ts
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef, effect, Output, EventEmitter } from '@angular/core';
+import { NodeSelectionService } from '../../core/services/node-selection.service';
+import { PanelMode, PanelStateService } from '../../core/services/panel-state.service';
 import { ApiService } from '../../core/services/api.service';
-import { Lesson, LessonDetail, createLessonNode } from '../../models/lesson';
-import { Topic, createTopicNode } from '../../models/topic';
-import { createSubTopicNode, SubTopic } from '../../models/subTopic';
+import { TreeData, NodeType } from '../../models/tree-node';
 import { Course } from '../../models/course';
-import { Observable, take } from 'rxjs';
+import { Topic } from '../../models/topic';
+import { SubTopic } from '../../models/subTopic';
+import { Lesson, LessonDetail } from '../../models/lesson';
+import { Observable } from 'rxjs';
+import { take } from 'rxjs/operators';
+import { CommonModule } from '@angular/common';
 import { LessonInfoPanelComponent } from './lesson-info-panel/lesson-info-panel.component';
 import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.component';
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CoursePanelComponent } from './course-panel/course-panel.component';
-import { CommonModule } from '@angular/common';
-import { NodeType, TreeData } from '../../models/tree-node';
 
-export type PanelMode = 'view' | 'edit' | 'add';
-export type PanelType = NodeType;
+
 
 @Component({
   selector: 'info-panel',
@@ -29,59 +30,97 @@ export type PanelType = NodeType;
   templateUrl: './info-panel.component.html',
   styleUrls: ['./info-panel.component.css']
 })
-export class InfoPanelComponent implements OnChanges {
-  @Input() activeNode: TreeData | null = null;
-  @Output() modeChange = new EventEmitter<PanelMode>();
+export class InfoPanelComponent {
+  // Outputs for events to parent component
   @Output() refreshTree = new EventEmitter<void>();
   @Output() nodeAdded = new EventEmitter<TreeData>();
-  @Output() courseAdded = new EventEmitter<Course>();
   @Output() nodeEdited = new EventEmitter<TreeData>();
-  @Output() courseEdited = new EventEmitter<Course>();
 
+  // Local state - make activeNode public so it can be accessed in template
   data: Course | Topic | SubTopic | LessonDetail | null = null;
-  mode: PanelMode = 'view';
-  parentNode: TreeData | null = null;
-  addPanelType: PanelType | null = null;
+  activeNode: TreeData | null = null; // Changed from private to public
 
-  get lessonDetail(): LessonDetail | null {
-    const isLesson = this.activeNode?.nodeType === 'Lesson' || (this.mode === 'add' && this.addPanelType === 'Lesson');
-    return isLesson ? (this.data as LessonDetail) : null;
+  constructor(
+    private apiService: ApiService, 
+    private cdr: ChangeDetectorRef,
+    private nodeSelectionService: NodeSelectionService,
+    private panelStateService: PanelStateService
+  ) {
+    console.log('[InfoPanel] Component constructed', { timestamp: new Date().toISOString() });
+    
+    // Effect for node selection changes
+    effect(() => {
+      const selectedNode = this.nodeSelectionService.selectedNode();
+      const source = this.nodeSelectionService.selectionSource();
+      
+      console.log('[InfoPanel] Node selection effect running', {
+        selectedNodeId: selectedNode?.nodeId || 'none',
+        selectedNodeType: selectedNode?.nodeType || 'none',
+        source,
+        mode: this.panelStateService.panelMode(),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Only handle if there is a selected node and we're not in add mode
+      if (selectedNode && this.panelStateService.panelMode() !== 'add') {
+        console.log('[InfoPanel] Updating activeNode and loading data', {
+          nodeId: selectedNode.nodeId,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Update our local copy
+        this.activeNode = selectedNode;
+        
+        // Load the node data
+        this.loadNodeData();
+      }
+    });
+    
+    // Effect for panel mode changes
+    effect(() => {
+      const mode = this.panelStateService.panelMode();
+      console.log(`[InfoPanel] Panel mode effect running, mode: ${mode}`, { timestamp: new Date().toISOString() });
+      
+      if (mode === 'add') {
+        // For add mode, get the template from the service
+        const template = this.panelStateService.nodeTemplate();
+        const nodeType = this.panelStateService.addNodeType();
+        
+        console.log(`[InfoPanel] Add mode activated for ${nodeType}`, { 
+          templateId: template?.nodeId || 'none',
+          timestamp: new Date().toISOString()
+        });
+        
+        // Set the data to the template
+        this.data = template;
+        
+        // Clear active node while in add mode
+        this.activeNode = null;
+        
+      }
+    });
   }
 
-  get topic(): Topic | null {
-    const isTopic = this.activeNode?.nodeType === 'Topic' || (this.mode === 'add' && this.addPanelType === 'Topic');
-    return isTopic ? (this.data as Topic) : null;
-  }
-
-  get subtopic(): SubTopic | null {
-    const isSubTopic = this.activeNode?.nodeType === 'SubTopic' || (this.mode === 'add' && this.addPanelType === 'SubTopic');
-    return isSubTopic ? (this.data as SubTopic) : null;
-  }
-
-  get course(): Course | null {
-    const isCourse = this.activeNode?.nodeType === 'Course' || (this.mode === 'add' && this.addPanelType === 'Course');
-    return isCourse ? (this.data as Course) : null;
-  }
-
-  constructor(private apiService: ApiService, private cdr: ChangeDetectorRef) {}
-
-  ngOnChanges(changes: SimpleChanges) {
-    if (changes['activeNode'] && this.activeNode && this.mode !== 'add') {
-      this.loadNodeData();
-    }
-  }
-
+  // Load data for the selected node
   private loadNodeData() {
-    this.mode = 'view';
+    // Set panel mode to view
+    this.panelStateService.setMode('view');
+    
+    // Reset data
     this.data = null;
-    this.parentNode = null;
-    this.addPanelType = null;
-    console.log(`[InfoPanel] Active node changed`, { nodeId: this.activeNode?.nodeId ?? 'none', mode: 'view', timestamp: new Date().toISOString() });
+    
+    console.log(`[InfoPanel] loadNodeData called`, { timestamp: new Date().toISOString() });
     
     if (!this.activeNode) {
       console.warn('[InfoPanel] No active node to load', { timestamp: new Date().toISOString() });
       return;
     }
+    
+    console.log(`[InfoPanel] Loading data for node:`, {
+      nodeId: this.activeNode.nodeId,
+      nodeType: this.activeNode.nodeType,
+      timestamp: new Date().toISOString()
+    });
     
     switch (this.activeNode.nodeType) {
       case 'Course':
@@ -97,7 +136,7 @@ export class InfoPanelComponent implements OnChanges {
         console.log(`[InfoPanel] Loaded SubTopic`, { title: this.data.title, timestamp: new Date().toISOString() });
         break;
       case 'Lesson':
-        this.fetchLessonDetails().pipe(take(1)).subscribe({
+        this.fetchLessonDetails(this.activeNode.id).pipe(take(1)).subscribe({
           next: (detail) => {
             this.data = detail;
             console.log(`[InfoPanel] Loaded LessonDetail`, { title: detail.title, timestamp: new Date().toISOString() });
@@ -109,188 +148,99 @@ export class InfoPanelComponent implements OnChanges {
       default:
         console.warn(`[InfoPanel] Unknown node type`, { nodeType: this.activeNode.nodeType, timestamp: new Date().toISOString() });
     }
-    this.modeChange.emit(this.mode);
-    this.cdr.detectChanges();
   }
 
-  fetchLessonDetails(): Observable<LessonDetail> {
-    const id = (this.activeNode! as Lesson).id;
-    console.log(`[InfoPanel] Fetching LessonDetail`, { id, timestamp: new Date().toISOString() });
-    return this.apiService.get<LessonDetail>(`lesson/${id}`);
+  // Fetch lesson details from API
+  fetchLessonDetails(lessonId: number): Observable<LessonDetail> {
+    console.log(`[InfoPanel] Fetching LessonDetail`, { id: lessonId, timestamp: new Date().toISOString() });
+    return this.apiService.get<LessonDetail>(`lesson/${lessonId}`);
   }
 
-  handleModeChange(isEditing: boolean) {
-    const previousMode = this.mode;
-    this.mode = isEditing ? (this.mode === 'add' ? 'add' : 'edit') : 'view';
-    console.log(`[InfoPanel] Mode changed`, { from: previousMode, to: this.mode, timestamp: new Date().toISOString() });
-    this.modeChange.emit(this.mode);
-
-    if (previousMode === 'add' && this.mode === 'view' && this.activeNode) {
-      console.log(`[InfoPanel] Exiting add mode, reloading data`, { nodeId: this.activeNode?.nodeId, timestamp: new Date().toISOString() });
-      this.loadNodeData();
-    } else {
-      this.cdr.detectChanges();
-    }
+  // Handle mode changes from child components - Update type
+  handleModeChange(isEditing: boolean | any): void {
+    // If the event is an object (like an Event), convert it to boolean
+    const editing = typeof isEditing === 'boolean' ? isEditing : false;
+    this.panelStateService.setMode(editing ? 'edit' : 'add');
   }
 
-  initiateAddMode(parentNode: TreeData | undefined, panelType: PanelType, courseId?: number) {
-    this.mode = 'add';
-    this.parentNode = parentNode || null;
-    this.addPanelType = panelType;
-    console.log(`[InfoPanel] Initiating add mode`, { panelType: panelType, parentId: parentNode?.id ?? 'none', courseId, timestamp: new Date().toISOString() });
+  // Event handlers for child components - Update types
+  handleNodeAdded(node: Course | Topic | SubTopic | LessonDetail): void {
+    // Ensure we have a valid TreeData object
+    if (node && node.nodeType) {
+      const nodeTypeDisplay = node.nodeType.charAt(0).toUpperCase() + node.nodeType.slice(1);
+      console.log(`[InfoPanel] ${nodeTypeDisplay} added`, { 
+        nodeType: node.nodeType,
+        title: node.title, 
+        timestamp: new Date().toISOString() 
+      });
+      
+      this.nodeAdded.emit(node as TreeData);
+      this.panelStateService.setMode('view');
+    } 
+  }
+
+  handleNodeEdited(node: Course | Topic | SubTopic | LessonDetail ): void {
+    // Ensure we have a valid TreeData object
+    if (node && node.nodeType) {
+      const nodeTypeDisplay = node.nodeType.charAt(0).toUpperCase() + node.nodeType.slice(1);
+      console.log(`[InfoPanel] ${nodeTypeDisplay} edited`, { 
+        nodeType: node.nodeType,
+        title: node.title, 
+        timestamp: new Date().toISOString() 
+      });
+      
+      this.nodeEdited.emit(node as TreeData);
+      this.panelStateService.setMode('view');
+    } 
+  }
+
+  // Accessor for current panel mode from service
+  get mode(): PanelMode {
+    return this.panelStateService.panelMode();
+  }
   
-    switch (panelType) {
-      case 'Course':
-        this.data = {
-          id: 0,
-          nodeId: `course_${Date.now()}`,
-          title: '',
-          description: '',
-          hasChildren: false,
-          archived: false,
-          visibility: 'Private',
-          nodeType: 'Course'
-        } as Course;
-        break;
-      case 'Topic':
-        if (!courseId) {
-          console.error('[InfoPanel] Course ID required for adding a Topic', { timestamp: new Date().toISOString() });
-          throw new Error('Course ID must be provided when adding a Topic');
-        }
-        this.data = {
-          id: 0,
-          nodeId: `topic_${Date.now()}`,
-          courseId,
-          title: '',
-          description: '',
-          hasChildren: false,
-          archived: false,
-          visibility: 'Private',
-          subTopics: [],
-          lessons: [],
-          nodeType: 'Topic',
-          sortOrder: 0
-        } as Topic;
-        break;
-      case 'SubTopic':
-        if (!parentNode || parentNode.nodeType !== 'Topic') {
-          console.error('[InfoPanel] Parent must be a Topic for adding a SubTopic', { timestamp: new Date().toISOString() });
-          throw new Error('Invalid parent for SubTopic');
-        }
-        const topicParent = parentNode as Topic;
-        this.data = {
-          id: 0,
-          nodeId: `subtopic_${Date.now()}`,
-          topicId: topicParent.id,
-          courseId: topicParent.courseId,
-          title: '',
-          description: '',
-          lessons: [],
-          hasChildren: false,
-          archived: false,
-          visibility: 'Private',
-          nodeType: 'SubTopic',
-          sortOrder: 0
-        } as SubTopic;
-        break;
-      case 'Lesson':
-        if (!parentNode || (parentNode.nodeType !== 'Topic' && parentNode.nodeType !== 'SubTopic')) {
-          console.error('[InfoPanel] Parent must be a Topic or SubTopic for adding a Lesson', { timestamp: new Date().toISOString() });
-          throw new Error('Invalid parent for Lesson');
-        }
-        const parent = parentNode as SubTopic | Topic;
-        this.data = {
-          id: 0,
-          nodeId: `lesson_${Date.now()}`,
-          courseId: parent.courseId,
-          subTopicId: parentNode.nodeType === 'SubTopic' ? (parent as SubTopic).id : undefined,
-          topicId: parentNode.nodeType === 'Topic' ? (parent as Topic).id : undefined,
-          title: '',
-          level: '',
-          objective: '',
-          materials: '',
-          classTime: '',
-          methods: '',
-          specialNeeds: '',
-          assessment: '',
-          standards: [],
-          attachments: [],
-          visibility: 'Private',
-          archived: false,
-          notes: [],
-          nodeType: 'Lesson',
-          sortOrder: 0
-        } as LessonDetail;
-        break;
-    }
-    this.modeChange.emit(this.mode);
-    console.log(`[InfoPanel] Add mode initiated`, { data: this.data, timestamp: new Date().toISOString() });
-    this.cdr.detectChanges();
+  // Accessor for the current add panel type from service
+  get addPanelType(): NodeType | null {
+    return this.panelStateService.addNodeType();
+  }
+  
+  // Helper properties for template binding
+  get lessonDetail(): LessonDetail | null {
+    const activeNodeType = this.activeNode?.nodeType;
+    const isLesson = activeNodeType === 'Lesson' || 
+                    (this.mode === 'add' && this.addPanelType === 'Lesson');
+    return isLesson ? (this.data as LessonDetail) : null;
   }
 
-  onSubTopicAdded(subTopic: SubTopic) {
-    console.log(`[InfoPanel] Received subTopicAdded event`, { 
-      title: subTopic.title, 
-      nodeId: subTopic.nodeId, 
-      timestamp: new Date().toISOString() 
+  get topic(): Topic | null {
+    const activeNodeType = this.activeNode?.nodeType;
+    const isTopic = activeNodeType === 'Topic' || 
+                   (this.mode === 'add' && this.addPanelType === 'Topic');
+    return isTopic ? (this.data as Topic) : null;
+  }
+
+  get subtopic(): SubTopic | null {
+    const activeNodeType = this.activeNode?.nodeType;
+    const isSubTopic = activeNodeType === 'SubTopic' || 
+                      (this.mode === 'add' && this.addPanelType === 'SubTopic');
+    return isSubTopic ? (this.data as SubTopic) : null;
+  }
+
+  get course(): Course | null {
+    const activeNodeType = this.activeNode?.nodeType;
+    const isCourse = activeNodeType === 'Course' || 
+                    (this.mode === 'add' && this.addPanelType === 'Course');
+    return isCourse ? (this.data as Course) : null;
+  }
+  
+  initiateAddMode(parentNode: TreeData | null, nodeType: NodeType, courseId?: number): void {
+    console.log(`[InfoPanel] initiateAddMode called (forwarding to service)`, {
+      nodeType,
+      parentNodeId: parentNode?.nodeId || 'none',
+      courseId: courseId || 'none',
+      timestamp: new Date().toISOString()
     });
-    this.nodeAdded.emit(subTopic);
-    if (this.mode === 'add') {
-      this.handleModeChange(false);
-      this.cdr.detectChanges();
-    }
-  }
-
-  onLessonAdded(lesson: LessonDetail) {
-    console.log(`[InfoPanel] Lesson added`, { 
-      title: lesson.title, 
-      timestamp: new Date().toISOString() 
-    });
-    this.nodeAdded.emit(lesson);
-    if (this.mode === 'add') {
-      this.handleModeChange(false);
-      this.cdr.detectChanges();
-    }
-  }
-
-  onTopicAdded(topic: Topic) {
-    console.log(`[InfoPanel] Topic added`, { 
-      title: topic.title, 
-      timestamp: new Date().toISOString() 
-    });
-    this.nodeAdded.emit(topic);
-    if (this.mode === 'add') {
-      this.handleModeChange(false);
-      this.cdr.detectChanges();
-    }
-  }
-
-  onCourseAdded(course: Course) {
-    console.log(`[InfoPanel] Course added`, { title: course.title, timestamp: new Date().toISOString() });
-    this.courseAdded.emit(course);
-    if (this.mode === 'add') {
-      this.handleModeChange(false);
-      this.cdr.detectChanges();
-    }
-  }
-
-  onCourseEdited(course: Course) {
-    console.log(`[InfoPanel] Course edited`, { title: course.title, timestamp: new Date().toISOString() });
-    this.courseEdited.emit(course);
-  }
-
-  onTopicEdited(topic: Topic) {
-    console.log(`[InfoPanel] Topic edited`, { title: topic.title, timestamp: new Date().toISOString() });
-    this.nodeEdited.emit(topic);
-  }
-
-  onSubTopicEdited(subTopic: SubTopic) {
-    console.log(`[InfoPanel] SubTopic edited`, { title: subTopic.title, timestamp: new Date().toISOString() });
-    this.nodeEdited.emit(subTopic);
-  }
-
-  onLessonEdited(lesson: LessonDetail) {
-    console.log(`[InfoPanel] Lesson edited`, { title: lesson.title, timestamp: new Date().toISOString() });
-    this.nodeEdited.emit(lesson);
+    
+    this.panelStateService.initiateAddMode(nodeType, parentNode, courseId);
   }
 }

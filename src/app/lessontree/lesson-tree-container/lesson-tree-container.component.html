@@ -1,4 +1,3 @@
-<!-- src/app/lessontree/lesson-tree-container/lesson-tree-container.component.html -->
 <div class="main-container">
     <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
       <as-split-area [size]="sizes[0]" class="left-split-area">
@@ -7,8 +6,6 @@
             [triggerRefresh]="refreshTrigger"
             [newNode]="newNode"
             [nodeEdited]="nodeEdited" 
-            (activeNodeChange)="onActiveNodeChange($event)"
-            (addNodeRequested)="onAddNodeRequested($event)"
             (nodeDragStop)="onTopicMoved($event)"
             (lessonMoved)="onLessonMoved($event)"
         ></course-list>
@@ -19,11 +16,9 @@
       <as-split-area [size]="sizes[1]">
         <info-panel
           #infoPanel
-          [activeNode]="currentActiveNode"
           (refreshTree)="onRefreshTree()"
-          (nodeAdded)="onNodeAdded($event)"
+          (nodeAdded)="handleNodeAdded($event)"
           (nodeEdited)="onNodeEdited($event)"
-          (modeChange)="onPanelModeChange($event)"
         ></info-panel>
       </as-split-area>
     </as-split>
