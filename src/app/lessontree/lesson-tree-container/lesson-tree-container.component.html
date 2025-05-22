@@ -1,3 +1,47 @@
+<!-- Hover-reveal status bar -->
+<div class="status-bar-container" 
+     (mouseenter)="onStatusBarHover(true)"
+     (mouseleave)="onStatusBarHover(false)">
+  
+  <!-- Invisible hover trigger zone at top -->
+  <div class="hover-trigger-zone"></div>
+  
+  <!-- The actual status bar that slides down -->
+  <div class="status-bar" 
+       [class.visible]="statusBarVisible()">
+    
+    <div class="status-bar-content">
+      <!-- Drag Mode Control -->
+      <div class="control-group">
+        <mat-slide-toggle 
+          [checked]="nodeOperationsService.dragMode() === 'copy'"
+          (change)="onDragModeToggle($event)"
+          color="primary"
+          class="drag-mode-toggle">
+          <span class="control-label">
+            {{ nodeOperationsService.dragMode() === 'move' ? 'Move' : 'Copy' }} Mode
+          </span>
+        </mat-slide-toggle>
+      </div>
+      
+      <!-- Status Information -->
+      <div class="status-info">
+        <!-- Future status info can go here -->
+        <span class="app-status">
+          LessonTree
+        </span>
+      </div>
+      
+      <!-- Future controls can be added here -->
+      <div class="control-group">
+        <!-- Placeholder for future button -->
+      </div>
+      
+    </div>
+  </div>
+</div>
+
+<!-- Main container with splitter -->
 <div class="main-container">
     <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
       <as-split-area [size]="sizes[0]" class="left-split-area">

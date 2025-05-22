@@ -12,6 +12,7 @@ import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { CourseFilterDialogComponent } from './course-filter/course-filter-dialog.component';
 import { UserService } from '../../core/services/user.service';
 import { PanelStateService } from '../../core/services/panel-state.service';
+import { CourseCrudService } from '../../core/services/course-crud.service';
 import { CourseDataService } from '../../core/services/course-data.service';
 
 @Component({
@@ -40,7 +41,8 @@ export class CourseListComponent implements OnInit {
     private dialog: MatDialog,
     private userService: UserService,
     private panelStateService: PanelStateService,
-    public courseDataService: CourseDataService
+    public courseDataService: CourseDataService,
+    private courseCrudService: CourseCrudService
   ) {}
 
   ngOnInit(): void {
@@ -72,7 +74,7 @@ export class CourseListComponent implements OnInit {
         });
         
         // Use service to apply filters and reload
-        this.courseDataService.loadCourses(
+        this.courseCrudService.loadCourses(
           result.courseFilter,
           result.visibilityFilter
         ).subscribe();

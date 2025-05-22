@@ -1,11 +1,11 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Topic } from '../../../models/topic';
 import { UserService } from '../../../core/services/user.service';
-import { PanelMode } from '../../../core/services/panel-state.service';
-import { CourseDataService } from '../../../core/services/course-data.service';
+import { PanelStateService } from '../../../core/services/panel-state.service';
 import { ToastrService } from 'ngx-toastr';
+import { CourseCrudService } from '../../../core/services/course-crud.service';
 
 @Component({
   selector: 'topic-panel',
@@ -26,22 +26,45 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     return this._data;
   }
 
-  @Input() mode: PanelMode = 'view';
-  @Output() modeChange = new EventEmitter<boolean>();
-  @Output() topicAdded = new EventEmitter<Topic>();
-  @Output() topicEdited = new EventEmitter<Topic>();
-
-  isEditing: boolean = false;
+  // Remove Input/Output for mode - now consumed from service
   originalData: Topic | null = null;
-
-  constructor(
-    private userService: UserService,
-    private courseDataService: CourseDataService,
-    private toastr: ToastrService
-  ) {}
 
   get hasDistrictId(): boolean {
     return !!this.userService.getDistrictId();
+  }
+
+  // Access mode from centralized service
+  get mode() {
+    return this.panelStateService.panelMode();
+  }
+
+  get isEditing(): boolean {
+    return this.mode === 'edit' || this.mode === 'add';
+  }
+
+  constructor(
+    private userService: UserService,
+    private courseCrudService: CourseCrudService,
+    private panelStateService: PanelStateService,
+    private toastr: ToastrService
+  ) {
+    // React to mode changes
+    effect(() => {
+      const currentMode = this.panelStateService.panelMode();
+      console.log(`[TopicPanel] Mode changed to: ${currentMode}`, { timestamp: new Date().toISOString() });
+      this.updateEditingState();
+    });
+
+    // React to template changes in add mode
+    effect(() => {
+      const template = this.panelStateService.nodeTemplate();
+      const mode = this.panelStateService.panelMode();
+      
+      if (mode === 'add' && template && template.nodeType === 'Topic') {
+        this._data = template as Topic;
+        console.log(`[TopicPanel] Using template for new topic`, { timestamp: new Date().toISOString() });
+      }
+    });
   }
 
   ngOnInit(): void {
@@ -49,20 +72,19 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['data'] || changes['mode']) {
+    if (changes['data']) {
       this.updateEditingState();
     }
   }
 
   private updateEditingState() {
-    this.isEditing = this.mode === 'edit' || this.mode === 'add';
     if (this.mode === 'edit' && this.data && !this.originalData) {
       this.originalData = { ...this.data };
       console.log(`[TopicPanel] Stored original data for editing: ${this.originalData.title}`);
     } else if (this.mode === 'add' && this.data) {
-      this.data.archived = false; // Ensure archived is false in add mode
+      this.data.archived = false;
       if (!this.hasDistrictId) {
-        this.data.visibility = 'Private'; // Default to private if no district
+        this.data.visibility = 'Private';
       }
       this.originalData = null;
       console.log('[TopicPanel] In add mode, cleared original data');
@@ -72,8 +94,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   enterEditMode() {
     if (this.data) {
       this.originalData = { ...this.data };
-      this.isEditing = true;
-      this.modeChange.emit(true);
+      this.panelStateService.setMode('edit');
       console.log(`[TopicPanel] Entered edit mode for ${this.data.title}`);
     }
   }
@@ -82,12 +103,10 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.courseDataService.createTopic(this.data).subscribe({
+      this.courseCrudService.createTopic(this.data).subscribe({
         next: (createdTopic) => {
           this.data = createdTopic;
-          this.isEditing = false;
-          this.modeChange.emit(false);
-                    
+          this.panelStateService.setMode('view');
           console.log(`[TopicPanel] Topic created`, { 
             title: createdTopic.title, 
             timestamp: new Date().toISOString() 
@@ -100,18 +119,9 @@ export class TopicPanelComponent implements OnChanges, OnInit {
         }
       });
     } else {
-      this.courseDataService.updateTopic(this.data).subscribe({
+      this.courseCrudService.updateTopic(this.data).subscribe({
         next: (updatedTopic) => {
-          this.isEditing = false;
-          
-          // Emit for backward compatibility - will be removed once migration is complete
-          console.log(`[TopicPanel] Emitting topicEdited for backward compatibility`, { 
-            title: updatedTopic.title, 
-            timestamp: new Date().toISOString() 
-          });
-          this.topicEdited.emit(updatedTopic);
-          
-          this.modeChange.emit(false);
+          this.panelStateService.setMode('view');
           this.originalData = null;
           console.log(`[TopicPanel] Topic updated`, { 
             title: updatedTopic.title, 
@@ -132,8 +142,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
       Object.assign(this.data, this.originalData);
       console.log(`[TopicPanel] Reverted changes to ${this.data.title}`);
     }
-    this.isEditing = false;
-    this.modeChange.emit(false);
+    this.panelStateService.setMode('view');
     this.originalData = null;
     console.log(`[TopicPanel] Cancelled ${this.mode} mode`);
   }

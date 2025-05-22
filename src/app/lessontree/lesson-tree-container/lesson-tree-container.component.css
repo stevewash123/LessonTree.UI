@@ -1,71 +1,144 @@
-:host {
-    display: block;
-    height: calc(100vh - 64px); /* Adjust for toolbar height (64px is Material toolbar default) */
+/* Status bar hover functionality */
+.status-bar-container {
+    position: relative;
+    z-index: 100;
   }
   
-  as-split {
-    height: 100%;
-    width: 100%;
-    margin-top: 64px;
+  .hover-trigger-zone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 20px; /* Invisible zone to trigger hover */
+    z-index: 101;
   }
   
-  as-split-area {
-    overflow-y: auto; /* Scroll if content overflows */
-    padding: 16px; /* Optional padding */
-    position: relative; /* Allow absolute positioning of overlay */
+  .status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    border-bottom: 1px solid #ddd;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 102;
+    backdrop-filter: blur(10px);
+  }
+  
+  .status-bar.visible {
+    transform: translateY(0);
+  }
+  
+  .status-bar-content {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    min-height: 48px;
+    gap: 24px;
+  }
+  
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .control-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #424242;
+    margin-left: 8px;
+  }
+  
+  .status-info {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .app-status {
+    font-size: 12px;
+    color: #666;
+    background: rgba(33, 150, 243, 0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+    border: 1px solid rgba(33, 150, 243, 0.2);
+  }
+  
+  /* Smooth appearance animation */
+  .status-bar-content > * {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out 0.1s;
+  }
+  
+  .status-bar.visible .status-bar-content > * {
+    opacity: 1;
+  }
+  
+  /* Main container styles */
+  .main-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
   
   .left-split-area {
-    position: relative; /* Ensure overlay stays within this area */
+    position: relative;
   }
   
-  /* Disable interactions only when disabled class is applied */
-  .left-split-area.disabled {
-    pointer-events: none; /* Disable interactions on CourseList when overlay is active */
-  }
-  
-  /* Overlay styling */
   .overlay {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Increased opacity for visibility */
-    z-index: 10; /* Above CourseList content */
-    pointer-events: auto; /* Overlay captures events */
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.1);
+    z-index: 10;
   }
   
-  /* Ensure CourseList is interactive by default */
-  .left-split-area course-list {
-    pointer-events: auto; /* Explicitly enable unless disabled */
-  }
-  
-  /* Optional: Customize the splitter (gutter) */
-  as-split ::ng-deep .as-split-gutter {
-    background-color: #ccc;
-    cursor: col-resize;
-    width: 4px; /* Thickness of the splitter */
-  }
-  
-  as-split ::ng-deep .as-split-gutter:hover {
-    background-color: #999;
-  }
-  
-  .main-container {
-    margin-top: 20px;
-    display: flex;
-    flex-direction: column;
-    height: 100vh; /* Full viewport height */
-  }
-  
-  .split-full-height {
-    flex: 1; /* Fills space between header and footer */
+  .overlay.disabled {
+    pointer-events: none;
   }
   
   .footer {
-    background-color: black;
-    color: white;
+    background-color: #f5f5f5;
     padding: 10px;
     text-align: center;
+    border-top: 1px solid #ddd;
+    margin-top: auto;
+  }
+  
+  .footer a {
+    color: #666;
+    text-decoration: none;
+    font-size: 12px;
+  }
+  
+  .footer a:hover {
+    color: #333;
+    text-decoration: underline;
+  }
+  
+  /* Mobile adjustments */
+  @media (max-width: 768px) {
+    .hover-trigger-zone {
+      height: 30px; /* Larger touch target */
+    }
+    
+    .status-bar-content {
+      padding: 6px 12px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    
+    .control-label {
+      font-size: 12px;
+    }
+    
+    .drag-mode-toggle {
+      margin-right: 16px;
+    }
   }

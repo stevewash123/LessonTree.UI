@@ -1,5 +1,5 @@
-// src/app/lessontree/info-panel/lesson-info-panel/lesson-info-panel.component.ts (partial)
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnInit } from '@angular/core';
+// src/app/lessontree/info-panel/lesson-info-panel/lesson-info-panel.component.ts
+import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,9 +11,9 @@ import { Attachment } from '../../../models/attachment';
 import { UserService } from '../../../core/services/user.service';
 import { Standard } from '../../../models/standard';
 import { LessonStandardsComponent } from './lesson-standard/lesson-standards.component';
-import { PanelMode } from '../../../core/services/panel-state.service';
-import { CourseDataService } from '../../../core/services/course-data.service';
+import { PanelStateService } from '../../../core/services/panel-state.service';
 import { ToastrService } from 'ngx-toastr';
+import { CourseCrudService } from '../../../core/services/course-crud.service';
 
 @Component({
   selector: 'lesson-info-panel',
@@ -34,53 +34,72 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   activeTab: string = 'main'; // Default tab
 
   @Input()
-  set lessonDetail(value: LessonDetail) {
+  set lessonDetail(value: LessonDetail | null) {
     this._lessonDetail = value;
     console.log(`[LessonInfoPanel] LessonDetail set: ${this._lessonDetail?.title || 'New Lesson'}, timestamp: ${new Date().toISOString()}`);
   }
-  get lessonDetail(): LessonDetail {
-    return this._lessonDetail!;
+  get lessonDetail(): LessonDetail | null {
+    return this._lessonDetail;
   }
 
   get hasDistrictId(): boolean {
     return !!this.userService.getDistrictId(); 
   }
 
-  @Input() mode: PanelMode = 'view';
-  @Output() modeChange = new EventEmitter<boolean>();
+  // Computed properties from centralized service
+  get mode() {
+    return this.panelStateService.panelMode();
+  }
   
-  // Remove backward compatibility outputs
-  // @Output() lessonAdded = new EventEmitter<LessonDetail>();
-  // @Output() lessonEdited = new EventEmitter<LessonDetail>();
-
-  isEditing: boolean = false;
+  get isEditing(): boolean {
+    return this.mode === 'edit' || this.mode === 'add';
+  }
+  
   isStandardsEditing: boolean = false;
   originalLessonDetail: LessonDetail | null = null;
 
   constructor(
     private userService: UserService,
-    private courseDataService: CourseDataService,
+    private panelStateService: PanelStateService,
+    private courseCrudService: CourseCrudService,
     private toastr: ToastrService
-  ) {}
+  ) {
+    // React to mode changes
+    effect(() => {
+      const currentMode = this.panelStateService.panelMode();
+      console.log(`[LessonInfoPanel] Mode changed to: ${currentMode}`, { timestamp: new Date().toISOString() });
+      this.updateEditingState();
+    });
+
+    // React to template changes in add mode
+    effect(() => {
+      const template = this.panelStateService.nodeTemplate();
+      const mode = this.panelStateService.panelMode();
+      
+      if (mode === 'add' && template && template.nodeType === 'Lesson') {
+        this._lessonDetail = template as LessonDetail; // Fixed: use _lessonDetail, not _data
+        console.log(`[LessonInfoPanel] Using template for new lesson`, { timestamp: new Date().toISOString() });
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.updateEditingState();
   }
 
   ngOnChanges(changes: SimpleChanges) {
-    if (changes['lessonDetail'] || changes['mode']) {
+    if (changes['lessonDetail']) {
       this.updateEditingState();
     }
   }
 
   private updateEditingState() {
-    this.isEditing = this.mode === 'edit' || this.mode === 'add';
     if (this.mode === 'edit' && this.lessonDetail && !this.originalLessonDetail) {
       this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail));
     } else if (this.mode === 'add' && this.lessonDetail) {
-      this.lessonDetail.archived = false; // Ensure archived is false in add mode
+      this.lessonDetail.archived = false;
       if (!this.hasDistrictId) {
-        this.lessonDetail.visibility = 'Private'; // Default to private if no district
+        this.lessonDetail.visibility = 'Private';
       }
       this.originalLessonDetail = null;
     }
@@ -93,11 +112,10 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   }
 
   enterEditMode() {
-    if (this.lessonDetail) {
-      this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail));
-      this.isEditing = true;
-      this.modeChange.emit(true);
-      console.log(`[LessonInfoPanel] Entered edit mode for ${this.lessonDetail.title}, timestamp: ${new Date().toISOString()}`);
+    if (this.lessonDetail) { // Fixed: use lessonDetail, not data
+      this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail)); // Fixed: use lessonDetail
+      this.panelStateService.setMode('edit');
+      console.log(`[LessonInfoPanel] Entered edit mode for ${this.lessonDetail.title}`); // Fixed: use lessonDetail
     }
   }
 
@@ -105,11 +123,9 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
     if (!this.lessonDetail) return;
 
     if (this.mode === 'add') {
-      this.courseDataService.createLesson(this.lessonDetail).subscribe({
+      this.courseCrudService.createLesson(this.lessonDetail).subscribe({
         next: (createdLesson) => {
-          // The full lesson details are retrieved in the service
-          this.isEditing = false;
-          this.modeChange.emit(false);
+          this.panelStateService.setMode('view'); // Removed manual isEditing assignment
           console.log(`[LessonInfoPanel] Lesson created`, { 
             title: createdLesson.title, 
             timestamp: new Date().toISOString() 
@@ -122,10 +138,9 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
         }
       });
     } else {
-      this.courseDataService.updateLesson(this.lessonDetail).subscribe({
+      this.courseCrudService.updateLesson(this.lessonDetail).subscribe({
         next: (updatedLesson) => {
-          this.isEditing = false;
-          this.modeChange.emit(false);
+          this.panelStateService.setMode('view'); // Removed manual isEditing assignment
           this.originalLessonDetail = null;
           console.log(`[LessonInfoPanel] Lesson updated`, { 
             title: updatedLesson.title, 
@@ -145,8 +160,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
     if (this.lessonDetail && this.originalLessonDetail && this.mode === 'edit') {
       Object.assign(this.lessonDetail, this.originalLessonDetail);
     }
-    this.isEditing = false;
-    this.modeChange.emit(false);
+    this.panelStateService.setMode('view'); // Removed manual isEditing assignment
     this.originalLessonDetail = null;
     console.log(`[LessonInfoPanel] Cancelled ${this.mode} mode, timestamp: ${new Date().toISOString()}`);
   }

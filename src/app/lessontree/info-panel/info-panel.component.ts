@@ -152,17 +152,6 @@ export class InfoPanelComponent {
     return this.apiService.get<LessonDetail>(`lesson/${lessonId}`);
   }
 
-  // Handle mode changes from child components
-  handleModeChange(isEditing: boolean | any): void {
-    // If the event is an object (like an Event), convert it to boolean
-    const editing = typeof isEditing === 'boolean' ? isEditing : false;
-    this.panelStateService.setMode(editing ? 'edit' : 'view');
-  }
-
-  // Remove backward compatibility methods
-  // handleNodeAdded(node: Course | Topic | SubTopic | LessonDetail): void { ... }
-  // handleNodeEdited(node: Course | Topic | SubTopic | LessonDetail ): void { ... }
-
   // Accessor for current panel mode from service
   get mode(): PanelMode {
     return this.panelStateService.panelMode();

@@ -15,6 +15,8 @@ import { createTopicNode } from '../../../models/topic';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { PanelStateService } from '../../../core/services/panel-state.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
+import { NodeOperationsService } from '../../../core/services/node-operations.service';
+import { CourseCrudService } from '../../../core/services/course-crud.service';
 
 interface LessonMovedEvent {
     lesson: Lesson;
@@ -60,7 +62,9 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
     constructor(
         private nodeSelectionService: NodeSelectionService,
         private panelStateService: PanelStateService,
-        private courseDataService: CourseDataService
+        private courseDataService: CourseDataService,
+        private nodeOperationsService: NodeOperationsService,
+        private courseCrudService: CourseCrudService
       ) {
         
         effect(() => {
@@ -542,8 +546,8 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                 targetParentType: targetParentType
             };
 
-            // Call service directly instead of emitting event
-            this.courseDataService.moveNode(event).subscribe();
+            // Use the new NodeOperationsService instead of CourseDataService
+            this.nodeOperationsService.performDragOperation(event).subscribe();
 
         } else if (draggedNode.nodeType === 'SubTopic') {
             if (targetNode.nodeType !== 'Topic') {
@@ -561,8 +565,8 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                 targetParentType: 'Topic'
             };
 
-            // Call service directly instead of emitting event
-            this.courseDataService.moveNode(event).subscribe();
+            // Use the new NodeOperationsService instead of CourseDataService
+            this.nodeOperationsService.performDragOperation(event).subscribe();
 
         } else if (draggedNode.nodeType === 'Topic') {
             const topic = draggedNode.original as Topic;
@@ -587,7 +591,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                     sourceCourseId,
                     targetCourseId
                 };
-                this.courseDataService.moveNode(event).subscribe();
+                this.nodeOperationsService.performDragOperation(event).subscribe();
                 return;
             }
 
@@ -598,7 +602,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                 targetParentType: 'Course',
                 targetParentId: targetCourseId
             };
-            this.courseDataService.moveNode(event).subscribe();
+            this.nodeOperationsService.performDragOperation(event).subscribe();
         }
 
         this.allowDrag = false;
@@ -685,16 +689,16 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
         // Call service directly instead of emitting event
         switch (node.nodeType) {
             case 'Course':
-                this.courseDataService.deleteCourse((node.original as Course).id).subscribe();
+                this.courseCrudService.deleteCourse((node.original as Course).id).subscribe();
                 break;
             case 'Topic':
-                this.courseDataService.deleteTopic((node.original as Topic).id).subscribe();
+                this.courseCrudService.deleteTopic((node.original as Topic).id).subscribe();
                 break;
             case 'SubTopic':
-                this.courseDataService.deleteSubTopic((node.original as SubTopic).id).subscribe();
+                this.courseCrudService.deleteSubTopic((node.original as SubTopic).id).subscribe();
                 break;
             case 'Lesson':
-                this.courseDataService.deleteLesson((node.original as Lesson).id).subscribe();
+                this.courseCrudService.deleteLesson((node.original as Lesson).id).subscribe();
                 break;
         }
     }

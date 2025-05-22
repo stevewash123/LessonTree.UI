@@ -5,8 +5,6 @@
         @if (course) {
             <course-panel
                 [data]="course"
-                [mode]="mode"
-                (modeChange)="handleModeChange($event)"
             ></course-panel>
         }
       }
@@ -14,8 +12,6 @@
         @if (topic) {
             <topic-panel 
                 [data]="topic" 
-                [mode]="mode" 
-                (modeChange)="handleModeChange($event)" 
             ></topic-panel>
         }
       }
@@ -23,8 +19,6 @@
         @if (subtopic) {
             <subtopic-panel
             [data]="subtopic"
-            [mode]="mode"
-            (modeChange)="handleModeChange($event)"
           ></subtopic-panel>
         }
       }
@@ -32,8 +26,6 @@
         @if (lessonDetail) {
             <lesson-info-panel
             [lessonDetail]="lessonDetail"
-            [mode]="mode"
-            (modeChange)="handleModeChange($event)"
           ></lesson-info-panel>
         }
       }
