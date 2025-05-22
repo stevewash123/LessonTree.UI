@@ -7,8 +7,6 @@
                 [data]="course"
                 [mode]="mode"
                 (modeChange)="handleModeChange($event)"
-                (courseAdded)="handleNodeAdded($event)"
-                (courseEdited)="handleNodeEdited($event)"
             ></course-panel>
         }
       }
@@ -18,8 +16,6 @@
                 [data]="topic" 
                 [mode]="mode" 
                 (modeChange)="handleModeChange($event)" 
-                (topicAdded)="handleNodeAdded($event)"
-                (topicEdited)="handleNodeEdited($event)"
             ></topic-panel>
         }
       }
@@ -29,8 +25,6 @@
             [data]="subtopic"
             [mode]="mode"
             (modeChange)="handleModeChange($event)"
-            (subTopicAdded)="handleNodeAdded($event)" 
-            (subTopicEdited)="handleNodeEdited($event)"
           ></subtopic-panel>
         }
       }
@@ -40,8 +34,6 @@
             [lessonDetail]="lessonDetail"
             [mode]="mode"
             (modeChange)="handleModeChange($event)"
-            (lessonAdded)="handleNodeAdded($event)"
-            (lessonEdited)="handleNodeEdited($event)"
           ></lesson-info-panel>
         }
       }

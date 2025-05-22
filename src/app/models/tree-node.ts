@@ -25,15 +25,23 @@ export interface TreeData {
     nodeType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
   }
 
-export interface TopicMovedEvent {
-    topic: Topic;
-    sourceCourseId: number;
-    targetCourseId: number | null; // Changed to allow null
-    targetNodeId?: string; // Already optional, no change needed
-}
+  export interface NodeMovedEvent {
+    node: TreeData;               // The node being moved
+    sourceParentId?: number;      // Source parent ID (optional)
+    sourceParentType?: NodeType;  // Source parent type (optional)
+    targetParentId?: number;      // Target parent ID (where it's moving to)
+    targetParentType?: NodeType;  // Target parent type
+    sourceCourseId?: number;      // Only needed for cross-course moves
+    targetCourseId?: number;      // Only needed for cross-course moves
+  }
 
 export interface NodeSelectedEvent {
     node: TreeData;
+}
+
+export interface NodeDeletedEvent {
+    node: TreeData;
+    nodeType: NodeType;
 }
 
 export interface AddNodeEvent {

@@ -1,3 +1,4 @@
+// src/app/lessontree/info-panel/lesson-info-panel/lesson-info-panel.component.ts (partial)
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -5,14 +6,14 @@ import { MatIconModule } from '@angular/material/icon';
 import { LessonAttachmentsComponent } from './lesson-attachments/lesson-attachments.component';
 import { LessonNotesComponent } from './lesson-notes/lesson-notes.component';
 import { LessonDetail } from '../../../models/lesson';
-import { ApiService } from '../../../core/services/api.service';
 import { Note } from '../../../models/note';
 import { Attachment } from '../../../models/attachment';
 import { UserService } from '../../../core/services/user.service';
 import { Standard } from '../../../models/standard';
 import { LessonStandardsComponent } from './lesson-standard/lesson-standards.component';
-
-type PanelMode = 'view' | 'edit' | 'add';
+import { PanelMode } from '../../../core/services/panel-state.service';
+import { CourseDataService } from '../../../core/services/course-data.service';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'lesson-info-panel',
@@ -47,15 +48,20 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
 
   @Input() mode: PanelMode = 'view';
   @Output() modeChange = new EventEmitter<boolean>();
-  @Output() lessonAdded = new EventEmitter<LessonDetail>();
-  @Output() lessonEdited = new EventEmitter<LessonDetail>();
+  
+  // Remove backward compatibility outputs
+  // @Output() lessonAdded = new EventEmitter<LessonDetail>();
+  // @Output() lessonEdited = new EventEmitter<LessonDetail>();
 
   isEditing: boolean = false;
   isStandardsEditing: boolean = false;
   originalLessonDetail: LessonDetail | null = null;
 
-  constructor(private apiService: ApiService,
-    private userService: UserService) {}
+  constructor(
+    private userService: UserService,
+    private courseDataService: CourseDataService,
+    private toastr: ToastrService
+  ) {}
 
   ngOnInit(): void {
     this.updateEditingState();
@@ -99,38 +105,38 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
     if (!this.lessonDetail) return;
 
     if (this.mode === 'add') {
-      this.apiService.createLesson(this.lessonDetail).subscribe({
+      this.courseDataService.createLesson(this.lessonDetail).subscribe({
         next: (createdLesson) => {
-          this.apiService.get<LessonDetail>(`lesson/${createdLesson.id}`).subscribe({
-            next: (fullLesson) => {
-              Object.assign(this.lessonDetail, fullLesson);
-              this.isEditing = false;
-              this.lessonAdded.emit(this.lessonDetail);
-              this.modeChange.emit(false);
-              console.log(`[LessonInfoPanel] Lesson created`, { title: fullLesson.title, timestamp: new Date().toISOString() });
-            },
-            error: (error) => console.error(`[LessonInfoPanel] Error fetching lesson details`, { error, timestamp: new Date().toISOString() })
+          // The full lesson details are retrieved in the service
+          this.isEditing = false;
+          this.modeChange.emit(false);
+          console.log(`[LessonInfoPanel] Lesson created`, { 
+            title: createdLesson.title, 
+            timestamp: new Date().toISOString() 
           });
+          this.toastr.success(`Lesson "${createdLesson.title}" created successfully`);
         },
-        error: (error) => console.error(`[LessonInfoPanel] Error creating lesson`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[LessonInfoPanel] Error creating lesson`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to create lesson: ' + error.message, 'Error');
+        }
       });
     } else {
-      this.apiService.updateLesson(this.lessonDetail).subscribe({
-        next: () => {
+      this.courseDataService.updateLesson(this.lessonDetail).subscribe({
+        next: (updatedLesson) => {
           this.isEditing = false;
-          if (this.originalLessonDetail && this.originalLessonDetail.title !== this.lessonDetail.title) {
-            console.log(`[LessonInfoPanel] Emitting lessonEdited due to title change`, { 
-              oldTitle: this.originalLessonDetail.title, 
-              newTitle: this.lessonDetail.title, 
-              timestamp: new Date().toISOString() 
-            });
-            this.lessonEdited.emit(this.lessonDetail);
-          }
           this.modeChange.emit(false);
           this.originalLessonDetail = null;
-          console.log(`[LessonInfoPanel] Lesson updated`, { title: this.lessonDetail.title, timestamp: new Date().toISOString() });
+          console.log(`[LessonInfoPanel] Lesson updated`, { 
+            title: updatedLesson.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.toastr.success(`Lesson "${updatedLesson.title}" updated successfully`);
         },
-        error: (error) => console.error(`[LessonInfoPanel] Error updating lesson`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[LessonInfoPanel] Error updating lesson`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to update lesson: ' + error.message, 'Error');
+        }
       });
     }
   }
@@ -177,5 +183,4 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
       });
     }
   }
-
 }

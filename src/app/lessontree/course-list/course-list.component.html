@@ -1,20 +1,16 @@
 <!-- src/app/lessontree/course-list/course-list.component.html -->
 <div class="course-list-wrapper">
     <div class="course-header-container">
-      <h2 class="courses-header">Courses ({{courses.length || 0}})</h2>
+      <h2 class="courses-header">Courses ({{courseDataService.getCourses().length || 0}})</h2>
       <mat-icon class="filter-icon" (click)="openFilterDialog()" matTooltip="Filter Courses">filter_list</mat-icon>
     </div>
     
-    @for (course of courses; track course.id) {        
+    @for (course of courseDataService.getCourses(); track course.id) {        
       <mat-card class="course-card">
         <div class="tree-view-container">
-            <app-tree
+          <app-tree
             style="width:100%"
-            [course]="course"
-            [refreshTrigger]="refreshTrigger"
-            [newNode]="newNode"
-            (nodeDragStop)="onTopicMoved($event)"
-            (lessonMoved)="onLessonMoved($event)"
+            [courseId]="course.id"
           ></app-tree>
         </div>
       </mat-card>

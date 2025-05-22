@@ -3,11 +3,10 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../../models/course';
-import { ApiService } from '../../../core/services/api.service';
 import { UserService } from '../../../core/services/user.service';
 import { PanelMode } from '../../../core/services/panel-state.service';
-import { NodeType } from '../../../models/tree-node';
-
+import { CourseDataService } from '../../../core/services/course-data.service';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'course-panel',
@@ -30,8 +29,6 @@ export class CoursePanelComponent implements OnChanges, OnInit {
 
   @Input() mode: PanelMode = 'view';
   @Output() modeChange = new EventEmitter<boolean>();
-  @Output() courseAdded = new EventEmitter<Course>();
-  @Output() courseEdited = new EventEmitter<Course>();
 
   isEditing: boolean = false;
   originalData: Course | null = null;
@@ -41,8 +38,9 @@ export class CoursePanelComponent implements OnChanges, OnInit {
   }
 
   constructor(
-    private apiService: ApiService,
-    private userService: UserService
+    private userService: UserService,
+    private courseDataService: CourseDataService,
+    private toastr: ToastrService
   ) {}
 
   ngOnInit(): void {
@@ -55,7 +53,6 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     }
   }
   
-
   private updateEditingState() {
     this.isEditing = this.mode === 'edit' || this.mode === 'add';
     if (this.mode === 'edit' && this.data && !this.originalData) {
@@ -84,36 +81,46 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.apiService.createCourse(this.data).subscribe({
+      this.courseDataService.createCourse(this.data).subscribe({
         next: (createdCourse) => {
           this.data = createdCourse;
           this.isEditing = false;
-          console.log(`[CoursePanel] Emitting courseAdded`, { title: createdCourse.title, timestamp: new Date().toISOString() });
-          this.courseAdded.emit(createdCourse); // Emit before modeChange
+          
+          // No longer emitting courseAdded event
+          
           this.modeChange.emit(false);
-          console.log(`[CoursePanel] Course created`, { title: createdCourse.title, timestamp: new Date().toISOString() });
+          console.log(`[CoursePanel] Course created`, { 
+            title: createdCourse.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.toastr.success(`Course "${createdCourse.title}" created successfully`);
         },
-        error: (error) => console.error(`[CoursePanel] Error creating course`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[CoursePanel] Error creating course`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to create course: ' + error.message, 'Error');
+        }
       });
     } else {
-        this.apiService.updateCourse(this.data).subscribe({
-          next: () => {
-            this.isEditing = false;
-            if (this.originalData && this.originalData.title !== this.data!.title) {
-              console.log(`[CoursePanel] Emitting courseEdited due to title change`, { 
-                oldTitle: this.originalData.title, 
-                newTitle: this.data!.title, 
-                timestamp: new Date().toISOString() 
-              });
-              this.courseEdited.emit(this.data!);
-            }
-            this.modeChange.emit(false);
-            this.originalData = null;
-            console.log(`[CoursePanel] Course updated`, { title: this.data!.title, timestamp: new Date().toISOString() });
-          },
-          error: (error) => console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() })
-        });
-      }
+      this.courseDataService.updateCourse(this.data).subscribe({
+        next: (updatedCourse) => {
+          this.isEditing = false;
+          
+          // No longer emitting courseEdited event
+          
+          this.modeChange.emit(false);
+          this.originalData = null;
+          console.log(`[CoursePanel] Course updated`, { 
+            title: updatedCourse.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.toastr.success(`Course "${updatedCourse.title}" updated successfully`);
+        },
+        error: (error) => {
+          console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to update course: ' + error.message, 'Error');
+        }
+      });
+    }
   }
 
   cancel() {

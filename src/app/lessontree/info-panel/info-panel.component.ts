@@ -1,4 +1,5 @@
-import { Component, ChangeDetectorRef, effect, Output, EventEmitter } from '@angular/core';
+// src/app/lessontree/info-panel/info-panel.component.ts (partial)
+import { Component, ChangeDetectorRef, effect } from '@angular/core';
 import { NodeSelectionService } from '../../core/services/node-selection.service';
 import { PanelMode, PanelStateService } from '../../core/services/panel-state.service';
 import { ApiService } from '../../core/services/api.service';
@@ -14,8 +15,7 @@ import { LessonInfoPanelComponent } from './lesson-info-panel/lesson-info-panel.
 import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.component';
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CoursePanelComponent } from './course-panel/course-panel.component';
-
-
+import { CourseDataService } from '../../core/services/course-data.service';
 
 @Component({
   selector: 'info-panel',
@@ -31,10 +31,6 @@ import { CoursePanelComponent } from './course-panel/course-panel.component';
   styleUrls: ['./info-panel.component.css']
 })
 export class InfoPanelComponent {
-  // Outputs for events to parent component
-  @Output() refreshTree = new EventEmitter<void>();
-  @Output() nodeAdded = new EventEmitter<TreeData>();
-  @Output() nodeEdited = new EventEmitter<TreeData>();
 
   // Local state - make activeNode public so it can be accessed in template
   data: Course | Topic | SubTopic | LessonDetail | null = null;
@@ -44,7 +40,8 @@ export class InfoPanelComponent {
     private apiService: ApiService, 
     private cdr: ChangeDetectorRef,
     private nodeSelectionService: NodeSelectionService,
-    private panelStateService: PanelStateService
+    private panelStateService: PanelStateService,
+    private courseDataService: CourseDataService
   ) {
     console.log('[InfoPanel] Component constructed', { timestamp: new Date().toISOString() });
     
@@ -96,7 +93,6 @@ export class InfoPanelComponent {
         
         // Clear active node while in add mode
         this.activeNode = null;
-        
       }
     });
   }
@@ -156,43 +152,16 @@ export class InfoPanelComponent {
     return this.apiService.get<LessonDetail>(`lesson/${lessonId}`);
   }
 
-  // Handle mode changes from child components - Update type
+  // Handle mode changes from child components
   handleModeChange(isEditing: boolean | any): void {
     // If the event is an object (like an Event), convert it to boolean
     const editing = typeof isEditing === 'boolean' ? isEditing : false;
-    this.panelStateService.setMode(editing ? 'edit' : 'add');
+    this.panelStateService.setMode(editing ? 'edit' : 'view');
   }
 
-  // Event handlers for child components - Update types
-  handleNodeAdded(node: Course | Topic | SubTopic | LessonDetail): void {
-    // Ensure we have a valid TreeData object
-    if (node && node.nodeType) {
-      const nodeTypeDisplay = node.nodeType.charAt(0).toUpperCase() + node.nodeType.slice(1);
-      console.log(`[InfoPanel] ${nodeTypeDisplay} added`, { 
-        nodeType: node.nodeType,
-        title: node.title, 
-        timestamp: new Date().toISOString() 
-      });
-      
-      this.nodeAdded.emit(node as TreeData);
-      this.panelStateService.setMode('view');
-    } 
-  }
-
-  handleNodeEdited(node: Course | Topic | SubTopic | LessonDetail ): void {
-    // Ensure we have a valid TreeData object
-    if (node && node.nodeType) {
-      const nodeTypeDisplay = node.nodeType.charAt(0).toUpperCase() + node.nodeType.slice(1);
-      console.log(`[InfoPanel] ${nodeTypeDisplay} edited`, { 
-        nodeType: node.nodeType,
-        title: node.title, 
-        timestamp: new Date().toISOString() 
-      });
-      
-      this.nodeEdited.emit(node as TreeData);
-      this.panelStateService.setMode('view');
-    } 
-  }
+  // Remove backward compatibility methods
+  // handleNodeAdded(node: Course | Topic | SubTopic | LessonDetail): void { ... }
+  // handleNodeEdited(node: Course | Topic | SubTopic | LessonDetail ): void { ... }
 
   // Accessor for current panel mode from service
   get mode(): PanelMode {

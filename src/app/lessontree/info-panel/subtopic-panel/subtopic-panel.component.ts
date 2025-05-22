@@ -1,11 +1,12 @@
+// src/app/lessontree/info-panel/subtopic-panel/subtopic-panel.component.ts (partial)
 import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SubTopic } from '../../../models/subTopic';
-import { ApiService } from '../../../core/services/api.service';
 import { UserService } from '../../../core/services/user.service';
-
-type PanelMode = 'view' | 'edit' | 'add';
+import { PanelMode } from '../../../core/services/panel-state.service';
+import { CourseDataService } from '../../../core/services/course-data.service';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'subtopic-panel',
@@ -31,16 +32,19 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
 
   @Input() mode: PanelMode = 'view';
   @Output() modeChange = new EventEmitter<boolean>();
-  @Output() subTopicAdded = new EventEmitter<SubTopic>();
-  @Output() subTopicEdited = new EventEmitter<SubTopic>();
+  
+  // Remove the backward compatibility outputs
+  // @Output() subTopicAdded = new EventEmitter<SubTopic>();
+  // @Output() subTopicEdited = new EventEmitter<SubTopic>();
 
   textData: string = '';
   isEditing: boolean = false;
   originalData: SubTopic | null = null;
 
   constructor(
-    private apiService: ApiService,
-    private userService: UserService
+    private userService: UserService,
+    private courseDataService: CourseDataService,
+    private toastr: ToastrService
   ) {}
 
   get hasDistrictId(): boolean {
@@ -89,42 +93,45 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.apiService.createSubTopic(this.data).subscribe({
+      this.courseDataService.createSubTopic(this.data).subscribe({
         next: (createdSubTopic) => {
           this.data = createdSubTopic;
           this.isEditing = false;
-          console.log(`[SubtopicPanel:${this.instanceId}] Emitting subTopicAdded`, { 
-            title: createdSubTopic.title, 
-            nodeId: createdSubTopic.nodeId, 
-            timestamp: new Date().toISOString() 
-          });
-          this.subTopicAdded.emit(createdSubTopic);
+          
+          // No longer emitting subTopicAdded event
+          
           this.modeChange.emit(false);
           console.log(`[SubtopicPanel:${this.instanceId}] SubTopic created`, { 
             title: createdSubTopic.title, 
             nodeId: createdSubTopic.nodeId, 
             timestamp: new Date().toISOString() 
           });
+          this.toastr.success(`SubTopic "${createdSubTopic.title}" created successfully`);
         },
-        error: (error) => console.error(`[SubtopicPanel:${this.instanceId}] Error creating subtopic`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[SubtopicPanel:${this.instanceId}] Error creating subtopic`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to create subtopic: ' + error.message, 'Error');
+        }
       });
     } else {
-      this.apiService.updateSubTopic(this.data).subscribe({
-        next: () => {
+      this.courseDataService.updateSubTopic(this.data).subscribe({
+        next: (updatedSubTopic) => {
           this.isEditing = false;
-          if (this.originalData && this.originalData.title !== this.data!.title) {
-            console.log(`[SubtopicPanel:${this.instanceId}] Emitting subTopicEdited due to title change`, { 
-              oldTitle: this.originalData.title, 
-              newTitle: this.data!.title, 
-              timestamp: new Date().toISOString() 
-            });
-            this.subTopicEdited.emit(this.data!);
-          }
+          
+          // No longer emitting subTopicEdited event
+          
           this.modeChange.emit(false);
           this.originalData = null;
-          console.log(`[SubtopicPanel:${this.instanceId}] SubTopic updated`, { title: this.data!.title, timestamp: new Date().toISOString() });
+          console.log(`[SubtopicPanel:${this.instanceId}] SubTopic updated`, { 
+            title: updatedSubTopic.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.toastr.success(`SubTopic "${updatedSubTopic.title}" updated successfully`);
         },
-        error: (error) => console.error(`[SubtopicPanel:${this.instanceId}] Error updating subtopic`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[SubtopicPanel:${this.instanceId}] Error updating subtopic`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to update subtopic: ' + error.message, 'Error');
+        }
       });
     }
   }

@@ -2,10 +2,10 @@ import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, OnIni
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Topic } from '../../../models/topic';
-import { ApiService } from '../../../core/services/api.service';
 import { UserService } from '../../../core/services/user.service';
-
-type PanelMode = 'view' | 'edit' | 'add';
+import { PanelMode } from '../../../core/services/panel-state.service';
+import { CourseDataService } from '../../../core/services/course-data.service';
+import { ToastrService } from 'ngx-toastr';
 
 @Component({
   selector: 'topic-panel',
@@ -35,8 +35,9 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   originalData: Topic | null = null;
 
   constructor(
-    private apiService: ApiService,
-    private userService: UserService
+    private userService: UserService,
+    private courseDataService: CourseDataService,
+    private toastr: ToastrService
   ) {}
 
   get hasDistrictId(): boolean {
@@ -81,34 +82,47 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     if (!this.data) return;
 
     if (this.mode === 'add') {
-      this.apiService.createTopic(this.data).subscribe({
+      this.courseDataService.createTopic(this.data).subscribe({
         next: (createdTopic) => {
           this.data = createdTopic;
           this.isEditing = false;
           this.modeChange.emit(false);
-          console.log(`[TopicPanel] Emitting topicAdded`, { title: createdTopic.title, timestamp: new Date().toISOString() });
-          this.topicAdded.emit(createdTopic);
-          console.log(`[TopicPanel] Topic created`, { title: createdTopic.title, timestamp: new Date().toISOString() });
+                    
+          console.log(`[TopicPanel] Topic created`, { 
+            title: createdTopic.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.toastr.success(`Topic "${createdTopic.title}" created successfully`);
         },
-        error: (error) => console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to create topic: ' + error.message, 'Error');
+        }
       });
     } else {
-      this.apiService.updateTopic(this.data).subscribe({
-        next: () => {
+      this.courseDataService.updateTopic(this.data).subscribe({
+        next: (updatedTopic) => {
           this.isEditing = false;
-          if (this.originalData && this.originalData.title !== this.data!.title) {
-            console.log(`[TopicPanel] Emitting topicEdited due to title change`, { 
-              oldTitle: this.originalData.title, 
-              newTitle: this.data!.title, 
-              timestamp: new Date().toISOString() 
-            });
-            this.topicEdited.emit(this.data!);
-          }
+          
+          // Emit for backward compatibility - will be removed once migration is complete
+          console.log(`[TopicPanel] Emitting topicEdited for backward compatibility`, { 
+            title: updatedTopic.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.topicEdited.emit(updatedTopic);
+          
           this.modeChange.emit(false);
           this.originalData = null;
-          console.log(`[TopicPanel] Topic updated`, { title: this.data!.title, timestamp: new Date().toISOString() });
+          console.log(`[TopicPanel] Topic updated`, { 
+            title: updatedTopic.title, 
+            timestamp: new Date().toISOString() 
+          });
+          this.toastr.success(`Topic "${updatedTopic.title}" updated successfully`);
         },
-        error: (error) => console.error(`[TopicPanel] Error updating topic`, { error, timestamp: new Date().toISOString() })
+        error: (error) => {
+          console.error(`[TopicPanel] Error updating topic`, { error, timestamp: new Date().toISOString() });
+          this.toastr.error('Failed to update topic: ' + error.message, 'Error');
+        }
       });
     }
   }
