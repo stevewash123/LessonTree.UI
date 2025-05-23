@@ -95,6 +95,22 @@ export class InfoPanelComponent {
     console.log('[InfoPanel] Component constructed with optimized signals', { 
       timestamp: new Date().toISOString() 
     });
+
+    effect(() => {
+        const courses = this.courseDataService.courses(); // Listen to the courses signal
+        const selectedNode = this.selectedNode();
+        const mode = this.panelStateService.panelMode();
+        
+        // Reload data when courses change and we have a selection
+        if (courses.length > 0 && selectedNode && mode !== 'add') {
+          console.log('[InfoPanel] Courses data changed, reloading node data', {
+            coursesCount: courses.length,
+            selectedNodeId: selectedNode.id,
+            timestamp: new Date().toISOString()
+          });
+          this.loadNodeData();
+        }
+      });
     
     // Effect for node selection changes - much simpler now
     effect(() => {

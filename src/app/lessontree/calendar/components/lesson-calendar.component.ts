@@ -1,5 +1,5 @@
-// src/app/lessontree/calendar/components/lesson-calendar.component.ts - COMPLETE FILE
-import { Component, OnInit, ViewChild, inject, effect, Input, OnDestroy } from '@angular/core';
+// src/app/lessontree/calendar/components/lesson-calendar.component.ts - COMPLETE FILE (COMPILATION FIXED)
+import { Component, OnInit, ViewChild, inject, effect, Input, OnDestroy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -10,6 +10,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatIconModule } from '@angular/material/icon';
 import { ContextMenuComponent, ContextMenuModule } from '@syncfusion/ej2-angular-navigations';
 import { MenuEventArgs } from '@syncfusion/ej2-navigations';
 import { set } from 'date-fns';
@@ -26,7 +27,6 @@ import { UserService } from '../../../core/services/user.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
 import { parseId } from '../../../core/utils/type-conversion.utils';
 
-
 @Component({
   selector: 'app-lesson-calendar',
   standalone: true,
@@ -35,6 +35,7 @@ import { parseId } from '../../../core/utils/type-conversion.utils';
     FormsModule,
     FullCalendarModule,
     MatDialogModule,
+    MatIconModule,
     ContextMenuModule,
     ScheduleControlsComponent
   ],
@@ -59,6 +60,33 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Subscriptions
   private userSubscription?: Subscription;
+
+  // Computed signals for reactive data (using actual CourseDataService methods)
+  readonly availableCourses = computed(() => {
+    return this.courseDataService.getCourses();
+  });
+
+  readonly selectedCourseData = computed(() => {
+    const selectedNode = this.nodeSelectionService.selectedNode();
+    if (selectedNode?.nodeType === 'Course') {
+      const courseId = parseId(selectedNode.id);
+      return this.courseDataService.getCourseById(courseId);
+    }
+    return null;
+  });
+
+  readonly currentCourseId = computed(() => {
+    const courseData = this.selectedCourseData();
+    return courseData?.id || null;
+  });
+
+  readonly hasCoursesAvailable = computed(() => {
+    return this.courseDataService.getCourses().length > 0;
+  });
+
+  readonly coursesCount = computed(() => {
+    return this.courseDataService.getCourses().length;
+  });
 
   // Calendar options
   calendarOptions: CalendarOptions = {
@@ -89,36 +117,105 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   readonly scheduleState = this.scheduleStateService;
 
   constructor() {
-    // Set up effect to react to selection changes
-    effect(() => {
-        const selectedCourse = this.nodeSelectionService.selectedCourse();
-        if (selectedCourse) {
-          this.loadSchedulesForCourse(parseId(selectedCourse.id));
-        }
-      });
+    console.log('[LessonCalendarComponent] Initializing', { 
+      timestamp: new Date().toISOString() 
+    });
 
-    // Set up effect to update calendar when schedule changes
+    // Effect: React to course selection changes
+    effect(() => {
+      const courseId = this.currentCourseId();
+      
+      if (courseId) {
+        console.log(`[LessonCalendarComponent] Course selected: ${courseId}`, {
+          timestamp: new Date().toISOString()
+        });
+        
+        this.loadSchedulesForCourse(courseId);
+      } else {
+        console.log('[LessonCalendarComponent] No course selected', {
+          timestamp: new Date().toISOString()
+        });
+        
+        // Try to select first available course
+        this.loadDefaultCourse();
+      }
+    });
+
+    // Effect: Update calendar events when schedule changes
     effect(() => {
       const scheduleDays = this.scheduleStateService.currentScheduleDays();
-      const courseId = this.getCurrentCourseId();
+      const courseId = this.currentCourseId();
       
       if (courseId && scheduleDays.length > 0) {
+        console.log(`[LessonCalendarComponent] Updating calendar events for course ${courseId}`, {
+          scheduleDaysCount: scheduleDays.length,
+          timestamp: new Date().toISOString()
+        });
+        
         this.calendarOptions.events = this.calendarEventService.mapScheduleDaysToEvents(scheduleDays, courseId);
+        
+        // Trigger calendar re-render if calendar is initialized
+        if (this.calendar?.getApi) {
+          this.calendar.getApi().refetchEvents();
+        }
+      } else {
+        console.log('[LessonCalendarComponent] Clearing calendar events', {
+          courseId,
+          scheduleDaysCount: scheduleDays.length,
+          timestamp: new Date().toISOString()
+        });
+        
+        this.calendarOptions.events = [];
+        if (this.calendar?.getApi) {
+          this.calendar.getApi().refetchEvents();
+        }
       }
     });
 
-    // Set up effect to update calendar date when schedule changes
+    // Effect: Update calendar date when schedule changes
     effect(() => {
       const schedule = this.scheduleStateService.selectedSchedule();
+      
       if (schedule?.startDate) {
+        console.log(`[LessonCalendarComponent] Updating calendar date to: ${schedule.startDate}`, {
+          timestamp: new Date().toISOString()
+        });
+        
         this.calendarOptions.initialDate = schedule.startDate;
+        
+        // Update calendar view if already initialized
+        if (this.calendar?.getApi) {
+          this.calendar.getApi().gotoDate(schedule.startDate);
+        }
       }
     });
 
-    console.log('[LessonCalendarComponent] Initialized', { timestamp: new Date().toISOString() });
+    // Effect: React to courses data changes
+    effect(() => {
+      // Listen to any node changes that might affect the course list
+      const nodeAdded = this.courseDataService.nodeAdded();
+      const nodeDeleted = this.courseDataService.nodeDeleted();
+      const coursesCount = this.coursesCount();
+      
+      console.log(`[LessonCalendarComponent] Courses data potentially changed`, {
+        coursesCount,
+        nodeAdded: nodeAdded?.nodeType || null,
+        nodeDeleted: nodeDeleted?.nodeType || null,
+        timestamp: new Date().toISOString()
+      });
+      
+      // If courses were just loaded and no course is selected, try to select default
+      if (coursesCount > 0 && !this.currentCourseId()) {
+        this.loadDefaultCourse();
+      }
+    });
   }
 
   ngOnInit(): void {
+    console.log('[LessonCalendarComponent] Component initialized', { 
+      timestamp: new Date().toISOString() 
+    });
+
     // Initialize user subscription
     this.userSubscription = this.userService.user$.subscribe(user => {
       if (parseId(user?.id || '0')) {
@@ -127,46 +224,67 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
         });
       }
     });
-
-    // Load initial course
-    this.loadInitialCourse();
   }
 
   ngOnDestroy(): void {
+    console.log('[LessonCalendarComponent] Component destroying', { 
+      timestamp: new Date().toISOString() 
+    });
+    
     this.userSubscription?.unsubscribe();
     this.scheduleDayService.clearContext();
   }
 
-  // Load initial course schedules
-  private loadInitialCourse(): void {
-    const selectedNode = this.nodeSelectionService.selectedNode();
-    if (selectedNode && selectedNode.nodeType === 'Course') {
-      this.loadSchedulesForCourse(parseId(selectedNode.id));
+  // Load default course when no course is selected
+  private loadDefaultCourse(): void {
+    const courses = this.availableCourses();
+    
+    if (courses.length > 0) {
+      const firstCourse = courses[0];
+      console.log(`[LessonCalendarComponent] Loading default course: ${firstCourse.id}`, {
+        courseTitle: firstCourse.title,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Select the first course programmatically
+      this.nodeSelectionService.selectById(firstCourse.id, 'Course', 'calendar');
     } else {
-      // Default to first course if none selected
-      const courses = this.courseDataService.getCourses();
-      if (courses.length > 0) {
-        this.loadSchedulesForCourse(courses[0].id);
-      } else {
-        console.warn('[LessonCalendarComponent] No courses available', { 
-          timestamp: new Date().toISOString() 
-        });
-      }
+      console.warn('[LessonCalendarComponent] No courses available for default selection', { 
+        timestamp: new Date().toISOString() 
+      });
     }
   }
 
   // Load schedules for a course
   private loadSchedulesForCourse(courseId: number): void {
-    this.scheduleStateService.loadSchedulesForCourse(courseId).subscribe();
-  }
-
-  // Get current course ID
-  private getCurrentCourseId(): number | null {
-    return this.calendarEventService.getCurrentCourseId();
+    console.log(`[LessonCalendarComponent] Loading schedules for course: ${courseId}`, {
+      timestamp: new Date().toISOString()
+    });
+    
+    this.scheduleStateService.loadSchedulesForCourse(courseId).subscribe({
+      next: (schedules: any) => {
+        console.log(`[LessonCalendarComponent] Schedules loaded successfully`, {
+          courseId,
+          schedulesCount: Array.isArray(schedules) ? schedules.length : 0,
+          timestamp: new Date().toISOString()
+        });
+      },
+      error: (error) => {
+        console.error(`[LessonCalendarComponent] Failed to load schedules for course ${courseId}:`, error, {
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
   }
 
   // Handle event click from calendar
   handleEventClick(arg: EventClickArg): void {
+    console.log('[LessonCalendarComponent] Event clicked', {
+      eventId: arg.event.id,
+      eventTitle: arg.event.title,
+      timestamp: new Date().toISOString()
+    });
+    
     const result = this.calendarEventService.handleEventClick(arg);
     
     if (result.shouldOpenContextMenu) {
@@ -177,17 +295,33 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Handle date click from calendar
   handleDateRightClick(info: any): void {
+    console.log('[LessonCalendarComponent] Date right-clicked', {
+      date: info.date,
+      timestamp: new Date().toISOString()
+    });
+    
     this.scheduleDayService.setDateContext(info.date);
     this.contextMenu?.open(info.jsEvent.pageY, info.jsEvent.pageX);
   }
 
   // Handle event drop from calendar
   handleEventDrop(arg: EventDropArg): void {
+    console.log('[LessonCalendarComponent] Event dropped', {
+      eventId: arg.event.id,
+      newDate: arg.event.start,
+      timestamp: new Date().toISOString()
+    });
+    
     this.calendarEventService.handleEventDrop(arg);
   }
 
   // Handle context menu selection
   handleContextMenuSelect(args: MenuEventArgs): void {
+    console.log('[LessonCalendarComponent] Context menu item selected', {
+      itemId: args.item.id,
+      timestamp: new Date().toISOString()
+    });
+    
     const actions = this.scheduleDayService.getContextMenuActions();
     const selectedAction = actions.find(action => action.id === args.item.id);
     
@@ -202,30 +336,59 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Handle schedule selection from controls
   selectSchedule(scheduleId: number): void {
-    this.scheduleStateService.selectScheduleById(scheduleId).subscribe();
+    console.log(`[LessonCalendarComponent] Schedule selected: ${scheduleId}`, {
+      timestamp: new Date().toISOString()
+    });
+    
+    this.scheduleStateService.selectScheduleById(scheduleId).subscribe({
+      next: (schedule: any) => {
+        console.log(`[LessonCalendarComponent] Schedule selected successfully`, {
+          scheduleId: schedule?.id || 'unknown',
+          timestamp: new Date().toISOString()
+        });
+      },
+      error: (error) => {
+        console.error(`[LessonCalendarComponent] Failed to select schedule ${scheduleId}:`, error, {
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
   }
 
   // Handle save schedule from controls
   saveSchedule(): void {
-    this.scheduleStateService.saveCurrentSchedule().subscribe();
+    console.log('[LessonCalendarComponent] Save schedule requested', {
+      timestamp: new Date().toISOString()
+    });
+    
+    this.scheduleStateService.saveCurrentSchedule().subscribe({
+      next: (schedule: any) => {
+        console.log(`[LessonCalendarComponent] Schedule saved successfully`, {
+          scheduleId: schedule?.id || 'unknown',
+          timestamp: new Date().toISOString()
+        });
+      },
+      error: (error) => {
+        console.error('[LessonCalendarComponent] Failed to save schedule:', error, {
+          timestamp: new Date().toISOString()
+        });
+      }
+    });
   }
 
   // Handle create schedule from controls
   openConfigModal(): void {
-    const selectedNode = this.nodeSelectionService.selectedNode();
+    console.log('[LessonCalendarComponent] Opening config modal', {
+      timestamp: new Date().toISOString()
+    });
+    
+    const courseData = this.selectedCourseData();
     let courseId: number;
     let courseTitle: string;
     
-    if (selectedNode && selectedNode.nodeType === 'Course') {
-      courseId = parseId(selectedNode.id);
-      const course = this.courseDataService.getCourseById(courseId);
-      if (!course) {
-        console.error('[LessonCalendarComponent] Course not found for selected node', { 
-          timestamp: new Date().toISOString() 
-        });
-        return;
-      }
-      courseTitle = course.title;
+    if (courseData) {
+      courseId = courseData.id;
+      courseTitle = courseData.title;
     } else {
       const schedule = this.scheduleStateService.selectedSchedule();
       if (!schedule) {
@@ -239,6 +402,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
       const course = this.courseDataService.getCourseById(courseId);
       if (!course) {
         console.error('[LessonCalendarComponent] Course not found for current schedule', { 
+          courseId,
           timestamp: new Date().toISOString() 
         });
         return;
@@ -276,5 +440,17 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
         this.loadSchedulesForCourse(courseId);
       }
     });
+  }
+
+  // Public getters for template usage
+  get debugInfo() {
+    return {
+      selectedCourseId: this.currentCourseId(),
+      availableCoursesCount: this.availableCourses().length,
+      hasSelection: this.nodeSelectionService.hasSelection(),
+      selectedNodeType: this.nodeSelectionService.selectedNodeType(),
+      hasData: this.hasCoursesAvailable(),
+      timestamp: new Date().toISOString()
+    };
   }
 }

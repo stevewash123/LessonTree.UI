@@ -246,7 +246,6 @@ export class ApiService {
             id: lesson.id,
             title: lesson.title,
             visibility: this.mapVisibilityToEnum(lesson.visibility),
-            teamId: lesson.teamId,
             level: lesson.level,
             objective: lesson.objective,
             materials: lesson.materials,

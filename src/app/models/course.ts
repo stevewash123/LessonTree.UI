@@ -7,11 +7,6 @@ import { TreeData, TreeNode } from "./tree-node";
 
 // Models a Course entity with optional topics for lazy loading
 export interface Course extends TreeData {
-    title: string;
-    description: string;
-    hasChildren: boolean;
-    archived: boolean;
-    visibility: 'Private' | 'Team' | 'Public';
     topics?: Topic[];
     nodeType: 'Course'; // Override to specify the concrete type
   }

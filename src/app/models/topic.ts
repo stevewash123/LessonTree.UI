@@ -3,15 +3,9 @@ import { createSubTopicNode, SubTopic } from "./subTopic";
 import { TreeData, TreeNode } from "./tree-node";
 
 export interface Topic extends TreeData {
-    title: string;
-    description: string;
     courseId: number;
-    hasChildren: boolean;
     subTopics?: SubTopic[];
     lessons?: Lesson[];
-    visibility: 'Private' | 'Team' | 'Public';
-    archived: boolean;
-    sortOrder: number;
     nodeType: 'Topic';
   }
 

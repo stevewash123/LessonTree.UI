@@ -23,6 +23,13 @@ export interface TreeData {
     courseId: number;
     nodeId: string;
     nodeType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+    title: string;
+    description?: string;
+    archived: boolean;
+    visibility: 'Private' | 'Team' | 'Public';
+    userId: number;
+    sortOrder: number;
+    hasChildren?: boolean;
   }
 
   export interface NodeMovedEvent {

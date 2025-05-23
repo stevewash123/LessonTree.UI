@@ -1,12 +1,12 @@
-// src/app/core/services/node-selection.service.ts - COMPLETE FILE (REFACTORED WITH SIGNALS)
+// src/app/core/services/node-selection.service.ts - COMPLETE FILE (FIXED TO USE TREEDATA)
 import { Injectable, signal, computed } from '@angular/core';
-import { TreeNode } from '../../models/tree-node';
+import { TreeData } from '../../models/tree-node';
 
 export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
 export type SelectionSource = 'tree' | 'calendar' | 'infopanel' | 'programmatic';
 
 export interface SelectionEvent {
-  node: TreeNode | null;
+  node: TreeData | null;
   source: SelectionSource;
   timestamp: Date;
 }
@@ -16,7 +16,7 @@ export interface SelectionEvent {
 })
 export class NodeSelectionService {
   // Private signals for internal state
-  private readonly _selectedNode = signal<TreeNode | null>(null);
+  private readonly _selectedNode = signal<TreeData | null>(null);
   private readonly _selectionSource = signal<SelectionSource>('programmatic');
   private readonly _selectionHistory = signal<SelectionEvent[]>([]);
 
@@ -28,7 +28,7 @@ export class NodeSelectionService {
   // Computed signals for derived state
   readonly hasSelection = computed(() => this._selectedNode() !== null);
   readonly selectedNodeType = computed(() => this._selectedNode()?.nodeType || null);
-  readonly selectedNodeId = computed(() => this._selectedNode()?.id || null);
+  readonly selectedNodeId = computed(() => this._selectedNode()?.nodeId || null);
   readonly isSelectedNodeType = computed(() => (type: NodeType) => this._selectedNode()?.nodeType === type);
   
   // Course-specific computed signals
@@ -78,13 +78,13 @@ export class NodeSelectionService {
   }
 
   // Select a node with source tracking
-  selectNode(node: TreeNode | null, source: SelectionSource = 'programmatic'): void {
+  selectNode(node: TreeData | null, source: SelectionSource = 'programmatic'): void {
     const previousNode = this._selectedNode();
     
     // Don't update if selecting the same node from the same source
     if (previousNode === node && this._selectionSource() === source) {
       console.log('[NodeSelectionService] Ignoring duplicate selection', {
-        nodeId: node?.id,
+        nodeId: node?.nodeId,
         nodeType: node?.nodeType,
         source,
         timestamp: new Date().toISOString()
@@ -114,10 +114,10 @@ export class NodeSelectionService {
     this._selectionHistory.set(updatedHistory);
 
     console.log('[NodeSelectionService] Node selected', {
-      nodeId: node?.id,
+      nodeId: node?.nodeId,
       nodeType: node?.nodeType,
       source,
-      previousNodeId: previousNode?.id,
+      previousNodeId: previousNode?.nodeId,
       previousNodeType: previousNode?.nodeType,
       timestamp: new Date().toISOString()
     });
@@ -126,7 +126,7 @@ export class NodeSelectionService {
   // Clear selection
   clearSelection(source: SelectionSource = 'programmatic'): void {
     console.log('[NodeSelectionService] Clearing selection', {
-      previousNodeId: this._selectedNode()?.id,
+      previousNodeId: this._selectedNode()?.nodeId,
       previousNodeType: this._selectedNode()?.nodeType,
       source,
       timestamp: new Date().toISOString()
@@ -137,34 +137,50 @@ export class NodeSelectionService {
 
   // Select by ID and type (useful for programmatic selection)
   selectById(id: number, nodeType: NodeType, source: SelectionSource = 'programmatic'): void {
-    // Create a minimal TreeNode for selection
-    const node: TreeNode = {
-        id: id.toString(),
-        text: `${nodeType} ${id}`, // ADD THIS LINE
-        nodeType,
-        title: `${nodeType} ${id}`,
-        description: '',
-        archived: false,
-        visibility: 0, // Assuming public visibility
-        userId: 0, // Will be populated when full data is loaded
-        sortOrder: 0
-    };
-
-    console.log('[NodeSelectionService] Selecting by ID', {
-      id,
+    let courseId = 0; // Default for new courses or no selection
+    
+    // Try to get courseId from current selection context
+    const currentNode = this._selectedNode();
+    if (currentNode) {
+      courseId = currentNode.courseId;
+    } else if (nodeType !== 'Course') {
+      // If we're selecting a non-Course node but have no context, this might be an error
+      console.warn('[NodeSelectionService] Selecting non-Course node without course context', {
+        id, nodeType, timestamp: new Date().toISOString()
+      });
+    }
+    
+    // For Course selections, use the course's own ID
+    if (nodeType === 'Course') {
+      courseId = id;
+    }
+  
+    const node: TreeData = {
+      id: id,
+      courseId: courseId,
+      nodeId: id.toString(),
       nodeType,
-      source,
+      title: `${nodeType} ${id}`,
+      description: '',
+      archived: false,
+      visibility: 'Private',
+      userId: 0,
+      sortOrder: 0
+    };
+  
+    console.log('[NodeSelectionService] Selecting by ID', {
+      id, nodeType, courseId, source,
       timestamp: new Date().toISOString()
     });
-
+  
     this.selectNode(node, source);
   }
-
+  
   // Check if a specific node is selected
-  isNodeSelected(node: TreeNode): boolean {
+  isNodeSelected(node: TreeData): boolean {
     const selected = this._selectedNode();
     return selected !== null && 
-           selected.id === node.id && 
+           selected.nodeId === node.nodeId && 
            selected.nodeType === node.nodeType;
   }
 
@@ -172,7 +188,7 @@ export class NodeSelectionService {
   isSelected(id: number, nodeType: NodeType): boolean {
     const selected = this._selectedNode();
     return selected !== null && 
-           selected.id === id.toString() && 
+           selected.nodeId === id.toString() && 
            selected.nodeType === nodeType;
   }
 
@@ -223,7 +239,7 @@ export class NodeSelectionService {
       hasSelection: this.hasSelection(),
       selectedNode: node,
       selectedNodeType: node?.nodeType || null,
-      selectedNodeId: node?.id || null,
+      selectedNodeId: node?.nodeId || null,
       selectionSource: source,
       selectionStats: stats,
       timestamp: new Date().toISOString()

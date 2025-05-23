@@ -7,13 +7,7 @@ export interface Lesson extends TreeData {
     courseId: number;
     subTopicId?: number;
     topicId?: number;
-    title: string;
     objective: string;
-    description?: string;
-    visibility: 'Private' | 'Team' | 'Public';
-    teamId?: number;
-    archived: boolean;
-    sortOrder: number;
     nodeType: 'Lesson';
   }
 

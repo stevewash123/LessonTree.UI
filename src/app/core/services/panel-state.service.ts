@@ -86,15 +86,17 @@ export class PanelStateService {
     switch (nodeType) {
       case 'Course':
         return {
-          id: 0,
-          nodeId: `course_new_${Date.now()}`,
-          title: '',
-          description: '',
-          hasChildren: false,
-          archived: false,
-          visibility: 'Private',
-          nodeType: 'Course'
-        } as Course;
+            id: 0,
+            nodeId: `course_new_${Date.now()}`,
+            title: '',
+            description: '',
+            hasChildren: false,
+            archived: false,
+            visibility: 'Private',
+            userId: 0,  // ADD THIS LINE
+            sortOrder: 0,  // ADD THIS LINE
+            nodeType: 'Course'
+          } as Course; 
         
       case 'Topic':
         if (!courseId) {
@@ -107,21 +109,23 @@ export class PanelStateService {
           throw new Error('Course ID required for creating a Topic');
         }
         
+        // Add userId to Topic template (around line 108):
         return {
-          id: 0,
-          nodeId: `topic_new_${Date.now()}`,
-          courseId,
-          title: '',
-          description: '',
-          hasChildren: false,
-          archived: false,
-          visibility: 'Private',
-          subTopics: [],
-          lessons: [],
-          nodeType: 'Topic',
-          sortOrder: 0
+            id: 0,
+            nodeId: `topic_new_${Date.now()}`,
+            courseId,
+            title: '',
+            description: '',
+            hasChildren: false,
+            archived: false,
+            visibility: 'Private',
+            userId: 0,  // ADD THIS LINE
+            subTopics: [],
+            lessons: [],
+            nodeType: 'Topic',
+            sortOrder: 0
         } as Topic;
-        
+                
       case 'SubTopic':
         if (!parentNode || parentNode.nodeType !== 'Topic') {
           console.error('[PanelStateService] Cannot create SubTopic template: Invalid parent', { timestamp: new Date().toISOString() });
@@ -130,19 +134,20 @@ export class PanelStateService {
         
         const topicParent = parentNode as Topic;
         return {
-          id: 0,
-          nodeId: `subtopic_new_${Date.now()}`,
-          topicId: topicParent.id,
-          courseId: topicParent.courseId,
-          title: '',
-          description: '',
-          lessons: [],
-          hasChildren: false,
-          archived: false,
-          visibility: 'Private',
-          nodeType: 'SubTopic',
-          sortOrder: 0
-        } as SubTopic;
+            id: 0,
+            nodeId: `subtopic_new_${Date.now()}`,
+            topicId: topicParent.id,
+            courseId: topicParent.courseId,
+            title: '',
+            description: '',
+            lessons: [],
+            hasChildren: false,
+            archived: false,
+            visibility: 'Private',
+            userId: 0,  // ADD THIS LINE
+            nodeType: 'SubTopic',
+            sortOrder: 0
+          } as SubTopic;
         
       case 'Lesson':
         if (!parentNode || (parentNode.nodeType !== 'Topic' && parentNode.nodeType !== 'SubTopic')) {
@@ -152,27 +157,28 @@ export class PanelStateService {
         
         const parent = parentNode as Topic | SubTopic;
         return {
-          id: 0,
-          nodeId: `lesson_new_${Date.now()}`,
-          courseId: parent.courseId,
-          subTopicId: parentNode.nodeType === 'SubTopic' ? (parent as SubTopic).id : undefined,
-          topicId: parentNode.nodeType === 'Topic' ? (parent as Topic).id : undefined,
-          title: '',
-          level: '',
-          objective: '',
-          materials: '',
-          classTime: '',
-          methods: '',
-          specialNeeds: '',
-          assessment: '',
-          standards: [],
-          attachments: [],
-          visibility: 'Private',
-          archived: false,
-          notes: [],
-          nodeType: 'Lesson',
-          sortOrder: 0
-        } as LessonDetail;
+            id: 0,
+            nodeId: `lesson_new_${Date.now()}`,
+            courseId: parent.courseId,
+            subTopicId: parentNode.nodeType === 'SubTopic' ? (parent as SubTopic).id : undefined,
+            topicId: parentNode.nodeType === 'Topic' ? (parent as Topic).id : undefined,
+            title: '',
+            level: '',
+            objective: '',
+            materials: '',
+            classTime: '',
+            methods: '',
+            specialNeeds: '',
+            assessment: '',
+            standards: [],
+            attachments: [],
+            visibility: 'Private',
+            archived: false,
+            userId: 0,  // ADD THIS LINE
+            notes: [],
+            nodeType: 'Lesson',
+            sortOrder: 0
+          } as LessonDetail;
         
       default:
         console.error(`[PanelStateService] Unknown node type: ${nodeType}`, { timestamp: new Date().toISOString() });

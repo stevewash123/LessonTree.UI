@@ -240,11 +240,11 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
       private getHasChildren(treeData: TreeData): boolean {
         switch (treeData.nodeType) {
           case 'Course':
-            return (treeData as Course).hasChildren;
+            return (treeData as Course).hasChildren ?? false;
           case 'Topic':
-            return (treeData as Topic).hasChildren;
+            return (treeData as Topic).hasChildren ?? false;
           case 'SubTopic':
-            return (treeData as SubTopic).hasChildren;
+            return (treeData as SubTopic).hasChildren ?? false;
           case 'Lesson':
             return false; // Lessons don't have children
           default:
@@ -445,7 +445,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
             });
             
             // Update the service
-            //this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
+            this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
           } else {
             console.warn('[Tree] Node not found in tree data:', {
               nodeId: args.nodeData.id,

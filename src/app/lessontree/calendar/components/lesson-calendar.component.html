@@ -1,24 +1,53 @@
-<!-- src/app/lessontree/calendar/components/lesson-calendar.component.html - COMPLETE FILE -->
+<!-- src/app/lessontree/calendar/components/lesson-calendar.component.html - COMPLETE FILE (CORRECTED) -->
 <div class="calendar-container">
-    <!-- Schedule Controls Component -->
-    <app-schedule-controls
-      [visible]="showScheduleControls"
-      (scheduleSelected)="selectSchedule($event)"
-      (saveScheduleClicked)="saveSchedule()"
-      (createScheduleClicked)="openConfigModal()">
-    </app-schedule-controls>
-    
-    <!-- Full Calendar -->
-    <full-calendar 
-      #calendar 
-      [options]="calendarOptions">
-    </full-calendar>
-    
-    <!-- Context Menu -->
-    <ejs-contextmenu 
-      #contextMenu 
-      [items]="contextMenuItems" 
-      (select)="handleContextMenuSelect($event)" 
-      target="#calendar .fc-daygrid-day, #calendar .fc-event">
-    </ejs-contextmenu>
+    <!-- No Data State -->
+    @if (!hasCoursesAvailable()) {
+      <div class="no-data-state">
+        <mat-icon>school</mat-icon>
+        <h3>No Courses Available</h3>
+        <p>Create a course first to start scheduling lessons.</p>
+      </div>
+    }
+
+    <!-- Main Calendar Content -->
+    @if (hasCoursesAvailable()) {
+      <!-- Course Selection Info -->
+      @if (selectedCourseData()) {
+        <div class="course-info-header">
+          <mat-icon>school</mat-icon>
+          <h3>{{ selectedCourseData()!.title }}</h3>
+          <span class="course-id">ID: {{ selectedCourseData()!.id }}</span>
+        </div>
+      }
+
+      <!-- Schedule Controls Component -->
+      <app-schedule-controls
+        [visible]="showScheduleControls"
+        (scheduleSelected)="selectSchedule($event)"
+        (saveScheduleClicked)="saveSchedule()"
+        (createScheduleClicked)="openConfigModal()">
+      </app-schedule-controls>
+      
+      <!-- Full Calendar -->
+      <full-calendar 
+        #calendar 
+        [options]="calendarOptions">
+      </full-calendar>
+      
+      <!-- Context Menu -->
+      <ejs-contextmenu 
+        #contextMenu 
+        [items]="contextMenuItems" 
+        (select)="handleContextMenuSelect($event)" 
+        target="#calendar .fc-daygrid-day, #calendar .fc-event">
+      </ejs-contextmenu>
+
+      <!-- Debug Info (Development Only) -->
+      @if (false) { <!-- Set to true for debugging -->
+        <div class="debug-panel">
+          <h4>Debug Information</h4>
+          <pre>{{ debugInfo | json }}</pre>
+        </div>
+      }
+    }
   </div>
