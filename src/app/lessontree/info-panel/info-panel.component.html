@@ -1,35 +1,42 @@
-<!-- src/app/lessontree/info-panel/info-panel.component.html -->
+<!-- src/app/lessontree/info-panel/info-panel.component.html - COMPLETE FILE (OPTIMIZED) -->
 <div class="info-panel-wrapper">
-    @if ((activeNode || mode === 'add')) {
-      @if ((activeNode?.nodeType === 'Course' && mode !== 'add') || (mode === 'add' && addPanelType === 'Course')) {
+    @if (hasSelection() || mode === 'add') {
+      
+      @if (showCoursePanel()) {
         @if (course) {
-            <course-panel
-                [data]="course"
-            ></course-panel>
+          <course-panel [data]="course"></course-panel>
         }
       }
-      @if ((activeNode?.nodeType === 'Topic' && mode !== 'add') || (mode === 'add' && addPanelType === 'Topic')) {
+      
+      @if (showTopicPanel()) {
         @if (topic) {
-            <topic-panel 
-                [data]="topic" 
-            ></topic-panel>
+          <topic-panel [data]="topic"></topic-panel>
         }
       }
-      @if ((activeNode?.nodeType === 'SubTopic' && mode !== 'add') || (mode === 'add' && addPanelType === 'SubTopic')) {
+      
+      @if (showSubTopicPanel()) {
         @if (subtopic) {
-            <subtopic-panel
-            [data]="subtopic"
-          ></subtopic-panel>
+          <subtopic-panel [data]="subtopic"></subtopic-panel>
         }
       }
-      @if ((activeNode?.nodeType === 'Lesson' && mode !== 'add') || (mode === 'add' && addPanelType === 'Lesson')) {
+      
+      @if (showLessonPanel()) {
         @if (lessonDetail) {
-            <lesson-info-panel
-            [lessonDetail]="lessonDetail"
-          ></lesson-info-panel>
+          <lesson-info-panel [lessonDetail]="lessonDetail"></lesson-info-panel>
         }
       }
+      
     } @else {
-      <p>Select a node to view or add a new item.</p>
+      <div class="no-selection-message">
+        <h3>No Selection</h3>
+        <p>Select a node from the tree to view its details, or add a new item.</p>
+        
+        <!-- Optional: Show selection stats for debugging -->
+        @if (selectedNode(); as node) {
+            <div class="selection-stats">
+              <small>Selected: {{ node.nodeType }}</small>
+            </div>
+          }
+      </div>
     }
   </div>

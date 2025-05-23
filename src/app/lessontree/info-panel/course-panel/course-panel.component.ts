@@ -1,10 +1,12 @@
-import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
+// src/app/lessontree/info-panel/course-panel/course-panel.component.ts - COMPLETE FILE (OPTIMIZED)
+import { Component, Input, OnChanges, SimpleChanges, OnInit, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../../models/course';
 import { UserService } from '../../../core/services/user.service';
 import { PanelStateService } from '../../../core/services/panel-state.service';
+import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { ToastrService } from 'ngx-toastr';
 import { CourseCrudService } from '../../../core/services/course-crud.service';
 
@@ -18,16 +20,25 @@ import { CourseCrudService } from '../../../core/services/course-crud.service';
 export class CoursePanelComponent implements OnChanges, OnInit {
   private _data: Course | null = null;
 
+  // Inject NodeSelectionService for access to selection signals
+  private readonly nodeSelectionService = inject(NodeSelectionService);
+  
+  // Expose useful signals for potential template use
+  readonly selectedCourse = this.nodeSelectionService.selectedCourse;
+  readonly hasSelection = this.nodeSelectionService.hasSelection;
+
   @Input()
   set data(value: Course | null) {
     this._data = value;
-    console.log(`[CoursePanel] Data set`, { title: this._data?.title ?? 'New Course', timestamp: new Date().toISOString() });
+    console.log(`[CoursePanel] Data set`, { 
+      title: this._data?.title ?? 'New Course', 
+      timestamp: new Date().toISOString() 
+    });
   }
   get data(): Course | null {
     return this._data;
   }
 
-  // Remove Input/Output for mode - now consumed from service
   originalData: Course | null = null;
 
   get hasDistrictId(): boolean {
@@ -52,7 +63,9 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[CoursePanel] Mode changed to: ${currentMode}`, { timestamp: new Date().toISOString() });
+      console.log(`[CoursePanel] Mode changed to: ${currentMode}`, { 
+        timestamp: new Date().toISOString() 
+      });
       this.updateEditingState();
     });
 
@@ -63,7 +76,20 @@ export class CoursePanelComponent implements OnChanges, OnInit {
       
       if (mode === 'add' && template && template.nodeType === 'Course') {
         this._data = template as Course;
-        console.log(`[CoursePanel] Using template for new course`, { timestamp: new Date().toISOString() });
+        console.log(`[CoursePanel] Using template for new course`, { 
+          timestamp: new Date().toISOString() 
+        });
+      }
+    });
+
+    // Optional: React to course selection changes for enhanced UX
+    effect(() => {
+      const selectedCourse = this.selectedCourse();
+      if (selectedCourse && this.mode === 'view') {
+        console.log(`[CoursePanel] Selected course changed: ${selectedCourse['title']}`, {
+          timestamp: new Date().toISOString()
+        });
+        // Could add visual indicators, validation, etc.
       }
     });
   }
@@ -108,14 +134,22 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         next: (createdCourse) => {
           this.data = createdCourse;
           this.panelStateService.setMode('view');
-          console.log(`[CoursePanel] Course created`, { 
+          
+          // Auto-select the newly created course
+          //this.nodeSelectionService.selectNode(createdCourse, 'infopanel');
+          
+          console.log(`[CoursePanel] Course created and selected`, { 
             title: createdCourse.title, 
+            id: createdCourse.id,
             timestamp: new Date().toISOString() 
           });
           this.toastr.success(`Course "${createdCourse.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[CoursePanel] Error creating course`, { error, timestamp: new Date().toISOString() });
+          console.error(`[CoursePanel] Error creating course`, { 
+            error, 
+            timestamp: new Date().toISOString() 
+          });
           this.toastr.error('Failed to create course: ' + error.message, 'Error');
         }
       });
@@ -124,6 +158,10 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         next: (updatedCourse) => {
           this.panelStateService.setMode('view');
           this.originalData = null;
+          
+          // Update the selection with the latest data
+          //this.nodeSelectionService.selectNode(updatedCourse, 'infopanel');
+          
           console.log(`[CoursePanel] Course updated`, { 
             title: updatedCourse.title, 
             timestamp: new Date().toISOString() 
@@ -131,7 +169,10 @@ export class CoursePanelComponent implements OnChanges, OnInit {
           this.toastr.success(`Course "${updatedCourse.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[CoursePanel] Error updating course`, { error, timestamp: new Date().toISOString() });
+          console.error(`[CoursePanel] Error updating course`, { 
+            error, 
+            timestamp: new Date().toISOString() 
+          });
           this.toastr.error('Failed to update course: ' + error.message, 'Error');
         }
       });

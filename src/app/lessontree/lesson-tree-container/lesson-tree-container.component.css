@@ -1,7 +1,17 @@
-/* Status bar hover functionality */
-.status-bar-container {
-    position: relative;
-    z-index: 100;
+/* src/app/lessontree/lesson-tree-container/lesson-tree-container.component.css */
+:host {
+    display: block;
+    height: calc(100vh - 64px); /* Adjust for toolbar height (64px is Material toolbar default) */
+  }
+  
+  /* Status Bar Styles */
+  .status-bar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    height: 0; /* No height by default */
   }
   
   .hover-trigger-zone {
@@ -9,8 +19,8 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 20px; /* Invisible zone to trigger hover */
-    z-index: 101;
+    height: 12px; /* Slightly larger hover area */
+    z-index: 1000;
   }
   
   .status-bar {
@@ -18,13 +28,12 @@
     top: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
-    border-bottom: 1px solid #ddd;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background-color: #f0f5fa; /* Lighter blue-gray background */
+    border-bottom: 1px solid #c0d0e0; /* Softer border color */
     transform: translateY(-100%);
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 102;
-    backdrop-filter: blur(10px);
+    transition: transform 0.25s ease-in-out; /* Slightly slower for smoother reveal */
+    z-index: 999;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
   
   .status-bar.visible {
@@ -33,112 +42,177 @@
   
   .status-bar-content {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    padding: 8px 16px;
-    min-height: 48px;
-    gap: 24px;
+    padding: 12px 24px; /* More padding for better spacing */
+    max-width: 1400px; /* Limit width on very wide screens */
+    margin: 0 auto; /* Center the content */
   }
   
   .control-group {
     display: flex;
     align-items: center;
-    gap: 12px;
+    margin: 0 16px; /* Horizontal spacing between control groups */
+  }
+  
+  /* Drag Mode Toggle Styling */
+  .drag-mode-toggle {
+    display: flex;
+    align-items: center;
+  }
+  
+  .drag-mode-toggle ::ng-deep .mat-slide-toggle-label {
+    margin-right: 8px;
+  }
+  
+  .drag-mode-toggle ::ng-deep .mat-slide-toggle-bar {
+    background-color: #e0e0e0; /* Neutral color for both states */
+  }
+  
+  .drag-mode-toggle ::ng-deep.mat-slide-toggle.mat-checked .mat-slide-toggle-bar {
+    background-color: rgba(33, 150, 243, 0.5); /* Blue for copy mode */
+  }
+  
+  .drag-mode-toggle ::ng-deep .mat-slide-toggle-thumb {
+    background-color: #ffffff; /* White thumb */
+  }
+  
+  .drag-mode-toggle ::ng-deep.mat-slide-toggle.mat-checked .mat-slide-toggle-thumb {
+    background-color: #2196f3; /* Blue thumb for copy mode */
+  }
+  
+  .drag-mode-label {
+    font-weight: 500;
+    margin-right: 8px;
+    color: #555;
   }
   
   .control-label {
-    font-size: 13px;
-    font-weight: 500;
-    color: #424242;
     margin-left: 8px;
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .view-mode-selector {
+    margin-left: 24px; /* More space between controls */
+  }
+  
+  .view-mode-select {
+    min-width: 180px; /* Wider for better readability */
+    font-size: 14px;
   }
   
   .status-info {
     flex: 1;
+    text-align: center;
+    font-size: 15px;
+    color: #444;
+    font-weight: 500;
+  }
+  
+  /* Split Pane Styles */
+  as-split {
+    height: 100%;
+    width: 100%;
+    margin-top: 64px;
+  }
+  
+  as-split-area {
+    overflow-y: auto; /* Scroll if content overflows */
+    padding: 16px; /* Optional padding */
+    position: relative; /* Allow absolute positioning of overlay */
+  }
+  
+  .left-split-area, .middle-split-area, .right-split-area {
+    position: relative; /* Ensure overlay stays within this area */
+  }
+  
+  /* Sidebar Styles */
+  .sidebar {
+    background-color: #f8f9fa;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+    padding: 0 !important; /* Override default padding */
+  }
+  
+  .sidebar-header {
     display: flex;
-    justify-content: center;
     align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #ddd;
+    background-color: #f0f0f0;
   }
   
-  .app-status {
-    font-size: 12px;
-    color: #666;
-    background: rgba(33, 150, 243, 0.1);
-    padding: 4px 8px;
-    border-radius: 12px;
-    border: 1px solid rgba(33, 150, 243, 0.2);
+  .sidebar-header h3 {
+    margin: 0 0 0 8px;
+    font-size: 16px;
+    font-weight: 500;
   }
   
-  /* Smooth appearance animation */
-  .status-bar-content > * {
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out 0.1s;
+  /* Disable interactions only when disabled class is applied */
+  .left-split-area.disabled, .middle-split-area.disabled, .right-split-area.disabled {
+    pointer-events: none; /* Disable interactions when overlay is active */
   }
   
-  .status-bar.visible .status-bar-content > * {
-    opacity: 1;
-  }
-  
-  /* Main container styles */
-  .main-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  .left-split-area {
-    position: relative;
-  }
-  
+  /* Overlay styling */
   .overlay {
     position: absolute;
     top: 0;
     left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.1);
-    z-index: 10;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6); /* Increased opacity for visibility */
+    z-index: 10; /* Above content */
+    pointer-events: auto; /* Overlay captures events */
   }
   
-  .overlay.disabled {
-    pointer-events: none;
+  /* Ensure components are interactive by default */
+  .left-split-area course-list,
+  .right-split-area course-list,
+  .left-split-area app-lesson-calendar {
+    pointer-events: auto; /* Explicitly enable unless disabled */
+  }
+  
+  /* Optional: Customize the splitter (gutter) */
+  as-split ::ng-deep .as-split-gutter {
+    background-color: #ccc;
+    cursor: col-resize;
+    width: 4px; /* Thickness of the splitter */
+  }
+  
+  as-split ::ng-deep .as-split-gutter:hover {
+    background-color: #999;
+  }
+  
+  /* Placeholder Message */
+  .placeholder-message {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 64px - 40px); /* Adjust for toolbar and footer */
+    background-color: #f9f9f9;
+    color: #666;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .placeholder-message h2 {
+    margin-bottom: 10px;
+    color: #333;
+  }
+  
+  /* Main Container & Footer */
+  .main-container {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh; /* Full viewport height */
   }
   
   .footer {
-    background-color: #f5f5f5;
+    background-color: black;
+    color: white;
     padding: 10px;
     text-align: center;
-    border-top: 1px solid #ddd;
-    margin-top: auto;
-  }
-  
-  .footer a {
-    color: #666;
-    text-decoration: none;
-    font-size: 12px;
-  }
-  
-  .footer a:hover {
-    color: #333;
-    text-decoration: underline;
-  }
-  
-  /* Mobile adjustments */
-  @media (max-width: 768px) {
-    .hover-trigger-zone {
-      height: 30px; /* Larger touch target */
-    }
-    
-    .status-bar-content {
-      padding: 6px 12px;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-    
-    .control-label {
-      font-size: 12px;
-    }
-    
-    .drag-mode-toggle {
-      margin-right: 16px;
-    }
   }

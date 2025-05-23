@@ -1,4 +1,5 @@
 export interface User {
+    id: string;
     username: string;
     fullName: string; // Added to match the first interface
     district: number | null;

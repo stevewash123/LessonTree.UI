@@ -1,65 +1,232 @@
+// src/app/core/services/node-selection.service.ts - COMPLETE FILE (REFACTORED WITH SIGNALS)
 import { Injectable, signal, computed } from '@angular/core';
-import { TreeData } from '../../models/tree-node'; // Fixed import path
+import { TreeNode } from '../../models/tree-node';
 
-// Define selection source types
-export type SelectionSource = 'tree' | 'calendar' | 'service' | 'panel' | 'code';
+export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+export type SelectionSource = 'tree' | 'calendar' | 'infopanel' | 'programmatic';
+
+export interface SelectionEvent {
+  node: TreeNode | null;
+  source: SelectionSource;
+  timestamp: Date;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class NodeSelectionService {
-  // Main selection signal with source tracking
-  private selectionState = signal<{
-    node: TreeData | null;
-    source: SelectionSource;
-  }>({
-    node: null,
-    source: 'service'
+  // Private signals for internal state
+  private readonly _selectedNode = signal<TreeNode | null>(null);
+  private readonly _selectionSource = signal<SelectionSource>('programmatic');
+  private readonly _selectionHistory = signal<SelectionEvent[]>([]);
+
+  // Public readonly signals
+  readonly selectedNode = this._selectedNode.asReadonly();
+  readonly selectionSource = this._selectionSource.asReadonly();
+  readonly selectionHistory = this._selectionHistory.asReadonly();
+
+  // Computed signals for derived state
+  readonly hasSelection = computed(() => this._selectedNode() !== null);
+  readonly selectedNodeType = computed(() => this._selectedNode()?.nodeType || null);
+  readonly selectedNodeId = computed(() => this._selectedNode()?.id || null);
+  readonly isSelectedNodeType = computed(() => (type: NodeType) => this._selectedNode()?.nodeType === type);
+  
+  // Course-specific computed signals
+  readonly selectedCourse = computed(() => {
+    const node = this._selectedNode();
+    return node?.nodeType === 'Course' ? node : null;
   });
-  
-  // Computed signals for easy consumption
-  readonly selectedNode = computed(() => this.selectionState().node);
-  readonly selectionSource = computed(() => this.selectionState().source);
-  
-  constructor() {}
-  
-  // Method to select a node with source tracking
-  selectNode(node: TreeData | null, source: SelectionSource): void {
-    console.log(`[NodeSelectionService] Node selected by ${source}:`, {
-      nodeId: node?.nodeId || 'none',
-      nodeType: node?.nodeType || 'none',
+
+  readonly selectedTopic = computed(() => {
+    const node = this._selectedNode();
+    return node?.nodeType === 'Topic' ? node : null;
+  });
+
+  readonly selectedSubTopic = computed(() => {
+    const node = this._selectedNode();
+    return node?.nodeType === 'SubTopic' ? node : null;
+  });
+
+  readonly selectedLesson = computed(() => {
+    const node = this._selectedNode();
+    return node?.nodeType === 'Lesson' ? node : null;
+  });
+
+  // Selection count by type
+  readonly selectionStats = computed(() => {
+    const history = this._selectionHistory();
+    const stats = {
+      total: history.length,
+      byCourse: history.filter(e => e.node?.nodeType === 'Course').length,
+      byTopic: history.filter(e => e.node?.nodeType === 'Topic').length,
+      bySubTopic: history.filter(e => e.node?.nodeType === 'SubTopic').length,
+      byLesson: history.filter(e => e.node?.nodeType === 'Lesson').length,
+      bySource: {
+        tree: history.filter(e => e.source === 'tree').length,
+        calendar: history.filter(e => e.source === 'calendar').length,
+        infopanel: history.filter(e => e.source === 'infopanel').length,
+        programmatic: history.filter(e => e.source === 'programmatic').length
+      }
+    };
+    return stats;
+  });
+
+  constructor() {
+    console.log('[NodeSelectionService] Initialized with signals', { 
+      timestamp: new Date().toISOString() 
+    });
+  }
+
+  // Select a node with source tracking
+  selectNode(node: TreeNode | null, source: SelectionSource = 'programmatic'): void {
+    const previousNode = this._selectedNode();
+    
+    // Don't update if selecting the same node from the same source
+    if (previousNode === node && this._selectionSource() === source) {
+      console.log('[NodeSelectionService] Ignoring duplicate selection', {
+        nodeId: node?.id,
+        nodeType: node?.nodeType,
+        source,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Update signals
+    this._selectedNode.set(node);
+    this._selectionSource.set(source);
+
+    // Add to history
+    const selectionEvent: SelectionEvent = {
+      node,
+      source,
+      timestamp: new Date()
+    };
+    
+    const currentHistory = this._selectionHistory();
+    const updatedHistory = [...currentHistory, selectionEvent];
+    
+    // Keep only last 50 selections for performance
+    if (updatedHistory.length > 50) {
+      updatedHistory.shift();
+    }
+    
+    this._selectionHistory.set(updatedHistory);
+
+    console.log('[NodeSelectionService] Node selected', {
+      nodeId: node?.id,
+      nodeType: node?.nodeType,
+      source,
+      previousNodeId: previousNode?.id,
+      previousNodeType: previousNode?.nodeType,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Clear selection
+  clearSelection(source: SelectionSource = 'programmatic'): void {
+    console.log('[NodeSelectionService] Clearing selection', {
+      previousNodeId: this._selectedNode()?.id,
+      previousNodeType: this._selectedNode()?.nodeType,
+      source,
       timestamp: new Date().toISOString()
     });
     
-    // Log the previous state for comparison
-    const prevNode = this.selectedNode();
-    console.log(`[NodeSelectionService] Previous node:`, {
-      nodeId: prevNode?.nodeId || 'none',
-      nodeType: prevNode?.nodeType || 'none'
+    this.selectNode(null, source);
+  }
+
+  // Select by ID and type (useful for programmatic selection)
+  selectById(id: number, nodeType: NodeType, source: SelectionSource = 'programmatic'): void {
+    // Create a minimal TreeNode for selection
+    const node: TreeNode = {
+        id: id.toString(),
+        text: `${nodeType} ${id}`, // ADD THIS LINE
+        nodeType,
+        title: `${nodeType} ${id}`,
+        description: '',
+        archived: false,
+        visibility: 0, // Assuming public visibility
+        userId: 0, // Will be populated when full data is loaded
+        sortOrder: 0
+    };
+
+    console.log('[NodeSelectionService] Selecting by ID', {
+      id,
+      nodeType,
+      source,
+      timestamp: new Date().toISOString()
+    });
+
+    this.selectNode(node, source);
+  }
+
+  // Check if a specific node is selected
+  isNodeSelected(node: TreeNode): boolean {
+    const selected = this._selectedNode();
+    return selected !== null && 
+           selected.id === node.id && 
+           selected.nodeType === node.nodeType;
+  }
+
+  // Check if a node with specific ID and type is selected
+  isSelected(id: number, nodeType: NodeType): boolean {
+    const selected = this._selectedNode();
+    return selected !== null && 
+           selected.id === id.toString() && 
+           selected.nodeType === nodeType;
+  }
+
+  // Get recent selections of a specific type
+  getRecentSelectionsByType(nodeType: NodeType, limit: number = 10): SelectionEvent[] {
+    return this._selectionHistory()
+      .filter(event => event.node?.nodeType === nodeType)
+      .slice(-limit)
+      .reverse(); // Most recent first
+  }
+
+  // Get recent selections from a specific source
+  getRecentSelectionsBySource(source: SelectionSource, limit: number = 10): SelectionEvent[] {
+    return this._selectionHistory()
+      .filter(event => event.source === source)
+      .slice(-limit)
+      .reverse(); // Most recent first
+  }
+
+  // Clear selection history
+  clearHistory(): void {
+    console.log('[NodeSelectionService] Clearing selection history', {
+      previousHistoryLength: this._selectionHistory().length,
+      timestamp: new Date().toISOString()
     });
     
-    this.selectionState.set({ node, source });
-    
-    // Verify the state was updated
-    console.log(`[NodeSelectionService] State updated, current node:`, {
-      nodeId: this.selectedNode()?.nodeId || 'none',
-      nodeType: this.selectedNode()?.nodeType || 'none'
+    this._selectionHistory.set([]);
+  }
+
+  // Reset service state
+  reset(): void {
+    console.log('[NodeSelectionService] Resetting service state', {
+      timestamp: new Date().toISOString()
     });
+    
+    this._selectedNode.set(null);
+    this._selectionSource.set('programmatic');
+    this._selectionHistory.set([]);
   }
-  
-  // Clear the selection
-  clearSelection(source: SelectionSource = 'service'): void {
-    console.log(`[NodeSelectionService] Selection cleared by ${source}`, { timestamp: new Date().toISOString() });
-    this.selectionState.set({ node: null, source });
-  }
-  
-  // Check if the selection came from a specific source
-  isSelectedFrom(source: SelectionSource): boolean {
-    return this.selectionSource() === source;
-  }
-  
-  // Get the current node ID, convenience method
-  getSelectedNodeId(): string | undefined {
-    return this.selectedNode()?.nodeId;
+
+  // Utility method to get selection context info
+  getSelectionContext() {
+    const node = this._selectedNode();
+    const source = this._selectionSource();
+    const stats = this.selectionStats();
+    
+    return {
+      hasSelection: this.hasSelection(),
+      selectedNode: node,
+      selectedNodeType: node?.nodeType || null,
+      selectedNodeId: node?.id || null,
+      selectionSource: source,
+      selectionStats: stats,
+      timestamp: new Date().toISOString()
+    };
   }
 }

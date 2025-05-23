@@ -1,3 +1,4 @@
+<!-- src/app/lessontree/lesson-tree-container/lesson-tree-container.component.html -->
 <!-- Hover-reveal status bar -->
 <div class="status-bar-container" 
      (mouseenter)="onStatusBarHover(true)"
@@ -13,36 +14,48 @@
     <div class="status-bar-content">
       <!-- Drag Mode Control -->
       <div class="control-group">
+        <span class="drag-mode-label">Tree Drag Action:</span>
         <mat-slide-toggle 
           [checked]="nodeOperationsService.dragMode() === 'copy'"
           (change)="onDragModeToggle($event)"
           color="primary"
-          class="drag-mode-toggle">
+          class="drag-mode-toggle"
+          matTooltip="Toggle between Move and Copy mode for tree drag operations">
           <span class="control-label">
             {{ nodeOperationsService.dragMode() === 'move' ? 'Move' : 'Copy' }} Mode
           </span>
         </mat-slide-toggle>
       </div>
       
+      <!-- View Mode Selector -->
+      <div class="control-group view-mode-selector">
+        <mat-form-field appearance="outline" class="view-mode-select">
+          <mat-label>View Mode</mat-label>
+          <mat-select
+            [value]="viewModeService.viewMode()"
+            (selectionChange)="onViewModeChange($event.value)"
+            matTooltip="Change the layout view mode">
+            @for (option of viewModeService.viewModeOptions; track option.value) {
+              <mat-option [value]="option.value">{{ option.label }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      </div>
+      
       <!-- Status Information -->
       <div class="status-info">
-        <!-- Future status info can go here -->
         <span class="app-status">
           LessonTree
         </span>
       </div>
-      
-      <!-- Future controls can be added here -->
-      <div class="control-group">
-        <!-- Placeholder for future button -->
-      </div>
-      
     </div>
   </div>
 </div>
 
 <!-- Main container with splitter -->
 <div class="main-container">
+  <!-- Tree-Details Layout (Default) -->
+  @if (viewModeService.isTreeDetailsMode()) {
     <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
       <as-split-area [size]="sizes[0]" class="left-split-area">
         <course-list></course-list>
@@ -51,12 +64,51 @@
         }
       </as-split-area>
       <as-split-area [size]="sizes[1]">
-        <info-panel
-          #infoPanel
-        ></info-panel>
+        <info-panel #infoPanel></info-panel>
       </as-split-area>
     </as-split>
-    <footer class="footer">
-      <a href="#">Contact Info</a>
-    </footer>
-  </div>
+  }
+  
+  <!-- Tree-Calendar Layout -->
+  @if (viewModeService.isTreeCalendarMode()) {
+    <as-split direction="horizontal" (dragEnd)="onCalendarDragEnd($event)">
+      <as-split-area [size]="calendarSizes[0]" class="left-split-area">
+        <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
+      </as-split-area>
+      <as-split-area [size]="calendarSizes[1]" class="right-split-area">
+        <course-list></course-list>
+        @if (isOverlayActive) {
+          <div class="overlay" [ngClass]="{'disabled': isOverlayActive}"></div>
+        }
+      </as-split-area>
+    </as-split>
+  }
+  
+  <!-- Calendar-Details Layout -->
+  @if (viewModeService.isCalendarDetailsMode()) {
+    <as-split direction="horizontal" (dragEnd)="onCalendarDetailsDragEnd($event)">
+      <as-split-area [size]="calendarDetailsSizes[0]" class="left-split-area">
+        <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
+      </as-split-area>
+      <as-split-area [size]="calendarDetailsSizes[1]" class="middle-split-area">
+        <course-list></course-list>
+        @if (isOverlayActive) {
+          <div class="overlay" [ngClass]="{'disabled': isOverlayActive}"></div>
+        }
+      </as-split-area>
+      <as-split-area [size]="calendarDetailsSizes[2]" [visible]="viewModeService.sidebarVisible()" class="sidebar">
+        <div class="sidebar-header">
+          <button mat-icon-button (click)="toggleSidebar()">
+            <mat-icon>{{ viewModeService.sidebarVisible() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+          </button>
+          <h3>Lesson Details</h3>
+        </div>
+        <info-panel #sidebarInfoPanel></info-panel>
+      </as-split-area>
+    </as-split>
+  }
+  
+  <footer class="footer">
+    <a href="#">Contact Info</a>
+  </footer>
+</div>

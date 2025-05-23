@@ -1,0 +1,57 @@
+<div class="modal-container">
+    <h2>Configure School Year</h2>
+    <form [formGroup]="configForm">
+        <!-- First Row: Schedule Title -->
+        <mat-form-field>
+            <mat-label>Schedule Title</mat-label>
+            <input matInput formControlName="title" />
+            @if (configForm.get('title')?.hasError('required')) {
+                <mat-error>Title is required</mat-error>
+            }
+            @if (configForm.get('title')?.hasError('maxlength')) {
+                <mat-error>Maximum 200 characters</mat-error>
+            }
+        </mat-form-field>
+
+        <!-- Second Row: Start Date -->
+        <mat-form-field>
+            <mat-label>Start Date</mat-label>
+            <input matInput [matDatepicker]="picker" formControlName="startDate" />
+            <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+            <mat-datepicker #picker></mat-datepicker>
+            @if (configForm.get('startDate')?.hasError('required')) {
+                <mat-error>Start date is required</mat-error>
+            }
+        </mat-form-field>
+
+        <!-- Third Row: Number of School Days -->
+        <mat-form-field>
+            <mat-label>Number of School Days</mat-label>
+            <input matInput type="number" formControlName="numSchoolDays" />
+            @if (configForm.get('numSchoolDays')?.hasError('required')) {
+                <mat-error>Number of school days is required</mat-error>
+            }
+            @if (configForm.get('numSchoolDays')?.hasError('min')) {
+                <mat-error>Minimum 1 day</mat-error>
+            }
+            @if (configForm.get('numSchoolDays')?.hasError('max')) {
+                <mat-error>Maximum 365 days</mat-error>
+            }
+        </mat-form-field>
+
+        <!-- Fourth Row: Teaching Days -->
+        <div class="teaching-days">
+          <h3>Teaching Days</h3>
+          <div class="checkbox-group">
+            @for (day of weekdays; track day) {
+              <mat-checkbox [formControlName]="day">{{ day }}</mat-checkbox>
+            }
+          </div>
+        </div>
+
+        <div class="actions">
+            <button mat-button (click)="cancel()">Cancel</button>
+            <button mat-raised-button color="primary" (click)="save()" [disabled]="configForm.invalid || noTeachingDaySelected">Save</button>
+        </div>
+    </form>
+  </div>

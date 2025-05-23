@@ -1,5 +1,5 @@
-// src/app/lessontree/info-panel/info-panel.component.ts (partial)
-import { Component, ChangeDetectorRef, effect } from '@angular/core';
+// src/app/lessontree/info-panel/info-panel.component.ts - COMPLETE FILE (OPTIMIZED)
+import { Component, ChangeDetectorRef, effect, computed, inject } from '@angular/core';
 import { NodeSelectionService } from '../../core/services/node-selection.service';
 import { PanelMode, PanelStateService } from '../../core/services/panel-state.service';
 import { ApiService } from '../../core/services/api.service';
@@ -16,6 +16,7 @@ import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.componen
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CoursePanelComponent } from './course-panel/course-panel.component';
 import { CourseDataService } from '../../core/services/course-data.service';
+import { parseId } from '../../core/utils/type-conversion.utils';
 
 @Component({
   selector: 'info-panel',
@@ -31,44 +32,87 @@ import { CourseDataService } from '../../core/services/course-data.service';
   styleUrls: ['./info-panel.component.css']
 })
 export class InfoPanelComponent {
+  // Injected services - moved to top to fix initialization order
+  public readonly nodeSelectionService  = inject(NodeSelectionService);
+  private readonly panelStateService = inject(PanelStateService);
+  private readonly courseDataService = inject(CourseDataService);
+  private readonly apiService = inject(ApiService);
+  private readonly cdr = inject(ChangeDetectorRef);
 
-  // Local state - make activeNode public so it can be accessed in template
+  // Local state
   data: Course | Topic | SubTopic | LessonDetail | null = null;
-  activeNode: TreeData | null = null; // Changed from private to public
 
-  constructor(
-    private apiService: ApiService, 
-    private cdr: ChangeDetectorRef,
-    private nodeSelectionService: NodeSelectionService,
-    private panelStateService: PanelStateService,
-    private courseDataService: CourseDataService
-  ) {
-    console.log('[InfoPanel] Component constructed', { timestamp: new Date().toISOString() });
+  // Expose signals for template - much cleaner than local properties
+  readonly selectedNode = this.nodeSelectionService.selectedNode;
+  readonly hasSelection = this.nodeSelectionService.hasSelection;
+  readonly selectedNodeType = this.nodeSelectionService.selectedNodeType;
+  readonly selectedCourse = this.nodeSelectionService.selectedCourse;
+  readonly selectedTopic = this.nodeSelectionService.selectedTopic;
+  readonly selectedSubTopic = this.nodeSelectionService.selectedSubTopic;
+  readonly selectedLesson = this.nodeSelectionService.selectedLesson;
+
+  // Computed signals for template logic
+  readonly showCoursePanel = computed(() => {
+    const node = this.selectedNode();
+    const mode = this.panelStateService.panelMode();
+    const addType = this.panelStateService.addNodeType();
     
-    // Effect for node selection changes
+    return (node?.nodeType === 'Course' && mode !== 'add') || 
+           (mode === 'add' && addType === 'Course');
+  });
+
+  readonly showTopicPanel = computed(() => {
+    const node = this.selectedNode();
+    const mode = this.panelStateService.panelMode();
+    const addType = this.panelStateService.addNodeType();
+    
+    return (node?.nodeType === 'Topic' && mode !== 'add') || 
+           (mode === 'add' && addType === 'Topic');
+  });
+
+  readonly showSubTopicPanel = computed(() => {
+    const node = this.selectedNode();
+    const mode = this.panelStateService.panelMode();
+    const addType = this.panelStateService.addNodeType();
+    
+    return (node?.nodeType === 'SubTopic' && mode !== 'add') || 
+           (mode === 'add' && addType === 'SubTopic');
+  });
+
+  readonly showLessonPanel = computed(() => {
+    const node = this.selectedNode();
+    const mode = this.panelStateService.panelMode();
+    const addType = this.panelStateService.addNodeType();
+    
+    return (node?.nodeType === 'Lesson' && mode !== 'add') || 
+           (mode === 'add' && addType === 'Lesson');
+  });
+
+  // Legacy activeNode for backward compatibility (can be removed later)
+  activeNode: TreeData | null = null;
+
+  constructor() {
+    console.log('[InfoPanel] Component constructed with optimized signals', { 
+      timestamp: new Date().toISOString() 
+    });
+    
+    // Effect for node selection changes - much simpler now
     effect(() => {
-      const selectedNode = this.nodeSelectionService.selectedNode();
-      const source = this.nodeSelectionService.selectionSource();
+      const selectedNode = this.selectedNode();
+      const mode = this.panelStateService.panelMode();
       
-      console.log('[InfoPanel] Node selection effect running', {
-        selectedNodeId: selectedNode?.nodeId || 'none',
+      console.log('[InfoPanel] Selection effect running', {
+        selectedNodeId: selectedNode?.id || 'none',
         selectedNodeType: selectedNode?.nodeType || 'none',
-        source,
-        mode: this.panelStateService.panelMode(),
+        mode,
         timestamp: new Date().toISOString()
       });
       
-      // Only handle if there is a selected node and we're not in add mode
-      if (selectedNode && this.panelStateService.panelMode() !== 'add') {
-        console.log('[InfoPanel] Updating activeNode and loading data', {
-          nodeId: selectedNode.nodeId,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Update our local copy
-        this.activeNode = selectedNode;
-        
-        // Load the node data
+      // Update legacy activeNode for backward compatibility
+      this.activeNode = selectedNode as unknown as TreeData;
+      
+      // Only load data if there's a selection and we're not in add mode
+      if (selectedNode && mode !== 'add') {
         this.loadNodeData();
       }
     });
@@ -76,7 +120,9 @@ export class InfoPanelComponent {
     // Effect for panel mode changes
     effect(() => {
       const mode = this.panelStateService.panelMode();
-      console.log(`[InfoPanel] Panel mode effect running, mode: ${mode}`, { timestamp: new Date().toISOString() });
+      console.log(`[InfoPanel] Panel mode effect running, mode: ${mode}`, { 
+        timestamp: new Date().toISOString() 
+      });
       
       if (mode === 'add') {
         // For add mode, get the template from the service
@@ -84,7 +130,7 @@ export class InfoPanelComponent {
         const nodeType = this.panelStateService.addNodeType();
         
         console.log(`[InfoPanel] Add mode activated for ${nodeType}`, { 
-          templateId: template?.nodeId || 'none',
+          templateId: template?.id || 'none',
           timestamp: new Date().toISOString()
         });
         
@@ -105,50 +151,78 @@ export class InfoPanelComponent {
     // Reset data
     this.data = null;
     
-    console.log(`[InfoPanel] loadNodeData called`, { timestamp: new Date().toISOString() });
-    
-    if (!this.activeNode) {
-      console.warn('[InfoPanel] No active node to load', { timestamp: new Date().toISOString() });
+    const selectedNode = this.selectedNode();
+    if (!selectedNode) {
+      console.warn('[InfoPanel] No selected node to load', { 
+        timestamp: new Date().toISOString() 
+      });
       return;
     }
     
     console.log(`[InfoPanel] Loading data for node:`, {
-      nodeId: this.activeNode.nodeId,
-      nodeType: this.activeNode.nodeType,
+      nodeId: selectedNode.id,
+      nodeType: selectedNode.nodeType,
       timestamp: new Date().toISOString()
     });
     
-    switch (this.activeNode.nodeType) {
+    switch (selectedNode.nodeType) {
       case 'Course':
-        this.data = this.activeNode as Course;
-        console.log(`[InfoPanel] Loaded Course`, { title: this.data.title, timestamp: new Date().toISOString() });
+        const course = this.courseDataService.getCourseById(parseId(selectedNode.id));
+        this.data = course;
+        console.log(`[InfoPanel] Loaded Course from service`, { 
+          id: parseId(selectedNode.id),
+          title: course?.title,
+          timestamp: new Date().toISOString() 
+        });
         break;
       case 'Topic':
-        this.data = this.activeNode as Topic;
-        console.log(`[InfoPanel] Loaded Topic`, { title: this.data.title, timestamp: new Date().toISOString() });
+        const topic = this.courseDataService.getTopicById(parseId(selectedNode.id));
+        this.data = topic;
+        console.log(`[InfoPanel] Loaded Topic from service`, { 
+          id: parseId(selectedNode.id),
+          title: topic?.title,
+          timestamp: new Date().toISOString() 
+        });
         break;
       case 'SubTopic':
-        this.data = this.activeNode as SubTopic;
-        console.log(`[InfoPanel] Loaded SubTopic`, { title: this.data.title, timestamp: new Date().toISOString() });
+        const subTopic = this.courseDataService.getSubTopicById(parseId(selectedNode.id));
+        this.data = subTopic;
+        console.log(`[InfoPanel] Loaded SubTopic from service`, { 
+          id: parseId(selectedNode.id),
+          title: subTopic?.title,
+          timestamp: new Date().toISOString() 
+        });
         break;
       case 'Lesson':
-        this.fetchLessonDetails(this.activeNode.id).pipe(take(1)).subscribe({
+        this.fetchLessonDetails(parseId(selectedNode.id)).pipe(take(1)).subscribe({
           next: (detail) => {
             this.data = detail;
-            console.log(`[InfoPanel] Loaded LessonDetail`, { title: detail.title, timestamp: new Date().toISOString() });
+            console.log(`[InfoPanel] Loaded LessonDetail`, { 
+              title: detail.title, 
+              timestamp: new Date().toISOString() 
+            });
             this.cdr.detectChanges();
           },
-          error: (err) => console.error(`[InfoPanel] Failed to fetch LessonDetail`, { error: err, timestamp: new Date().toISOString() })
+          error: (err) => console.error(`[InfoPanel] Failed to fetch LessonDetail`, { 
+            error: err, 
+            timestamp: new Date().toISOString() 
+          })
         });
         break;
       default:
-        console.warn(`[InfoPanel] Unknown node type`, { nodeType: this.activeNode.nodeType, timestamp: new Date().toISOString() });
+        console.warn(`[InfoPanel] Unknown node type`, { 
+          nodeType: selectedNode.nodeType, 
+          timestamp: new Date().toISOString() 
+        });
     }
   }
 
   // Fetch lesson details from API
   fetchLessonDetails(lessonId: number): Observable<LessonDetail> {
-    console.log(`[InfoPanel] Fetching LessonDetail`, { id: lessonId, timestamp: new Date().toISOString() });
+    console.log(`[InfoPanel] Fetching LessonDetail`, { 
+      id: lessonId, 
+      timestamp: new Date().toISOString() 
+    });
     return this.apiService.get<LessonDetail>(`lesson/${lessonId}`);
   }
 
@@ -162,39 +236,31 @@ export class InfoPanelComponent {
     return this.panelStateService.addNodeType();
   }
   
-  // Helper properties for template binding
+  // Helper properties for template binding - using signals now
   get lessonDetail(): LessonDetail | null {
-    const activeNodeType = this.activeNode?.nodeType;
-    const isLesson = activeNodeType === 'Lesson' || 
-                    (this.mode === 'add' && this.addPanelType === 'Lesson');
-    return isLesson ? (this.data as LessonDetail) : null;
+    const showLesson = this.showLessonPanel();
+    return showLesson ? (this.data as LessonDetail) : null;
   }
 
   get topic(): Topic | null {
-    const activeNodeType = this.activeNode?.nodeType;
-    const isTopic = activeNodeType === 'Topic' || 
-                   (this.mode === 'add' && this.addPanelType === 'Topic');
-    return isTopic ? (this.data as Topic) : null;
+    const showTopic = this.showTopicPanel();
+    return showTopic ? (this.data as Topic) : null;
   }
 
   get subtopic(): SubTopic | null {
-    const activeNodeType = this.activeNode?.nodeType;
-    const isSubTopic = activeNodeType === 'SubTopic' || 
-                      (this.mode === 'add' && this.addPanelType === 'SubTopic');
-    return isSubTopic ? (this.data as SubTopic) : null;
+    const showSubTopic = this.showSubTopicPanel();
+    return showSubTopic ? (this.data as SubTopic) : null;
   }
 
   get course(): Course | null {
-    const activeNodeType = this.activeNode?.nodeType;
-    const isCourse = activeNodeType === 'Course' || 
-                    (this.mode === 'add' && this.addPanelType === 'Course');
-    return isCourse ? (this.data as Course) : null;
+    const showCourse = this.showCoursePanel();
+    return showCourse ? (this.data as Course) : null;
   }
   
   initiateAddMode(parentNode: TreeData | null, nodeType: NodeType, courseId?: number): void {
     console.log(`[InfoPanel] initiateAddMode called (forwarding to service)`, {
       nodeType,
-      parentNodeId: parentNode?.nodeId || 'none',
+      parentNodeId: parentNode?.id || 'none',
       courseId: courseId || 'none',
       timestamp: new Date().toISOString()
     });

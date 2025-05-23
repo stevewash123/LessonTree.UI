@@ -1,0 +1,24 @@
+<!-- src/app/lessontree/calendar/components/lesson-calendar.component.html - COMPLETE FILE -->
+<div class="calendar-container">
+    <!-- Schedule Controls Component -->
+    <app-schedule-controls
+      [visible]="showScheduleControls"
+      (scheduleSelected)="selectSchedule($event)"
+      (saveScheduleClicked)="saveSchedule()"
+      (createScheduleClicked)="openConfigModal()">
+    </app-schedule-controls>
+    
+    <!-- Full Calendar -->
+    <full-calendar 
+      #calendar 
+      [options]="calendarOptions">
+    </full-calendar>
+    
+    <!-- Context Menu -->
+    <ejs-contextmenu 
+      #contextMenu 
+      [items]="contextMenuItems" 
+      (select)="handleContextMenuSelect($event)" 
+      target="#calendar .fc-daygrid-day, #calendar .fc-event">
+    </ejs-contextmenu>
+  </div>

@@ -88,7 +88,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
             
             // Only process selections from sources other than the tree
             if (source !== 'tree' && node) {
-              this.handleExternalSelection(node);
+              //this.handleExternalSelection(node);
             }
           });
 
@@ -101,11 +101,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                     timestamp: new Date().toISOString()
                 });
                 
-                // Option 1: Refresh entire tree data (simpler, more reliable)
                 this.updateTreeData();
-                
-                // Option 2: Add node incrementally (more complex, faster)
-                // this.addNodeToTreeFromSignal(addedNode);
             }
         });
         
@@ -449,7 +445,7 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
             });
             
             // Update the service
-            this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
+            //this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
           } else {
             console.warn('[Tree] Node not found in tree data:', {
               nodeId: args.nodeData.id,

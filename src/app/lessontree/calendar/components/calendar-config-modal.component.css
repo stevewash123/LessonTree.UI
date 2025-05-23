@@ -1,0 +1,39 @@
+.modal-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 16px;
+  }
+
+  h2 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+  }
+
+  h3 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  mat-form-field {
+    width: 100%;
+    margin-bottom: 16px;
+  }
+
+  .teaching-days {
+    margin-bottom: 20px;
+  }
+
+  .checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }

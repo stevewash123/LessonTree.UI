@@ -1,9 +1,9 @@
+// src/app/core/services/user.service.ts - COMPLETE FILE
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { ApiService } from './api.service'; // Use ApiService for HTTP requests
 import { JwtHelperService } from '@auth0/angular-jwt';
 import { User } from '../../models/user';
-
 
 @Injectable({
   providedIn: 'root'
@@ -37,6 +37,17 @@ export class UserService {
         return;
       }
 
+      // Extract user ID (could be in 'sub', 'nameid', 'userId', or 'id' claim)
+      const userId = decoded.sub || decoded.nameid || decoded.userId || decoded.id;
+      const parsedUserId = userId ? parseInt(userId.toString(), 10) : null;
+      
+      if (!parsedUserId) {
+        console.error('[UserService] No user ID found in token claims');
+        this.userSubject.next(null);
+        observer.error('No user ID in token');
+        return;
+      }
+
       // Extract roles
       const roles = decoded.role
         ? Array.isArray(decoded.role)
@@ -56,8 +67,8 @@ export class UserService {
       const claims: { [key: string]: string | string[] } = {};
       for (const key in decoded) {
         if (Object.prototype.hasOwnProperty.call(decoded, key)) {
-          // Skip known properties that_are already mapped (e.g., role, districtId)
-          if (key === 'role' || key === 'districtId' || key === 'firstName' || key === 'lastName' || key === 'sub' || key === 'name' || key === 'iss' || key === 'aud' || key === 'exp' || key === 'iat') {
+          // Skip known properties that are already mapped
+          if (['role', 'districtId', 'firstName', 'lastName', 'sub', 'nameid', 'userId', 'id', 'name', 'iss', 'aud', 'exp', 'iat'].includes(key)) {
             continue;
           }
           claims[key] = decoded[key];
@@ -66,6 +77,7 @@ export class UserService {
 
       // Create the user object
       const user: User = {
+        id: parsedUserId.toString(), // Convert to string for User model
         username,
         fullName,
         district: districtId,
@@ -95,6 +107,12 @@ export class UserService {
   getDistrictId(): number | null {
     const user = this.getCurrentUser();
     return user?.district ?? null;
+  }
+
+  // Get the User ID
+  getUserId(): string | null {
+    const user = this.getCurrentUser();
+    return user?.id ?? null;
   }
 
   // Clear user data on logout
