@@ -1,3 +1,4 @@
+// src/app/lessontree/info-panel/topic-panel/topic-panel.component.ts - COMPLETE FILE (Signals Optimized)
 import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -20,13 +21,15 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   @Input()
   set data(value: Topic | null) {
     this._data = value;
-    console.log(`[TopicPanel] Data set`, { title: this._data?.title ?? 'New Topic', timestamp: new Date().toISOString() });
+    console.log(`[TopicPanel] Data set`, { 
+      title: this._data?.title ?? 'New Topic', 
+      timestamp: new Date().toISOString() 
+    });
   }
   get data(): Topic | null {
     return this._data;
   }
 
-  // Remove Input/Output for mode - now consumed from service
   originalData: Topic | null = null;
 
   get hasDistrictId(): boolean {
@@ -48,10 +51,16 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {
+    console.log('[TopicPanel] Component initialized with signals optimization', { 
+      timestamp: new Date().toISOString() 
+    });
+
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[TopicPanel] Mode changed to: ${currentMode}`, { timestamp: new Date().toISOString() });
+      console.log(`[TopicPanel] Mode changed to: ${currentMode}`, { 
+        timestamp: new Date().toISOString() 
+      });
       this.updateEditingState();
     });
 
@@ -62,7 +71,9 @@ export class TopicPanelComponent implements OnChanges, OnInit {
       
       if (mode === 'add' && template && template.nodeType === 'Topic') {
         this._data = template as Topic;
-        console.log(`[TopicPanel] Using template for new topic`, { timestamp: new Date().toISOString() });
+        console.log(`[TopicPanel] Using template for new topic`, { 
+          timestamp: new Date().toISOString() 
+        });
       }
     });
   }
@@ -114,7 +125,10 @@ export class TopicPanelComponent implements OnChanges, OnInit {
           this.toastr.success(`Topic "${createdTopic.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[TopicPanel] Error creating topic`, { error, timestamp: new Date().toISOString() });
+          console.error(`[TopicPanel] Error creating topic`, { 
+            error, 
+            timestamp: new Date().toISOString() 
+          });
           this.toastr.error('Failed to create topic: ' + error.message, 'Error');
         }
       });
@@ -130,7 +144,10 @@ export class TopicPanelComponent implements OnChanges, OnInit {
           this.toastr.success(`Topic "${updatedTopic.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[TopicPanel] Error updating topic`, { error, timestamp: new Date().toISOString() });
+          console.error(`[TopicPanel] Error updating topic`, { 
+            error, 
+            timestamp: new Date().toISOString() 
+          });
           this.toastr.error('Failed to update topic: ' + error.message, 'Error');
         }
       });

@@ -1,4 +1,5 @@
-import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ViewChild, AfterViewInit, OnInit, inject, effect } from '@angular/core';
+// src/app/lessontree/course-list/tree/tree-wrapper.component.ts - COMPLETE FILE (Phase 3B: Signals Integration)
+import { Component, Input, Output, EventEmitter, OnChanges, SimpleChanges, ViewChild, AfterViewInit, OnInit, inject, effect, computed } from '@angular/core';
 import { TreeViewComponent } from '@syncfusion/ej2-angular-navigations';
 import { Topic } from '../../../models/topic';
 import { NodeDeletedEvent, NodeMovedEvent, NodeType, TreeData, TreeNode } from '../../../models/tree-node';
@@ -59,18 +60,30 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
     private dragStartY: number = 0;
     private allowDrag: boolean = false;
 
+    // Computed signals for reactive data access
+    readonly currentCourse = computed(() => {
+        if (!this.courseId) return null;
+        return this.courseDataService.getCourseById(this.courseId);
+    });
+
+    readonly isCourseAvailable = computed(() => {
+        const course = this.currentCourse();
+        return course !== null && !course.archived;
+    });
+
     constructor(
         private nodeSelectionService: NodeSelectionService,
         private panelStateService: PanelStateService,
         private courseDataService: CourseDataService,
         private nodeOperationsService: NodeOperationsService,
         private courseCrudService: CourseCrudService
-      ) {
+    ) {
         
+        // Effect: React to course data changes from activeCourses signal
         effect(() => {
-            const courses = this.courseDataService.getCourses();
-            if (courses.length > 0 && this.courseId) {
-                const updatedCourse = courses.find(c => c.id === this.courseId);
+            const activeCourses = this.courseDataService.activeCourses();
+            if (activeCourses.length > 0 && this.courseId) {
+                const updatedCourse = activeCourses.find(c => c.id === this.courseId);
                 if (updatedCourse) {
                     console.log(`[Tree] Course data updated for course ${this.courseId}`, {
                         timestamp: new Date().toISOString()
@@ -78,6 +91,13 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                     
                     this.course = updatedCourse;
                     this.updateTreeData();
+                } else {
+                    // Course is not in activeCourses (filtered out or archived)
+                    console.log(`[Tree] Course ${this.courseId} not in active courses`, {
+                        timestamp: new Date().toISOString()
+                    });
+                    this.course = null;
+                    this.clearTreeData();
                 }
             }
         });
@@ -87,10 +107,10 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
             const source = this.nodeSelectionService.selectionSource();
             
             // Only process selections from sources other than the tree
-            if (source !== 'tree' && node) {
-              //this.handleExternalSelection(node);
+            if (source !== 'tree' && node && this.isNodeInThisCourse(node)) {
+                this.handleExternalSelection(node);
             }
-          });
+        });
 
         effect(() => {
             const addedNode = this.courseDataService.nodeAdded();
@@ -146,11 +166,19 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
                 this.updateTreeData();
             }
         });
-
-      }
+    }
 
     private isNodeInThisCourse(node: TreeData): boolean {
         return node.courseId === this.courseId;
+    }
+
+    private clearTreeData(): void {
+        this.treeData = [];
+        this.treeFields = { ...this.treeFields, dataSource: this.treeData };
+        
+        if (this.syncFuncTree) {
+            this.syncFuncTree.dataBind();
+        }
     }
 
     ngOnInit() {
@@ -172,85 +200,84 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
         }
     }
 
-
-      private createTreeNodeFromTreeData(treeData: TreeData): TreeNode {
+    private createTreeNodeFromTreeData(treeData: TreeData): TreeNode {
         // Create a TreeNode from a TreeData object
         const treeNode: TreeNode = {
-          id: treeData.nodeId,
-          text: this.getNodeText(treeData),
-          nodeType: treeData.nodeType,
-          hasChildren: this.getHasChildren(treeData),
-          original: treeData
+            id: treeData.nodeId,
+            text: this.getNodeText(treeData),
+            nodeType: treeData.nodeType,
+            hasChildren: this.getHasChildren(treeData),
+            original: treeData
         };
         
         return treeNode;
-      }
+    }
 
-      public onDataBound() {
+    public onDataBound() {
         console.log('Tree data bound completed for course:', this.course?.id);
         
         if (this.treeData && this.treeData.length > 0) {
-          console.log('Root node in tree:', this.treeData[0]);
+            console.log('Root node in tree:', this.treeData[0]);
                     
-          // Log node counts for debugging
-          let topicCount = 0;
-          let subTopicCount = 0;
-          let lessonCount = 0;
-          
-          if (this.treeData[0].child) {
-            topicCount = this.treeData[0].child.length;
+            // Log node counts for debugging
+            let topicCount = 0;
+            let subTopicCount = 0;
+            let lessonCount = 0;
             
-            for (const topic of this.treeData[0].child) {
-              if (topic.child) {
-                for (const child of topic.child) {
-                  if (child.nodeType === 'SubTopic') {
-                    subTopicCount++;
-                    if (child.child) {
-                      lessonCount += child.child.length;
+            if (this.treeData[0].child) {
+                topicCount = this.treeData[0].child.length;
+                
+                for (const topic of this.treeData[0].child) {
+                    if (topic.child) {
+                        for (const child of topic.child) {
+                            if (child.nodeType === 'SubTopic') {
+                                subTopicCount++;
+                                if (child.child) {
+                                    lessonCount += child.child.length;
+                                }
+                            } else if (child.nodeType === 'Lesson') {
+                                lessonCount++;
+                            }
+                        }
                     }
-                  } else if (child.nodeType === 'Lesson') {
-                    lessonCount++;
-                  }
                 }
-              }
             }
-          }
-          
-          console.log(`Tree statistics: ${topicCount} topics, ${subTopicCount} subtopics, ${lessonCount} lessons`);
+            
+            console.log(`Tree statistics: ${topicCount} topics, ${subTopicCount} subtopics, ${lessonCount} lessons`);
         }
-      }
-      
-      // Helper method to get the text property from different node types
-      private getNodeText(treeData: TreeData): string {
+    }
+    
+    // Helper method to get the text property from different node types
+    private getNodeText(treeData: TreeData): string {
         switch (treeData.nodeType) {
-          case 'Course':
-            return (treeData as Course).title;
-          case 'Topic':
-            return (treeData as Topic).title;
-          case 'SubTopic':
-            return (treeData as SubTopic).title;
-          case 'Lesson':
-            return (treeData as Lesson).title;
-          default:
-            return 'Unknown';
+            case 'Course':
+                return (treeData as Course).title;
+            case 'Topic':
+                return (treeData as Topic).title;
+            case 'SubTopic':
+                return (treeData as SubTopic).title;
+            case 'Lesson':
+                return (treeData as Lesson).title;
+            default:
+                return 'Unknown';
         }
-      }
-      
-      // Helper method to get hasChildren property
-      private getHasChildren(treeData: TreeData): boolean {
+    }
+    
+    // Helper method to get hasChildren property
+    private getHasChildren(treeData: TreeData): boolean {
         switch (treeData.nodeType) {
-          case 'Course':
-            return (treeData as Course).hasChildren ?? false;
-          case 'Topic':
-            return (treeData as Topic).hasChildren ?? false;
-          case 'SubTopic':
-            return (treeData as SubTopic).hasChildren ?? false;
-          case 'Lesson':
-            return false; // Lessons don't have children
-          default:
-            return false;
+            case 'Course':
+                return (treeData as Course).hasChildren ?? false;
+            case 'Topic':
+                return (treeData as Topic).hasChildren ?? false;
+            case 'SubTopic':
+                return (treeData as SubTopic).hasChildren ?? false;
+            case 'Lesson':
+                return false; // Lessons don't have children
+            default:
+                return false;
         }
-      }
+    }
 
     // Method to return a symbol/icon for each node type
     public getNodeTypeIcon(nodeType: string): string {
@@ -273,13 +300,13 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
             console.warn(`updateTreeData: No course available`);
             return;
         }
-    
+
         console.log('Updating tree data with course:', {
             courseId: this.courseId,
             courseTitle: this.course.title,
             topicsCount: this.course.topics?.length ?? 0
         });
-    
+
         // Create the course node
         const courseNode: TreeNode = {
             id: this.course.nodeId || this.courseId.toString(),
@@ -289,9 +316,9 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
             original: this.course,
             expanded: false
         };
-    
+
         console.log('Created course node:', courseNode);
-    
+
         // Create child nodes for topics
         if (this.course.topics && this.course.topics.length > 0) {
             courseNode.child = this.course.topics
@@ -329,9 +356,9 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
         } else {
             courseNode.child = [];
         }
-    
+
         console.log('Tree data being set:', [courseNode]);
-    
+
         this.treeData = [courseNode];
         this.treeFields = { ...this.treeFields, dataSource: this.treeData };
         
@@ -429,35 +456,35 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
 
     public emitNodeSelected(args: any) {
         console.log('[Tree] Node selected in tree:', {
-          nodeId: args.nodeData?.id || 'none',
-          timestamp: new Date().toISOString()
+            nodeId: args.nodeData?.id || 'none',
+            timestamp: new Date().toISOString()
         });
         
         if (args.nodeData && args.nodeData.id) {
-          // Find the node in our tree data using the ID from the event
-          const selectedTreeNode = this.findNodeById(this.treeData, args.nodeData.id);
-          
-          if (selectedTreeNode && selectedTreeNode.original) {
-            console.log('[Tree] Found node in tree data:', {
-              nodeId: selectedTreeNode.original.nodeId, 
-              nodeType: selectedTreeNode.original.nodeType,
-              timestamp: new Date().toISOString()
-            });
+            // Find the node in our tree data using the ID from the event
+            const selectedTreeNode = this.findNodeById(this.treeData, args.nodeData.id);
             
-            // Update the service
-            this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
-          } else {
-            console.warn('[Tree] Node not found in tree data:', {
-              nodeId: args.nodeData.id,
-              timestamp: new Date().toISOString()
-            });
-          }
+            if (selectedTreeNode && selectedTreeNode.original) {
+                console.log('[Tree] Found node in tree data:', {
+                    nodeId: selectedTreeNode.original.nodeId, 
+                    nodeType: selectedTreeNode.original.nodeType,
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Update the service
+                this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
+            } else {
+                console.warn('[Tree] Node not found in tree data:', {
+                    nodeId: args.nodeData.id,
+                    timestamp: new Date().toISOString()
+                });
+            }
         }
-      }
+    }
 
-      private handleExternalSelection(node: TreeData) {
+    private handleExternalSelection(node: TreeData) {
         if (!this.syncFuncTree || !this.treeData?.length) {
-          return;
+            return;
         }
         
         console.log(`[Tree] Handling external selection for node: ${node.nodeId}`, { timestamp: new Date().toISOString() });
@@ -466,17 +493,17 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
         const nodeInTree = this.findNodeById(this.treeData, node.nodeId);
         
         if (nodeInTree) {
-          // Use the SyncFusion API to select this node without triggering events
-          try {
-            this.syncFuncTree.selectedNodes = [nodeInTree.id];
-            console.log(`[Tree] Updated tree selection to match external selection`, { timestamp: new Date().toISOString() });
-          } catch (err) {
-            console.error(`[Tree] Error updating tree selection:`, err, { timestamp: new Date().toISOString() });
-          }
+            // Use the SyncFusion API to select this node without triggering events
+            try {
+                this.syncFuncTree.selectedNodes = [nodeInTree.id];
+                console.log(`[Tree] Updated tree selection to match external selection`, { timestamp: new Date().toISOString() });
+            } catch (err) {
+                console.error(`[Tree] Error updating tree selection:`, err, { timestamp: new Date().toISOString() });
+            }
         } else {
-          console.warn(`[Tree] External node not found in tree`, { nodeId: node.nodeId, timestamp: new Date().toISOString() });
+            console.warn(`[Tree] External node not found in tree`, { nodeId: node.nodeId, timestamp: new Date().toISOString() });
         }
-      }
+    }
 
     public onNodeDragStart(args: any) {
         this.dragStartX = args.event.pageX;
@@ -653,28 +680,28 @@ export class TreeWrapperComponent implements OnInit, AfterViewInit {
         const node = this.findNodeById(this.treeData, nodeId);
         
         if (!node || !node.original) {
-          console.warn('[Tree] Could not find node data for add child action:', { nodeId, timestamp: new Date().toISOString() });
-          return;
+            console.warn('[Tree] Could not find node data for add child action:', { nodeId, timestamp: new Date().toISOString() });
+            return;
         }
         
         const treeData = node.original as TreeData;
         console.log(`[Tree] initiateAddChildNode requested for: ${treeData.nodeId}`, { nodeType: treeData.nodeType, timestamp: new Date().toISOString() });
         
         if (treeData.nodeType === 'Course') {
-          // For courses, add a Topic
-          this.panelStateService.initiateAddMode('Topic', treeData, treeData.id);
+            // For courses, add a Topic
+            this.panelStateService.initiateAddMode('Topic', treeData, treeData.id);
         } else if (treeData.nodeType === 'Topic') {
-          const topic = treeData as Topic;
-          const hasSubTopics = (topic.subTopics?.length ?? 0) > 0;
-          // For topics, add either a SubTopic (if already has subtopics) or Lesson
-          const childType = hasSubTopics ? 'SubTopic' : 'Lesson';
-          this.panelStateService.initiateAddMode(childType, treeData);
+            const topic = treeData as Topic;
+            const hasSubTopics = (topic.subTopics?.length ?? 0) > 0;
+            // For topics, add either a SubTopic (if already has subtopics) or Lesson
+            const childType = hasSubTopics ? 'SubTopic' : 'Lesson';
+            this.panelStateService.initiateAddMode(childType, treeData);
         } else if (treeData.nodeType === 'SubTopic') {
-          // For subtopics, add a Lesson
-          this.panelStateService.initiateAddMode('Lesson', treeData);
+            // For subtopics, add a Lesson
+            this.panelStateService.initiateAddMode('Lesson', treeData);
         }
-      }
-    
+    }
+
     public deleteNode(data: any) {
         const nodeId = data.id;
         const node = this.findNodeById(this.treeData, nodeId);

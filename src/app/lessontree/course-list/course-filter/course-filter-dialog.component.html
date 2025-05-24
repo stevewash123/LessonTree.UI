@@ -1,5 +1,14 @@
 <mat-dialog-content>
     <div class="filter-group">
+      <label>Search:</label>
+      <input 
+        type="text" 
+        placeholder="Search courses..."
+        [(ngModel)]="searchTerm"
+        class="search-input">
+    </div>
+    
+    <div class="filter-group">
       <label>Show:</label>
       <mat-radio-group [(ngModel)]="courseFilter">
         <mat-radio-button value="active">Active</mat-radio-button>
@@ -7,6 +16,7 @@
         <mat-radio-button value="both">Both</mat-radio-button>
       </mat-radio-group>
     </div>
+    
     @if (hasDistrictId) {
       <div class="filter-group">
         <label>Visibility:</label>

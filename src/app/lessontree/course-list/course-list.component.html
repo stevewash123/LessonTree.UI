@@ -1,11 +1,21 @@
 <!-- src/app/lessontree/course-list/course-list.component.html -->
 <div class="course-list-wrapper">
     <div class="course-header-container">
-      <h2 class="courses-header">Courses ({{courseDataService.getCourses().length || 0}})</h2>
+      <h2 class="courses-header">Courses ({{courseDataService.coursesCount()}})</h2>
       <mat-icon class="filter-icon" (click)="openFilterDialog()" matTooltip="Filter Courses">filter_list</mat-icon>
     </div>
     
-    @for (course of courseDataService.getCourses(); track course.id) {        
+    <!-- Local search input -->
+    <div class="search-container">
+      <input 
+        type="text" 
+        placeholder="Search courses..."
+        [value]="localSearchTerm"
+        (input)="onSearchInput($event)"
+        class="search-input">
+    </div>
+    
+    @for (course of displayCourses(); track course.id) {        
       <mat-card class="course-card">
         <div class="tree-view-container">
           <app-tree
@@ -14,6 +24,18 @@
           ></app-tree>
         </div>
       </mat-card>
+    }
+    
+    @if (displayCourses().length === 0 && courseDataService.hasData()) {
+      <div class="no-results-message">
+        <p>No courses match your search criteria.</p>
+      </div>
+    }
+    
+    @if (courseDataService.isEmpty()) {
+      <div class="empty-state-message">
+        <p>No courses found. Create your first course to get started.</p>
+      </div>
     }
     
     <div class="add-course-button">

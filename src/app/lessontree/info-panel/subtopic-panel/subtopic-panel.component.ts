@@ -1,4 +1,4 @@
-// src/app/lessontree/info-panel/subtopic-panel/subtopic-panel.component.ts
+// src/app/lessontree/info-panel/subtopic-panel/subtopic-panel.component.ts - COMPLETE FILE (Signals Optimized)
 import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -17,15 +17,12 @@ import { CourseCrudService } from '../../../core/services/course-crud.service';
 })
 export class SubtopicPanelComponent implements OnChanges, OnInit {
   private _data: SubTopic | null = null;
-  private instanceId = Math.random().toString(36).substring(2, 8);
 
   @Input()
   set data(value: SubTopic | null) {
     this._data = value;
-    this.textData = JSON.stringify(this._data ?? {});
-    console.log(`[SubtopicPanel:${this.instanceId}] Data set`, { 
+    console.log(`[SubtopicPanel] Data set`, { 
       title: this._data?.title ?? 'New SubTopic', 
-      mode: this.mode, 
       timestamp: new Date().toISOString() 
     });
   }
@@ -33,10 +30,9 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     return this._data;
   }
   
-  textData: string = '';
   originalData: SubTopic | null = null;
 
-  // Computed properties from centralized service
+  // Access mode from centralized service
   get mode() {
     return this.panelStateService.panelMode();
   }
@@ -55,10 +51,14 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {
+    console.log('[SubtopicPanel] Component initialized with signals optimization', { 
+      timestamp: new Date().toISOString() 
+    });
+
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[SubtopicPanel:${this.instanceId}] Mode changed to: ${currentMode}`, { 
+      console.log(`[SubtopicPanel] Mode changed to: ${currentMode}`, { 
         timestamp: new Date().toISOString() 
       });
       this.updateEditingState();
@@ -71,8 +71,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
       
       if (mode === 'add' && template && template.nodeType === 'SubTopic') {
         this._data = template as SubTopic;
-        this.textData = JSON.stringify(this._data);
-        console.log(`[SubtopicPanel:${this.instanceId}] Using template for new subtopic`, { 
+        console.log(`[SubtopicPanel] Using template for new subtopic`, { 
           timestamp: new Date().toISOString() 
         });
       }
@@ -80,15 +79,6 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
   }
 
   ngOnInit(): void {
-    console.log(`[SubtopicPanel:${this.instanceId}] ngOnInit`, { 
-      mode: this.mode, 
-      isEditing: this.isEditing, 
-      data: this._data, 
-      timestamp: new Date().toISOString() 
-    });
-    if (this._data) {
-      this.textData = JSON.stringify(this._data);
-    }
     this.updateEditingState();
   }
 
@@ -99,28 +89,24 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
   }
 
   private updateEditingState() {
-    console.log(`[SubtopicPanel:${this.instanceId}] updateEditingState`, { 
-      mode: this.mode, 
-      isEditing: this.isEditing, 
-      timestamp: new Date().toISOString() 
-    });
-    
     if (this.mode === 'edit' && this.data && !this.originalData) {
       this.originalData = { ...this.data };
+      console.log(`[SubtopicPanel] Stored original data for editing: ${this.originalData.title}`);
     } else if (this.mode === 'add' && this.data) {
       this.data.archived = false;
       if (!this.hasDistrictId) {
         this.data.visibility = 'Private';
       }
       this.originalData = null;
+      console.log('[SubtopicPanel] In add mode, cleared original data');
     }
   }
 
   enterEditMode() {
     if (this.data) {
       this.originalData = { ...this.data };
-      this.panelStateService.setMode('edit'); // Fixed: was incorrectly 'view'
-      console.log(`[SubtopicPanel:${this.instanceId}] Entered edit mode for ${this.data.title}`);
+      this.panelStateService.setMode('edit');
+      console.log(`[SubtopicPanel] Entered edit mode for ${this.data.title}`);
     }
   }
 
@@ -132,15 +118,14 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
         next: (createdSubTopic) => {
           this.data = createdSubTopic;
           this.panelStateService.setMode('view');
-          console.log(`[SubtopicPanel:${this.instanceId}] SubTopic created`, { 
+          console.log(`[SubtopicPanel] SubTopic created`, { 
             title: createdSubTopic.title, 
-            nodeId: createdSubTopic.nodeId, 
             timestamp: new Date().toISOString() 
           });
           this.toastr.success(`SubTopic "${createdSubTopic.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[SubtopicPanel:${this.instanceId}] Error creating subtopic`, { 
+          console.error(`[SubtopicPanel] Error creating subtopic`, { 
             error, 
             timestamp: new Date().toISOString() 
           });
@@ -152,14 +137,14 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
         next: (updatedSubTopic) => {
           this.panelStateService.setMode('view');
           this.originalData = null;
-          console.log(`[SubtopicPanel:${this.instanceId}] SubTopic updated`, { 
+          console.log(`[SubtopicPanel] SubTopic updated`, { 
             title: updatedSubTopic.title, 
             timestamp: new Date().toISOString() 
           });
           this.toastr.success(`SubTopic "${updatedSubTopic.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[SubtopicPanel:${this.instanceId}] Error updating subtopic`, { 
+          console.error(`[SubtopicPanel] Error updating subtopic`, { 
             error, 
             timestamp: new Date().toISOString() 
           });
@@ -172,9 +157,10 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
   cancel() {
     if (this.data && this.originalData && this.mode === 'edit') {
       Object.assign(this.data, this.originalData);
+      console.log(`[SubtopicPanel] Reverted changes to ${this.data.title}`);
     }
     this.panelStateService.setMode('view');
     this.originalData = null;
-    console.log(`[SubtopicPanel:${this.instanceId}] Cancelled ${this.mode} mode`);
+    console.log(`[SubtopicPanel] Cancelled ${this.mode} mode`);
   }
 }

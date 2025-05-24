@@ -1,12 +1,11 @@
-// src/app/lessontree/info-panel/course-panel/course-panel.component.ts - COMPLETE FILE (OPTIMIZED)
-import { Component, Input, OnChanges, SimpleChanges, OnInit, effect, inject } from '@angular/core';
+// src/app/lessontree/info-panel/course-panel/course-panel.component.ts - COMPLETE FILE (Signals Optimized)
+import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../../models/course';
 import { UserService } from '../../../core/services/user.service';
 import { PanelStateService } from '../../../core/services/panel-state.service';
-import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { ToastrService } from 'ngx-toastr';
 import { CourseCrudService } from '../../../core/services/course-crud.service';
 
@@ -19,13 +18,6 @@ import { CourseCrudService } from '../../../core/services/course-crud.service';
 })
 export class CoursePanelComponent implements OnChanges, OnInit {
   private _data: Course | null = null;
-
-  // Inject NodeSelectionService for access to selection signals
-  private readonly nodeSelectionService = inject(NodeSelectionService);
-  
-  // Expose useful signals for potential template use
-  readonly selectedCourse = this.nodeSelectionService.selectedCourse;
-  readonly hasSelection = this.nodeSelectionService.hasSelection;
 
   @Input()
   set data(value: Course | null) {
@@ -60,6 +52,10 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {
+    console.log('[CoursePanel] Component initialized with signals optimization', { 
+      timestamp: new Date().toISOString() 
+    });
+
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
@@ -79,17 +75,6 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         console.log(`[CoursePanel] Using template for new course`, { 
           timestamp: new Date().toISOString() 
         });
-      }
-    });
-
-    // Optional: React to course selection changes for enhanced UX
-    effect(() => {
-      const selectedCourse = this.selectedCourse();
-      if (selectedCourse && this.mode === 'view') {
-        console.log(`[CoursePanel] Selected course changed: ${selectedCourse['title']}`, {
-          timestamp: new Date().toISOString()
-        });
-        // Could add visual indicators, validation, etc.
       }
     });
   }
@@ -135,10 +120,7 @@ export class CoursePanelComponent implements OnChanges, OnInit {
           this.data = createdCourse;
           this.panelStateService.setMode('view');
           
-          // Auto-select the newly created course
-          //this.nodeSelectionService.selectNode(createdCourse, 'infopanel');
-          
-          console.log(`[CoursePanel] Course created and selected`, { 
+          console.log(`[CoursePanel] Course created`, { 
             title: createdCourse.title, 
             id: createdCourse.id,
             timestamp: new Date().toISOString() 
@@ -158,9 +140,6 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         next: (updatedCourse) => {
           this.panelStateService.setMode('view');
           this.originalData = null;
-          
-          // Update the selection with the latest data
-          //this.nodeSelectionService.selectNode(updatedCourse, 'infopanel');
           
           console.log(`[CoursePanel] Course updated`, { 
             title: updatedCourse.title, 

@@ -1,4 +1,4 @@
-// src/app/lessontree/info-panel/lesson-info-panel/lesson-info-panel.component.ts
+// src/app/lessontree/info-panel/lesson-info-panel/lesson-info-panel.component.ts - COMPLETE FILE (Signals Optimized)
 import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -36,17 +36,23 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   @Input()
   set lessonDetail(value: LessonDetail | null) {
     this._lessonDetail = value;
-    console.log(`[LessonInfoPanel] LessonDetail set: ${this._lessonDetail?.title || 'New Lesson'}, timestamp: ${new Date().toISOString()}`);
+    console.log(`[LessonInfoPanel] LessonDetail set`, { 
+      title: this._lessonDetail?.title ?? 'New Lesson', 
+      timestamp: new Date().toISOString() 
+    });
   }
   get lessonDetail(): LessonDetail | null {
     return this._lessonDetail;
   }
 
+  originalLessonDetail: LessonDetail | null = null;
+  isStandardsEditing: boolean = false;
+
   get hasDistrictId(): boolean {
     return !!this.userService.getDistrictId(); 
   }
 
-  // Computed properties from centralized service
+  // Access mode from centralized service
   get mode() {
     return this.panelStateService.panelMode();
   }
@@ -54,9 +60,6 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   get isEditing(): boolean {
     return this.mode === 'edit' || this.mode === 'add';
   }
-  
-  isStandardsEditing: boolean = false;
-  originalLessonDetail: LessonDetail | null = null;
 
   constructor(
     private userService: UserService,
@@ -64,10 +67,16 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
     private courseCrudService: CourseCrudService,
     private toastr: ToastrService
   ) {
+    console.log('[LessonInfoPanel] Component initialized with signals optimization', { 
+      timestamp: new Date().toISOString() 
+    });
+
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[LessonInfoPanel] Mode changed to: ${currentMode}`, { timestamp: new Date().toISOString() });
+      console.log(`[LessonInfoPanel] Mode changed to: ${currentMode}`, { 
+        timestamp: new Date().toISOString() 
+      });
       this.updateEditingState();
     });
 
@@ -77,8 +86,10 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
       const mode = this.panelStateService.panelMode();
       
       if (mode === 'add' && template && template.nodeType === 'Lesson') {
-        this._lessonDetail = template as LessonDetail; // Fixed: use _lessonDetail, not _data
-        console.log(`[LessonInfoPanel] Using template for new lesson`, { timestamp: new Date().toISOString() });
+        this._lessonDetail = template as LessonDetail;
+        console.log(`[LessonInfoPanel] Using template for new lesson`, { 
+          timestamp: new Date().toISOString() 
+        });
       }
     });
   }
@@ -96,26 +107,29 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   private updateEditingState() {
     if (this.mode === 'edit' && this.lessonDetail && !this.originalLessonDetail) {
       this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail));
+      console.log(`[LessonInfoPanel] Stored original data for editing: ${this.originalLessonDetail!.title}`);
     } else if (this.mode === 'add' && this.lessonDetail) {
       this.lessonDetail.archived = false;
       if (!this.hasDistrictId) {
         this.lessonDetail.visibility = 'Private';
       }
       this.originalLessonDetail = null;
+      console.log('[LessonInfoPanel] In add mode, cleared original data');
     }
-    console.log(`[LessonInfoPanel] Updated editing state, isEditing: ${this.isEditing}, mode: ${this.mode}, timestamp: ${new Date().toISOString()}`);
   }
 
   setActiveTab(tab: string) {
     this.activeTab = tab;
-    console.log(`[LessonInfoPanel] Switched to tab: ${tab}, timestamp: ${new Date().toISOString()}`);
+    console.log(`[LessonInfoPanel] Switched to tab: ${tab}`, { 
+      timestamp: new Date().toISOString() 
+    });
   }
 
   enterEditMode() {
-    if (this.lessonDetail) { // Fixed: use lessonDetail, not data
-      this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail)); // Fixed: use lessonDetail
+    if (this.lessonDetail) {
+      this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail));
       this.panelStateService.setMode('edit');
-      console.log(`[LessonInfoPanel] Entered edit mode for ${this.lessonDetail.title}`); // Fixed: use lessonDetail
+      console.log(`[LessonInfoPanel] Entered edit mode for ${this.lessonDetail.title}`);
     }
   }
 
@@ -125,7 +139,8 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
     if (this.mode === 'add') {
       this.courseCrudService.createLesson(this.lessonDetail).subscribe({
         next: (createdLesson) => {
-          this.panelStateService.setMode('view'); // Removed manual isEditing assignment
+          this.lessonDetail = createdLesson;
+          this.panelStateService.setMode('view');
           console.log(`[LessonInfoPanel] Lesson created`, { 
             title: createdLesson.title, 
             timestamp: new Date().toISOString() 
@@ -133,14 +148,17 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
           this.toastr.success(`Lesson "${createdLesson.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[LessonInfoPanel] Error creating lesson`, { error, timestamp: new Date().toISOString() });
+          console.error(`[LessonInfoPanel] Error creating lesson`, { 
+            error, 
+            timestamp: new Date().toISOString() 
+          });
           this.toastr.error('Failed to create lesson: ' + error.message, 'Error');
         }
       });
     } else {
       this.courseCrudService.updateLesson(this.lessonDetail).subscribe({
         next: (updatedLesson) => {
-          this.panelStateService.setMode('view'); // Removed manual isEditing assignment
+          this.panelStateService.setMode('view');
           this.originalLessonDetail = null;
           console.log(`[LessonInfoPanel] Lesson updated`, { 
             title: updatedLesson.title, 
@@ -149,7 +167,10 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
           this.toastr.success(`Lesson "${updatedLesson.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[LessonInfoPanel] Error updating lesson`, { error, timestamp: new Date().toISOString() });
+          console.error(`[LessonInfoPanel] Error updating lesson`, { 
+            error, 
+            timestamp: new Date().toISOString() 
+          });
           this.toastr.error('Failed to update lesson: ' + error.message, 'Error');
         }
       });
@@ -159,16 +180,20 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   cancel() {
     if (this.lessonDetail && this.originalLessonDetail && this.mode === 'edit') {
       Object.assign(this.lessonDetail, this.originalLessonDetail);
+      console.log(`[LessonInfoPanel] Reverted changes to ${this.lessonDetail.title}`);
     }
-    this.panelStateService.setMode('view'); // Removed manual isEditing assignment
+    this.panelStateService.setMode('view');
     this.originalLessonDetail = null;
-    console.log(`[LessonInfoPanel] Cancelled ${this.mode} mode, timestamp: ${new Date().toISOString()}`);
+    console.log(`[LessonInfoPanel] Cancelled ${this.mode} mode`);
   }
 
   onNotesChanged(updatedNotes: Note[]) {
     if (this.lessonDetail) {
       this.lessonDetail.notes = updatedNotes;
-      console.log(`[LessonInfoPanel] Notes updated, count: ${updatedNotes.length}, timestamp: ${new Date().toISOString()}`);
+      console.log(`[LessonInfoPanel] Notes updated`, {
+        count: updatedNotes.length,
+        timestamp: new Date().toISOString()
+      });
     }
   }
 
@@ -192,7 +217,8 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit {
   onStandardsChanged(updatedStandards: Standard[]) {
     if (this.lessonDetail) {
       this.lessonDetail.standards = updatedStandards;
-      console.log(`[LessonInfoPanel] Standards updated, count: ${updatedStandards.length}`, {
+      console.log(`[LessonInfoPanel] Standards updated`, {
+        count: updatedStandards.length,
         timestamp: new Date().toISOString()
       });
     }

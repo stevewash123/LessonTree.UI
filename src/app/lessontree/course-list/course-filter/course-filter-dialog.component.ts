@@ -23,26 +23,35 @@ import { CommonModule } from '@angular/common';
 })
 export class CourseFilterDialogComponent {
     courseFilter: 'active' | 'archived' | 'both';
-    visibilityFilter: 'private' | 'team' = 'private'; // Default to private
+    visibilityFilter: 'private' | 'team' = 'private';
+    searchTerm: string = '';
     hasDistrictId: boolean;
   
     constructor(
       public dialogRef: MatDialogRef<CourseFilterDialogComponent>,
-      @Inject(MAT_DIALOG_DATA) public data: { courseFilter: string, visibilityFilter: string, districtId?: number }
+      @Inject(MAT_DIALOG_DATA) public data: { 
+        courseFilter: 'active' | 'archived' | 'both', 
+        visibilityFilter: 'private' | 'team',
+        searchTerm: string,
+        districtId?: number 
+      }
     ) {
-      this.courseFilter = data.courseFilter as 'active' | 'archived' | 'both';
-      this.visibilityFilter = data.visibilityFilter as 'private' | 'team' || 'private';
+      // Initialize with current filter values from CourseList
+      this.courseFilter = data.courseFilter || 'active';
+      this.visibilityFilter = data.visibilityFilter || 'private';
+      this.searchTerm = data.searchTerm || '';
       this.hasDistrictId = !!data.districtId;
     }
   
     applyFilters(): void {
       this.dialogRef.close({
         courseFilter: this.courseFilter,
-        visibilityFilter: this.hasDistrictId ? this.visibilityFilter : 'private'
+        visibilityFilter: this.hasDistrictId ? this.visibilityFilter : 'private',
+        searchTerm: this.searchTerm
       });
     }
   
     cancel(): void {
       this.dialogRef.close();
     }
-  }
+}

@@ -61,9 +61,9 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   // Subscriptions
   private userSubscription?: Subscription;
 
-  // Computed signals for reactive data (using actual CourseDataService methods)
+  // Computed signals for reactive data (active courses only)
   readonly availableCourses = computed(() => {
-    return this.courseDataService.getCourses();
+    return this.courseDataService.activeCourses();
   });
 
   readonly selectedCourseData = computed(() => {
@@ -81,11 +81,11 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   });
 
   readonly hasCoursesAvailable = computed(() => {
-    return this.courseDataService.getCourses().length > 0;
+    return this.courseDataService.activeCourses().length > 0;
   });
 
   readonly coursesCount = computed(() => {
-    return this.courseDataService.getCourses().length;
+    return this.courseDataService.activeCourses().length;
   });
 
   // Calendar options
