@@ -1,5 +1,5 @@
-// src/app/lessontree/calendar/services/schedule-state.service.ts - COMPLETE FILE
-import { Injectable, inject, signal, computed } from '@angular/core';
+// src/app/lessontree/calendar/services/schedule-state.service.ts - COMPLETE FILE (Consistency Cleanup)
+import { Injectable, signal, computed } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { set, addDays, format } from 'date-fns';
 import { ToastrService } from 'ngx-toastr';
@@ -15,20 +15,14 @@ import { parseId } from '../../../core/utils/type-conversion.utils';
   providedIn: 'root'
 })
 export class ScheduleStateService {
-  // Injected services
-  private readonly calendarService = inject(LessonCalendarService);
-  private readonly courseDataService = inject(CourseDataService);
-  private readonly userService = inject(UserService);
-  private readonly toastr = inject(ToastrService);
-
-  // State signals
+  // Private state signals
   private readonly _schedules = signal<Schedule[]>([]);
   private readonly _selectedSchedule = signal<Schedule | null>(null);
   private readonly _isInMemorySchedule = signal<boolean>(false);
   private readonly _hasUnsavedChanges = signal<boolean>(false);
   private readonly _currentUserId = signal<number | null>(null);
 
-  // Public read-only signals
+  // Public readonly signals
   readonly schedules = this._schedules.asReadonly();
   readonly selectedSchedule = this._selectedSchedule.asReadonly();
   readonly isInMemorySchedule = this._isInMemorySchedule.asReadonly();
@@ -43,13 +37,20 @@ export class ScheduleStateService {
     this._selectedSchedule()?.scheduleDays || []
   );
 
-  constructor() {
+  constructor(
+    private calendarService: LessonCalendarService,
+    private courseDataService: CourseDataService,
+    private userService: UserService,
+    private toastr: ToastrService
+  ) {
+    console.log('[ScheduleStateService] Initialized with constructor injection', { 
+      timestamp: new Date().toISOString() 
+    });
+
     // Initialize user ID
     this.userService.user$.subscribe(user => {
       this._currentUserId.set(parseId(user?.id || '0') || null);
     });
-
-    console.log('[ScheduleStateService] Initialized', { timestamp: new Date().toISOString() });
   }
 
   // Load schedules for a course

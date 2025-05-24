@@ -1,3 +1,4 @@
+// src/app/lessontree/info-panel/lesson-info-panel/lesson-attachments/lesson-attachments.component.ts - COMPLETE FILE (Cleanup)
 import { Component, Input, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -15,7 +16,7 @@ import { ApiService } from '../../../../core/services/api.service';
 export class LessonAttachmentsComponent {
   @Input() attachments: Attachment[] = [];
   @Input() isEditing: boolean = false;
-  @Input() lessonId: number = 0; // For upload
+  @Input() lessonId: number = 0;
   @Output() attachmentsChanged = new EventEmitter<Attachment[]>();
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
@@ -36,27 +37,12 @@ export class LessonAttachmentsComponent {
   }
 
   saveAttachment(attachment: Attachment) {
-    // this.apiService.updateAttachment(attachment).subscribe({
-    //   next: (updatedAttachment) => {
-    //     const index = this.attachments.findIndex(a => a.id === updatedAttachment.id);
-    //     if (index !== -1) {
-    //       this.attachments[index] = updatedAttachment;
-    //       this.attachmentsChanged.emit([...this.attachments]);
-    //     }
-    //     this.editingAttachmentId = null;
-    //     this.originalAttachment = null;
-    //     console.log(`[LessonAttachments] Saved attachment`, {
-    //       id: updatedAttachment.id,
-    //       fileName: updatedAttachment.fileName,
-    //       timestamp: new Date().toISOString()
-    //     });
-    //   },
-    //   error: (error) => console.error(`[LessonAttachments] Error saving attachment`, {
-    //     id: attachment.id,
-    //     error,
-    //     timestamp: new Date().toISOString()
-    //   })
-    // });
+    // TODO: Implement attachment update API call
+    console.log(`[LessonAttachments] Save attachment not yet implemented`, {
+      id: attachment.id,
+      fileName: attachment.fileName,
+      timestamp: new Date().toISOString()
+    });
   }
 
   cancelAttachmentEdit(attachment: Attachment) {
@@ -77,25 +63,12 @@ export class LessonAttachmentsComponent {
   }
 
   deleteAttachment(attachment: Attachment) {
-    // if (!this.isEditing) return;
-    // if (confirm(`Are you sure you want to delete ${attachment.fileName}?`)) {
-    //   this.apiService.deleteAttachment(attachment.id).subscribe({
-    //     next: () => {
-    //       this.attachments = this.attachments.filter(a => a.id !== attachment.id);
-    //       this.attachmentsChanged.emit([...this.attachments]);
-    //       console.log(`[LessonAttachments] Deleted attachment`, {
-    //         id: attachment.id,
-    //         fileName: attachment.fileName,
-    //         timestamp: new Date().toISOString()
-    //       });
-    //     },
-    //     error: (error) => console.error(`[LessonAttachments] Error deleting attachment`, {
-    //       id: attachment.id,
-    //       error,
-    //       timestamp: new Date().toISOString()
-    //     })
-    //   });
-    // }
+    // TODO: Implement attachment delete API call
+    console.log(`[LessonAttachments] Delete attachment not yet implemented`, {
+      id: attachment.id,
+      fileName: attachment.fileName,
+      timestamp: new Date().toISOString()
+    });
   }
 
   triggerFileInput() {
@@ -123,6 +96,7 @@ export class LessonAttachmentsComponent {
       });
       return;
     }
+    
     this.apiService.uploadAttachment(this.lessonId, file).subscribe({
       next: (newAttachment) => {
         this.attachments = [...this.attachments, newAttachment];
