@@ -1,3 +1,7 @@
+// RESPONSIBILITY: Handles HTTP communication with the API, data transformation, and error handling with toasts.
+// DOES NOT: Manage application state or business logic - delegates to services.
+// CALLED BY: CourseCrudService and other services that need API communication.
+
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
@@ -17,6 +21,36 @@ interface ApiOptions {
     params?: HttpParams | { [param: string]: string | string[] };
     suppressToast?: boolean;
     customErrorMessage?: string;
+}
+
+// Create payload interfaces that match the API expectations
+interface CourseCreatePayload {
+    title: string;
+    description: string;
+    visibility: string;
+}
+
+interface TopicCreatePayload {
+    title: string;
+    description: string;
+    courseId: number;
+    visibility: string;
+    sortOrder: number;
+}
+
+interface LessonCreatePayload {
+    title: string;
+    subTopicId?: number | null;
+    topicId?: number | null;
+    visibility: string;
+    level?: string | null;
+    objective: string;
+    materials?: string | null;
+    classTime?: string | null;
+    methods?: string | null;
+    specialNeeds?: string | null;
+    assessment?: string | null;
+    sortOrder: number;
 }
 
 @Injectable({
@@ -50,16 +84,6 @@ export class ApiService {
             timestamp: new Date().toISOString()
         });
         return throwError(() => error);
-    }
-
-    /** Maps visibility string to its corresponding VisibilityType enum integer value */
-    private mapVisibilityToEnum(visibility: string | undefined): number {
-        const visibilityMap: { [key: string]: number } = {
-            'Private': 0, // VisibilityType.Private
-            'Team': 1,    // VisibilityType.Team
-            'Public': 2   // VisibilityType.Public
-        };
-        return visibility ? visibilityMap[visibility] ?? 0 : 0; // Default to Private (0) if undefined or invalid
     }
 
     /** Generic GET method with data transformation and error handling */
@@ -142,17 +166,21 @@ export class ApiService {
         return this.get<Course[]>('course', options);
     }
     
-    /** Create a new Course */
-    createCourse(course: Course): Observable<Course> {
+    /** Create a new Course - accepts create payload */
+    createCourse(coursePayload: CourseCreatePayload): Observable<Course> {
         console.log('ApiService: POST createCourse', {
             url: `${this.baseUrl}/course`,
-            body: course,
+            body: coursePayload,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<Course>(`${this.baseUrl}/course`, course).pipe(
+        
+        // Send payload directly - no conversion needed
+        return this.http.post<Course>(`${this.baseUrl}/course`, coursePayload).pipe(
+            map(response => this.transformResponse<Course>(response)),
             catchError(error => this.handleError(error))
         );
     }
+    
 
     /** Update a Course (immediate properties only) */
     updateCourse(course: Partial<Course>): Observable<Course> {
@@ -160,7 +188,8 @@ export class ApiService {
             id: course.id,
             title: course.title,
             description: course.description,
-            visibility: this.mapVisibilityToEnum(course.visibility)
+            visibility: course.visibility,
+            archived: course.archived
         };
         console.log('ApiService: PUT updateCourse', {
             url: `${this.baseUrl}/course/${course.id}`,
@@ -168,17 +197,22 @@ export class ApiService {
             timestamp: new Date().toISOString()
         });
         return this.http.put<Course>(`${this.baseUrl}/course/${course.id}`, body).pipe(
+            map(response => this.transformResponse<Course>(response)),
             catchError(error => this.handleError(error))
         );
     }
 
-    createTopic(topic: Topic): Observable<Topic> {
+    /** Create a new Topic - accepts create payload */
+    createTopic(topicPayload: TopicCreatePayload): Observable<Topic> {
         console.log('ApiService: POST createTopic', {
             url: `${this.baseUrl}/topic`,
-            body: topic,
+            body: topicPayload,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<Topic>(`${this.baseUrl}/topic`, { ...topic, visibility: this.mapVisibilityToEnum(topic.visibility) }).pipe(
+        
+        // Send payload directly - no conversion needed
+        return this.http.post<Topic>(`${this.baseUrl}/topic`, topicPayload).pipe(
+            map(response => this.transformResponse<Topic>(response)),
             catchError(error => this.handleError(error))
         );
     }
@@ -188,8 +222,9 @@ export class ApiService {
             id: topic.id,
             title: topic.title,
             description: topic.description,
-            visibility: this.mapVisibilityToEnum(topic.visibility),
-            sortOrder: topic.sortOrder // Include sortOrder
+            visibility: topic.visibility,
+            archived: topic.archived,
+            sortOrder: topic.sortOrder
         };
         console.log('ApiService: PUT updateTopic', {
             url: `${this.baseUrl}/topic/${topic.id}`,
@@ -197,6 +232,7 @@ export class ApiService {
             timestamp: new Date().toISOString()
         });
         return this.http.put<Topic>(`${this.baseUrl}/topic/${topic.id}`, body).pipe(
+            map(response => this.transformResponse<Topic>(response)),
             catchError(error => this.handleError(error))
         );
     }
@@ -207,7 +243,10 @@ export class ApiService {
             body: subTopic,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<SubTopic>(`${this.baseUrl}/subtopic`, { ...subTopic, visibility: this.mapVisibilityToEnum(subTopic.visibility) }).pipe(
+        
+        // Send subtopic directly - no visibility conversion needed if API accepts strings
+        return this.http.post<SubTopic>(`${this.baseUrl}/subtopic`, subTopic).pipe(
+            map(response => this.transformResponse<SubTopic>(response)),
             catchError(error => this.handleError(error))
         );
     }
@@ -217,8 +256,9 @@ export class ApiService {
             id: subTopic.id,
             title: subTopic.title,
             description: subTopic.description,
-            visibility: this.mapVisibilityToEnum(subTopic.visibility),
-            sortOrder: subTopic.sortOrder // Include sortOrder
+            visibility: subTopic.visibility,
+            archived: subTopic.archived,
+            sortOrder: subTopic.sortOrder
         };
         console.log('ApiService: PUT updateSubTopic', {
             url: `${this.baseUrl}/subtopic/${subTopic.id}`,
@@ -226,17 +266,22 @@ export class ApiService {
             timestamp: new Date().toISOString()
         });
         return this.http.put<SubTopic>(`${this.baseUrl}/subtopic/${subTopic.id}`, body).pipe(
+            map(response => this.transformResponse<SubTopic>(response)),
             catchError(error => this.handleError(error))
         );
     }
     
-    createLesson(lesson: Lesson): Observable<Lesson> {
+    /** Create a new Lesson - accepts create payload, returns LessonDetail */
+    createLesson(lessonPayload: LessonCreatePayload): Observable<LessonDetail> {
         console.log('ApiService: POST createLesson', {
             url: `${this.baseUrl}/lesson`,
-            body: lesson,
+            body: lessonPayload,
             timestamp: new Date().toISOString()
         });
-        return this.http.post<Lesson>(`${this.baseUrl}/lesson`, { ...lesson, visibility: this.mapVisibilityToEnum(lesson.visibility) }).pipe(
+        
+        // Send payload directly - no conversion needed
+        return this.http.post<LessonDetail>(`${this.baseUrl}/lesson`, lessonPayload).pipe(
+            map(response => this.transformResponse<LessonDetail>(response)),
             catchError(error => this.handleError(error))
         );
     }
@@ -245,7 +290,7 @@ export class ApiService {
         const body = {
             id: lesson.id,
             title: lesson.title,
-            visibility: this.mapVisibilityToEnum(lesson.visibility),
+            visibility: lesson.visibility,
             level: lesson.level,
             objective: lesson.objective,
             materials: lesson.materials,
@@ -253,7 +298,8 @@ export class ApiService {
             methods: lesson.methods,
             specialNeeds: lesson.specialNeeds,
             assessment: lesson.assessment,
-            sortOrder: lesson.sortOrder // Include sortOrder
+            archived: lesson.archived,
+            sortOrder: lesson.sortOrder
         };
         console.log('ApiService: PUT updateLesson', {
             url: `${this.baseUrl}/lesson/${lesson.id}`,
@@ -261,6 +307,7 @@ export class ApiService {
             timestamp: new Date().toISOString()
         });
         return this.http.put<LessonDetail>(`${this.baseUrl}/lesson/${lesson.id}`, body).pipe(
+            map(response => this.transformResponse<LessonDetail>(response)),
             catchError(error => this.handleError(error))
         );
     }
@@ -416,7 +463,7 @@ export class ApiService {
     createNote(note: Partial<Note>): Observable<Note> {
         const body = {
             content: note.content,
-            visibility: this.mapVisibilityToEnum(note.visibility),
+            visibility: note.visibility,
             teamId: note.teamId,
             courseId: note.courseId,
             topicId: note.topicId,
@@ -439,7 +486,7 @@ export class ApiService {
         const body = {
             id: note.id,
             content: note.content,
-            visibility: this.mapVisibilityToEnum(note.visibility),
+            visibility: note.visibility,
             teamId: note.teamId,
             courseId: note.courseId,
             topicId: note.topicId,

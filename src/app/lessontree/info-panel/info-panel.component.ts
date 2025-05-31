@@ -1,4 +1,7 @@
-// src/app/lessontree/info-panel/info-panel.component.ts - COMPLETE FILE (Phase 3C: Lean Presentation Coordinator)
+// RESPONSIBILITY: Lean presentation coordinator with proper Lesson/LessonDetail separation
+// DOES NOT: Handle data mutations or API calls directly
+// CALLED BY: Container components, manages panel content based on selection
+
 import { Component, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -40,7 +43,7 @@ export class InfoPanelComponent {
     private panelStateService: PanelStateService,
     private courseDataService: CourseDataService
   ) {
-    console.log('[InfoPanel] Lean presentation coordinator initialized', { 
+    console.log('[InfoPanel] Lean presentation coordinator initialized with Lesson/LessonDetail separation', { 
       timestamp: new Date().toISOString() 
     });
 
@@ -122,23 +125,46 @@ export class InfoPanelComponent {
     return null;
   });
 
+  // FIXED: Proper Lesson/LessonDetail handling
   readonly currentLesson = computed(() => {
     const node = this.selectedNode();
     const mode = this.mode;
     
     if (mode === 'add') {
       const template = this.panelStateService.nodeTemplate();
+      // Template should be LessonDetail for InfoPanel editing
       return template?.nodeType === 'Lesson' ? (template as LessonDetail) : null;
     }
     
     if (node?.nodeType === 'Lesson') {
-      // Get lesson from CourseDataService and cast to LessonDetail
-      const lesson = this.courseDataService.getLessonById(parseId(node.id));
-      return lesson ? (lesson as LessonDetail) : null;
+      // FIXED: Get basic Lesson from CourseDataService and convert to LessonDetail
+      const basicLesson = this.courseDataService.getLessonById(parseId(node.id));
+      if (!basicLesson) return null;
+      
+      // Convert basic Lesson to LessonDetail for InfoPanel editing
+      return this.toLessonDetail(basicLesson);
     }
     
     return null;
   });
+
+  // NEW: Convert basic Lesson to LessonDetail for InfoPanel components
+  private toLessonDetail(lesson: Lesson): LessonDetail {
+    // In a real implementation, this might fetch additional details from API
+    // For now, create a LessonDetail with default values for missing properties
+    return {
+      ...lesson,
+      level: '',
+      materials: '',
+      classTime: '',
+      methods: '',
+      specialNeeds: '',
+      assessment: '',
+      standards: [],
+      attachments: [],
+      notes: []
+    } as LessonDetail;
+  }
 
   // Panel visibility computed signals - simple data availability check
   readonly showCoursePanel = computed(() => {

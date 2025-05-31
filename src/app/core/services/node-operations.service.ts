@@ -1,4 +1,7 @@
-// src/app/core/services/node-operations.service.ts
+// NodeOperationsService
+// RESPONSIBILITY: Handles drag & drop operations, move/copy logic, and API coordination.
+// DOES NOT: Manage tree UI state or course data storage.
+// CALLED BY: TreeWrapper drag handlers, Calendar scheduling operations
 import { Injectable, signal } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { tap, catchError, map } from 'rxjs/operators';
@@ -111,9 +114,9 @@ export class NodeOperationsService {
           // Signal the move through data service
           this.courseDataService.emitNodeMoved({
             node,
-            source: sourceParentType ? `${sourceParentType}:${sourceParentId}` : `Course:${sourceCourseId}`,
-            target: `Course:${targetCourseId}`
-          });
+            sourceLocation: sourceParentType ? `${sourceParentType}:${sourceParentId}` : `Course:${sourceCourseId}`,
+            targetLocation: `Course:${targetCourseId}`
+          }, 'tree');
           
           // Show success message
           if (sourceCourseId && targetCourseId) {
@@ -163,10 +166,10 @@ export class NodeOperationsService {
           // Signal the move through data service
           this.courseDataService.emitNodeMoved({
             node,
-            source: sourceParentType ? `${sourceParentType}:${sourceParentId}` : 'Unknown',
-            target: targetSubTopicId ? `SubTopic:${targetSubTopicId}` : 
+            sourceLocation: sourceParentType ? `${sourceParentType}:${sourceParentId}` : 'Unknown',
+            targetLocation: targetSubTopicId ? `SubTopic:${targetSubTopicId}` : 
                     targetTopicId ? `Topic:${targetTopicId}` : 'Unknown'
-          });
+          }, 'tree');
           
           // Show success message
           this.toastr.success(`Moved Lesson "${this.getNodeTitle(node)}" successfully`);
@@ -196,9 +199,9 @@ export class NodeOperationsService {
           // Signal the move through data service
           this.courseDataService.emitNodeMoved({
             node,
-            source: sourceParentType ? `${sourceParentType}:${sourceParentId}` : 'Unknown',
-            target: `Topic:${targetParentId}`
-          });
+            sourceLocation: sourceParentType ? `${sourceParentType}:${sourceParentId}` : 'Unknown',
+            targetLocation: `Topic:${targetParentId}`
+          }, 'tree');
           
           // Show success message
           this.toastr.success(`Moved SubTopic "${this.getNodeTitle(node)}" successfully`);

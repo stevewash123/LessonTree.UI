@@ -1,9 +1,11 @@
-// src/app/core/services/lesson-calendar.service.ts
+// RESPONSIBILITY: Handles HTTP API operations for schedules and schedule days (CRUD operations).
+// DOES NOT: Manage state, transform data, or handle UI logic - pure API service.
+// CALLED BY: ScheduleStateService and ScheduleDayService for persistence operations.
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
-import { Schedule, ScheduleDay } from '../../../models/schedule';
+import { Schedule, ScheduleConfigUpdateResource, ScheduleDay, ScheduleDaysUpdateResource } from '../../../models/schedule';
 import { environment } from '../../../../environments/environment';
 
 @Injectable({
@@ -85,12 +87,16 @@ export class LessonCalendarService {
   }
 
   createSchedule(schedule: Schedule): Observable<Schedule> {
-    console.log(`[LessonCalendarService] Creating schedule for course ID ${schedule.courseId} with title ${schedule.title}`, { timestamp: new Date().toISOString() });
+    console.log(`[LessonCalendarService] Creating schedule for course ID ${schedule.courseId}`, { 
+      title: schedule.title,
+      hasScheduleDays: (schedule.scheduleDays?.length || 0) > 0,
+      timestamp: new Date().toISOString() 
+    });
     return this.http.post<Schedule>(`${this.apiUrl}/schedule`, schedule).pipe(
       map(response => this.transformResponse<Schedule>(response)),
-      tap((newSchedule) => console.log(`[LessonCalendarService] Created schedule ID ${newSchedule.id} with title ${newSchedule.title}`, { timestamp: new Date().toISOString() })),
+      tap((newSchedule) => console.log(`[LessonCalendarService] Created schedule ID ${newSchedule.id}`)),
       catchError((error) => {
-        console.error(`[LessonCalendarService] Failed to create schedule for course ID ${schedule.courseId}: ${error.message}`, { timestamp: new Date().toISOString() });
+        console.error(`[LessonCalendarService] Failed to create schedule: ${error.message}`);
         throw error;
       })
     );
@@ -130,4 +136,47 @@ export class LessonCalendarService {
       })
     );
   }
+
+  // lesson-calendar.service.ts - ADD these methods
+
+updateScheduleConfig(config: ScheduleConfigUpdateResource): Observable<Schedule> {
+    console.log(`[LessonCalendarService] Updating schedule config ID ${config.id}`, { 
+      isLocked: config.isLocked,
+      timestamp: new Date().toISOString() 
+    });
+    return this.http.put<Schedule>(`${this.apiUrl}/schedule/${config.id}/config`, config).pipe(
+      map(response => this.transformResponse<Schedule>(response)),
+      tap((updatedSchedule) => console.log(`[LessonCalendarService] Updated schedule config ID ${updatedSchedule.id}`, { 
+        isLocked: updatedSchedule.isLocked,
+        timestamp: new Date().toISOString() 
+      })),
+      catchError((error) => {
+        console.error(`[LessonCalendarService] Failed to update schedule config ID ${config.id}: ${error.message}`);
+        throw error;
+      })
+    );
+  }
+  
+  updateScheduleDays(scheduleId: number, scheduleDays: ScheduleDay[]): Observable<Schedule> {
+    console.log(`[LessonCalendarService] Updating schedule days for ID ${scheduleId}`, { 
+      dayCount: scheduleDays.length,
+      timestamp: new Date().toISOString() 
+    });
+    
+    const payload: ScheduleDaysUpdateResource = {
+      scheduleId,
+      scheduleDays
+    };
+    
+    return this.http.put<Schedule>(`${this.apiUrl}/schedule/${scheduleId}/days`, payload).pipe(
+      map(response => this.transformResponse<Schedule>(response)),
+      tap((updatedSchedule) => console.log(`[LessonCalendarService] Updated schedule days ID ${updatedSchedule.id}`)),
+      catchError((error) => {
+        console.error(`[LessonCalendarService] Failed to update schedule days: ${error.message}`);
+        throw error;
+      })
+    );
+  }
+  
+  
 }

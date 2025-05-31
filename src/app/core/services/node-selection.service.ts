@@ -1,5 +1,7 @@
-// src/app/core/services/node-selection.service.ts - COMPLETE FILE (FIXED TO USE TREEDATA)
-import { Injectable, signal, computed } from '@angular/core';
+// RESPONSIBILITY: Tracks selected tree nodes across all components with source tracking and history.
+// DOES NOT: Handle node data or API operations - only selection state management.
+// CALLED BY: TreeWrapper, Calendar, InfoPanel, PanelStateService
+import { computed, Injectable, signal } from '@angular/core';
 import { TreeData } from '../../models/tree-node';
 
 export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
@@ -135,7 +137,66 @@ export class NodeSelectionService {
     this.selectNode(null, source);
   }
 
-  // Select by ID and type (useful for programmatic selection)
+  /**
+   * Format raw ID to proper nodeId format for tree operations
+   */
+  private formatNodeId(id: number, nodeType: NodeType): string {
+    switch (nodeType) {
+      case 'Course':
+        return `course_${id}`;
+      case 'Topic':
+        return `topic_${id}`;
+      case 'SubTopic':
+        return `subtopic_${id}`;
+      case 'Lesson':
+        return `lesson_${id}`;
+      default:
+        console.warn('[NodeSelectionService] Unknown node type for formatting:', nodeType);
+        return id.toString();
+    }
+  }
+
+  /**
+   * Parse nodeId to extract nodeType and raw ID
+   */
+  private parseNodeId(nodeId: string): { nodeType: NodeType; id: number } | null {
+    const parts = nodeId.split('_');
+    if (parts.length !== 2) {
+      console.warn('[NodeSelectionService] Invalid nodeId format:', nodeId);
+      return null;
+    }
+    
+    const [typeStr, idStr] = parts;
+    const id = parseInt(idStr, 10);
+    
+    if (isNaN(id)) {
+      console.warn('[NodeSelectionService] Invalid ID in nodeId:', nodeId);
+      return null;
+    }
+    
+    let nodeType: NodeType;
+    switch (typeStr.toLowerCase()) {
+      case 'course':
+        nodeType = 'Course';
+        break;
+      case 'topic':
+        nodeType = 'Topic';
+        break;
+      case 'subtopic':
+        nodeType = 'SubTopic';
+        break;
+      case 'lesson':
+        nodeType = 'Lesson';
+        break;
+      default:
+        console.warn('[NodeSelectionService] Unknown node type in nodeId:', nodeId);
+        return null;
+    }
+    
+    return { nodeType, id };
+  }
+
+  // Select by raw database ID with nodeType (used by Calendar, etc.)
   selectById(id: number, nodeType: NodeType, source: SelectionSource = 'programmatic'): void {
     let courseId = 0; // Default for new courses or no selection
     
@@ -155,10 +216,13 @@ export class NodeSelectionService {
       courseId = id;
     }
   
+    // Format nodeId properly for tree compatibility
+    const formattedNodeId = this.formatNodeId(id, nodeType);
+    
     const node: TreeData = {
       id: id,
       courseId: courseId,
-      nodeId: id.toString(),
+      nodeId: formattedNodeId, // ✅ PROPERLY FORMATTED: "lesson_186" instead of "186"
       nodeType,
       title: `${nodeType} ${id}`,
       description: '',
@@ -168,8 +232,51 @@ export class NodeSelectionService {
       sortOrder: 0
     };
   
-    console.log('[NodeSelectionService] Selecting by ID', {
-      id, nodeType, courseId, source,
+    console.log('[NodeSelectionService] Selecting by raw ID', {
+      id, nodeType, courseId, 
+      formattedNodeId,
+      source,
+      timestamp: new Date().toISOString()
+    });
+  
+    this.selectNode(node, source);
+  }
+
+  // Select by formatted nodeId (used by Tree, etc.)
+  selectByNodeId(nodeId: string, source: SelectionSource = 'programmatic'): void {
+    const parsed = this.parseNodeId(nodeId);
+    if (!parsed) {
+      console.error('[NodeSelectionService] Cannot select - invalid nodeId format:', nodeId);
+      return;
+    }
+    
+    const { nodeType, id } = parsed;
+    
+    // Get courseId from context or parse from nodeId
+    let courseId = 0;
+    const currentNode = this._selectedNode();
+    if (currentNode) {
+      courseId = currentNode.courseId;
+    } else if (nodeType === 'Course') {
+      courseId = id;
+    }
+    
+    const node: TreeData = {
+      id: id,
+      courseId: courseId,
+      nodeId: nodeId, // Already formatted
+      nodeType,
+      title: `${nodeType} ${id}`,
+      description: '',
+      archived: false,
+      visibility: 'Private',
+      userId: 0,
+      sortOrder: 0
+    };
+  
+    console.log('[NodeSelectionService] Selecting by nodeId', {
+      nodeId, nodeType, id, courseId,
+      source,
       timestamp: new Date().toISOString()
     });
   
@@ -184,12 +291,19 @@ export class NodeSelectionService {
            selected.nodeType === node.nodeType;
   }
 
-  // Check if a node with specific ID and type is selected
+  // Check if a node with specific raw ID and type is selected
   isSelected(id: number, nodeType: NodeType): boolean {
     const selected = this._selectedNode();
+    const formattedNodeId = this.formatNodeId(id, nodeType);
     return selected !== null && 
-           selected.nodeId === id.toString() && 
+           selected.nodeId === formattedNodeId && 
            selected.nodeType === nodeType;
+  }
+
+  // Check if a node with specific formatted nodeId is selected
+  isSelectedByNodeId(nodeId: string): boolean {
+    const selected = this._selectedNode();
+    return selected !== null && selected.nodeId === nodeId;
   }
 
   // Get recent selections of a specific type

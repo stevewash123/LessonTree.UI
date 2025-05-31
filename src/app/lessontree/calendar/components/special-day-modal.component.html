@@ -1,0 +1,92 @@
+<!-- src/app/lessontree/calendar/components/special-day-modal.component.html - COMPLETE FILE -->
+<div class="modal-container">
+    <h2>{{ isEditMode ? 'Edit Special Day' : 'Add Special Day' }}</h2>
+    
+    <form [formGroup]="specialDayForm">
+      <!-- Date Field -->
+      <mat-form-field>
+        <mat-label>Date</mat-label>
+        <input matInput [matDatepicker]="datePicker" formControlName="date" [readonly]="isEditMode" />
+        <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
+        <mat-datepicker #datePicker></mat-datepicker>
+        @if (specialDayForm.get('date')?.hasError('required')) {
+          <mat-error>Date is required</mat-error>
+        }
+      </mat-form-field>
+  
+      <!-- Special Day Type -->
+      <mat-form-field>
+        <mat-label>Type</mat-label>
+        <mat-select formControlName="specialCode">
+          <mat-option value="Instructor PT">Instructor Professional Development</mat-option>
+          <mat-option value="School Holiday">School Holiday</mat-option>
+          <mat-option value="Assembly">School Assembly</mat-option>
+          <mat-option value="Testing Day">Testing Day</mat-option>
+          <mat-option value="Field Trip">Field Trip</mat-option>
+          <mat-option value="Weather Day">Weather Closure</mat-option>
+          <mat-option value="Other">Other</mat-option>
+        </mat-select>
+        @if (specialDayForm.get('specialCode')?.hasError('required')) {
+          <mat-error>Type is required</mat-error>
+        }
+      </mat-form-field>
+  
+      <!-- Title Field -->
+      <mat-form-field>
+        <mat-label>Title</mat-label>
+        <input matInput formControlName="title" placeholder="e.g., All School Assembly on Drugs" />
+        @if (specialDayForm.get('title')?.hasError('required')) {
+          <mat-error>Title is required</mat-error>
+        }
+        @if (specialDayForm.get('title')?.hasError('maxlength')) {
+          <mat-error>Maximum 100 characters</mat-error>
+        }
+      </mat-form-field>
+  
+      <!-- Description Field -->
+      <mat-form-field>
+        <mat-label>Description (Optional)</mat-label>
+        <textarea matInput 
+                  formControlName="description" 
+                  rows="3"
+                  placeholder="Additional details about this special day..."></textarea>
+        @if (specialDayForm.get('description')?.hasError('maxlength')) {
+          <mat-error>Maximum 500 characters</mat-error>
+        }
+      </mat-form-field>
+  
+      <!-- Lesson Shifting Information -->
+      @if (!isEditMode) {
+        <div class="lesson-shift-info">
+          <mat-icon>info</mat-icon>
+          <div class="info-content">
+            <h4>Lesson Scheduling Impact</h4>
+            <p>Adding this special day will shift the scheduled lesson and all subsequent lessons forward by one day.</p>
+          </div>
+        </div>
+      }
+  
+      <!-- Action Buttons -->
+      <div class="actions">
+        <button mat-button (click)="cancel()" type="button">Cancel</button>
+        
+        @if (isEditMode) {
+          <button mat-button 
+                  color="warn" 
+                  (click)="delete()" 
+                  type="button"
+                  [disabled]="isSubmitting">
+            Delete
+          </button>
+        }
+        
+        <button mat-raised-button 
+                color="primary" 
+                (click)="save()" 
+                type="button"
+                [disabled]="specialDayForm.invalid || isSubmitting">
+          {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update' : 'Add Special Day') }}
+        </button>
+      </div>
+    </form>
+  </div>

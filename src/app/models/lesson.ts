@@ -11,6 +11,22 @@ export interface Lesson extends TreeData {
     nodeType: 'Lesson';
   }
 
+  interface LessonCreatePayload {
+    title: string;
+    subTopicId?: number | null;
+    topicId?: number | null;
+    visibility: string;
+    level?: string | null;
+    objective: string;
+    materials?: string | null;
+    classTime?: string | null;
+    methods?: string | null;
+    specialNeeds?: string | null;
+    assessment?: string | null;
+    sortOrder: number;
+}
+
+
 export function createLessonNode(lesson: Lesson): TreeNode {
     return {
         id: lesson.nodeId,
@@ -21,6 +37,7 @@ export function createLessonNode(lesson: Lesson): TreeNode {
         iconCss: 'material-icons lesson-icon' // 'assignment' icon
     };
 }
+
 
 export interface LessonDetail extends Lesson {
     level?: string;

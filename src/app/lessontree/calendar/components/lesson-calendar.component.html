@@ -1,4 +1,4 @@
-<!-- src/app/lessontree/calendar/components/lesson-calendar.component.html - COMPLETE FILE (CORRECTED) -->
+<!-- src/app/lessontree/calendar/lesson-calendar.component.html - COMPLETE FILE -->
 <div class="calendar-container">
     <!-- No Data State -->
     @if (!hasCoursesAvailable()) {
@@ -11,36 +11,48 @@
 
     <!-- Main Calendar Content -->
     @if (hasCoursesAvailable()) {
-      <!-- Course Selection Info -->
-      @if (selectedCourseData()) {
-        <div class="course-info-header">
-          <mat-icon>school</mat-icon>
-          <h3>{{ selectedCourseData()!.title }}</h3>
-          <span class="course-id">ID: {{ selectedCourseData()!.id }}</span>
-        </div>
-      }
-
-      <!-- Schedule Controls Component -->
-      <app-schedule-controls
-        [visible]="showScheduleControls"
-        (scheduleSelected)="selectSchedule($event)"
-        (saveScheduleClicked)="saveSchedule()"
-        (createScheduleClicked)="openConfigModal()">
-      </app-schedule-controls>
-      
       <!-- Full Calendar -->
       <full-calendar 
         #calendar 
         [options]="calendarOptions">
       </full-calendar>
       
-      <!-- Context Menu -->
-      <ejs-contextmenu 
-        #contextMenu 
-        [items]="contextMenuItems" 
-        (select)="handleContextMenuSelect($event)" 
-        target="#calendar .fc-daygrid-day, #calendar .fc-event">
-      </ejs-contextmenu>
+      <!-- Material Design Context Menu -->
+      <div style="visibility: hidden; position: fixed;"
+           [style.left]="contextMenuPosition.x"
+           [style.top]="contextMenuPosition.y"
+           [matMenuTriggerFor]="contextMenu"
+           #contextMenuTrigger="matMenuTrigger">
+      </div>
+
+      <mat-menu #contextMenu="matMenu" class="calendar-context-menu">
+        @for (action of contextMenuActions; track action.id) {
+          <button mat-menu-item (click)="executeContextAction(action)">
+            <mat-icon>
+              @switch (action.id) {
+                @case ('nonTeaching') { event_busy }
+                @case ('instructorPT') { school }
+                @case ('editSpecialDay') { edit }
+                @case ('deleteSpecialDay') { delete }
+                @case ('errorDayInfo') { info }
+                @default { event }
+              }
+            </mat-icon>
+            <span>{{ action.label }}</span>
+          </button>
+        }
+      </mat-menu>
+
+      <!-- Subtle Create Schedule Link (bottom right) -->
+      <div class="calendar-footer">
+        <button 
+          mat-button 
+          class="create-schedule-link"
+          (click)="openConfigModal()"
+          matTooltip="Create a new schedule (rarely needed)">
+          Create Schedule
+        </button>
+      </div>
 
       <!-- Debug Info (Development Only) -->
       @if (false) { <!-- Set to true for debugging -->

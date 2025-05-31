@@ -1,4 +1,7 @@
-// src/app/lessontree/calendar/services/calendar-event.service.ts - COMPLETE FILE
+/* src/app/lessontree/calendar/services/calendar-event.service.ts - COMPLETE FILE */
+// RESPONSIBILITY: Transforms schedule data into calendar events and handles calendar interactions.
+// DOES NOT: Store state, manage schedules, or calculate week numbers - pure transformation and event handling service.
+// CALLED BY: LessonCalendarComponent for event mapping and user interactions.
 import { Injectable, inject } from '@angular/core';
 import { EventInput, EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { format } from 'date-fns';
@@ -41,22 +44,22 @@ export class CalendarEventService {
     const lessonsMap = this.buildLessonsMap(course);
     
     return days.map((day: ScheduleDay) => {
-      const lesson = day.lessonId ? lessonsMap.get(day.lessonId) : null;
-      const title = this.buildEventTitle(day, lesson ?? null);
+      const lesson = day.lessonId ? (lessonsMap.get(day.lessonId) || null) : null;
+      const title = this.buildEventTitle(day, lesson);
       const objective = lesson?.objective || '';
       
       return {
         id: day.id.toString(),
-        title: this.truncateText(title, 20),
+        title: title, // Don't truncate - let CSS handle wrapping
         start: format(new Date(day.date), 'yyyy-MM-dd'),
-        description: lesson ? this.truncateText(objective, 30) : (day.comment ? this.truncateText(day.comment, 30) : undefined),
-        backgroundColor: day.specialCode ? '#ffcccb' : '#90ee90',
-        borderColor: day.specialCode ? '#ff0000' : '#008000',
+        description: lesson ? objective : (day.comment || undefined),
+        // Use CSS classes instead of direct colors for better styling control
+        className: this.getEventCssClass(day, lesson),
         extendedProps: { 
           comment: day.comment || undefined, 
           specialCode: day.specialCode || undefined,
           lesson: lesson || undefined,
-          icon: day.specialCode ? 'event_busy' : 'school'
+          scheduleDay: day // Include full schedule day data for reports
         }
       };
     });
@@ -91,31 +94,82 @@ export class CalendarEventService {
     return lessonsMap;
   }
 
-  // Build event title based on day type
+  // Build event title based on day type - simple titles only
   private buildEventTitle(day: ScheduleDay, lesson: Lesson | null): string {
-    if (day.specialCode) {
-      return `${day.specialCode}${day.comment ? `: ${day.comment}` : ''}`;
+    if (day.specialCode === 'Error Day') {
+      return 'No Lesson Available';
     }
     
-    return lesson?.title || 'Special Day';
+    if (day.specialCode) {
+      if (day.comment) {
+        return `${day.specialCode}: ${day.comment}`;
+      }
+      return day.specialCode;
+    }
+    
+    if (lesson) {
+      // Just return the lesson title - calendar configuration service handles detailed content
+      return lesson.title || 'Untitled Lesson';
+    }
+    
+    return 'Special Day';
   }
 
-  // Handle event click
+  // Get CSS class for event styling instead of direct colors
+  private getEventCssClass(day: ScheduleDay, lesson: Lesson | null): string {
+    if (day.specialCode === 'Error Day') {
+      return 'error-event';
+    }
+    
+    if (day.specialCode) {
+      return 'special-event';
+    }
+    
+    return 'lesson-event';
+  }
+
+  // Handle event click without week number tracking
   handleEventClick(arg: EventClickArg): { shouldOpenContextMenu: boolean } {
-    console.log(`[CalendarEventService] Event clicked: ${arg.event.id}`, { 
-      timestamp: new Date().toISOString() 
+    console.log('[CalendarEventService] Event clicked', {
+      eventId: arg.event.id,
+      eventTitle: arg.event.title,
+      timestamp: new Date().toISOString()
     });
     
     const lesson = arg.event.extendedProps['lesson'];
     
     if (lesson) {
-      // Select lesson in the node selection service
-      this.nodeSelectionService.selectNode(lesson, 'calendar');
+      console.log('[CalendarEventService] Lesson found in event, selecting node', {
+        lessonId: lesson.id,
+        lessonTitle: lesson.title,
+        nodeType: 'Lesson',
+        source: 'calendar',
+        timestamp: new Date().toISOString()
+      });
+
+      // Use selectById for better tree integration
+      this.nodeSelectionService.selectById(lesson.id, 'Lesson', 'calendar');
+      
+      // Show toast to confirm selection
+      this.toastr.info(`Selected lesson: ${lesson.title}`, 'Calendar Selection', {
+        timeOut: 2000
+      });
+      
       return { shouldOpenContextMenu: false };
     } else if (arg.event.extendedProps['specialCode']) {
+      console.log('[CalendarEventService] Special day event clicked, opening context menu', {
+        specialCode: arg.event.extendedProps['specialCode'],
+        timestamp: new Date().toISOString()
+      });
+      
       // For special days, indicate context menu should open
       return { shouldOpenContextMenu: true };
     }
+    
+    console.log('[CalendarEventService] No lesson or special code found in event', {
+      extendedProps: arg.event.extendedProps,
+      timestamp: new Date().toISOString()
+    });
     
     return { shouldOpenContextMenu: false };
   }
@@ -200,14 +254,5 @@ export class CalendarEventService {
     
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     return currentSchedule?.courseId || null;
-  }
-
-  // Helper method to truncate text for display
-  private truncateText(text: string, maxLength: number): string {
-    if (!text) return '';
-    if (text.length > maxLength) {
-      return text.substring(0, maxLength - 3) + '...';
-    }
-    return text;
   }
 }

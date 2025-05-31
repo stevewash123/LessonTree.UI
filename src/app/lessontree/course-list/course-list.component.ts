@@ -1,3 +1,7 @@
+// RESPONSIBILITY: Displays filtered course tree cards with local search functionality
+// DOES NOT: Handle course header display or global filtering (moved to container)
+// CALLED BY: LessonTreeContainer in various layout modes
+
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { MatCardModule } from '@angular/material/card';
@@ -8,9 +12,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { SyncfusionModule } from '../../core/modules/syncfusion.module';
 import { TreeWrapperComponent } from './tree/tree-wrapper.component';
 import { CommonModule } from '@angular/common';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { CourseFilterDialogComponent } from './course-filter/course-filter-dialog.component';
-import { UserService } from '../../core/services/user.service';
 import { PanelStateService } from '../../core/services/panel-state.service';
 import { CourseCrudService } from '../../core/services/course-crud.service';
 import { CourseDataService } from '../../core/services/course-data.service';
@@ -27,8 +28,7 @@ import { Course } from '../../models/course';
     MatButtonModule,
     MatTooltipModule,
     SyncfusionModule,
-    TreeWrapperComponent,
-    MatDialogModule
+    TreeWrapperComponent
   ],
   templateUrl: './course-list.component.html',
   styleUrls: ['./course-list.component.css']
@@ -71,8 +71,6 @@ export class CourseListComponent implements OnInit {
 
   constructor(
     private toastr: ToastrService,
-    private dialog: MatDialog,
-    private userService: UserService,
     private panelStateService: PanelStateService,
     public courseDataService: CourseDataService,
     private courseCrudService: CourseCrudService
@@ -80,12 +78,6 @@ export class CourseListComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('[CourseList] Component initialized', { timestamp: new Date().toISOString() });
-  }
-
-  // Method to update local search term with proper event handling
-  onSearchInput(event: Event): void {
-    const target = event.target as HTMLInputElement;
-    this._localSearchTerm.set(target?.value || '');
   }
 
   // Getters for local filter state (for template binding)
@@ -101,43 +93,30 @@ export class CourseListComponent implements OnInit {
     return this._localVisibilityFilter();
   }
 
+  // PUBLIC METHODS for external filter control (called by LessonTreeContainer)
+  setLocalFilters(courseFilter: 'active' | 'archived' | 'both', visibilityFilter: 'private' | 'team', searchTerm?: string): void {
+    console.log('[CourseList] Setting local filters from external source', {
+      courseFilter,
+      visibilityFilter,
+      searchTerm,
+      timestamp: new Date().toISOString()
+    });
+
+    this._localCourseFilter.set(courseFilter);
+    this._localVisibilityFilter.set(visibilityFilter);
+    
+    if (searchTerm !== undefined) {
+      this._localSearchTerm.set(searchTerm);
+    }
+  }
+
+  setLocalSearchTerm(searchTerm: string): void {
+    this._localSearchTerm.set(searchTerm);
+  }
+
   initiateAddCourse(): void {
     console.log('[CourseList] initiateAddCourse: Initiating new Course creation', { timestamp: new Date().toISOString() });
     this.panelStateService.initiateAddMode('Course', null);
     this.toastr.info('Initiating new course creation', 'Info');
   }
-      
-  // Filter dialog method - now updates local filters only
-  openFilterDialog(): void {
-    const districtId = this.userService.getDistrictId();
-    const dialogRef = this.dialog.open(CourseFilterDialogComponent, {
-      width: '300px',
-      data: {
-        districtId: districtId,
-        courseFilter: this._localCourseFilter(),
-        visibilityFilter: this._localVisibilityFilter(),
-        searchTerm: this._localSearchTerm()
-      }
-    });
-
-    dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        console.log('[CourseList] Local filters applied from dialog', { 
-          courseFilter: result.courseFilter, 
-          visibilityFilter: result.visibilityFilter, 
-          timestamp: new Date().toISOString() 
-        });
-        
-        // Update local filters only - no global impact
-        this._localCourseFilter.set(result.courseFilter);
-        this._localVisibilityFilter.set(result.visibilityFilter);
-        
-        // Update search term if provided
-        if (result.searchTerm !== undefined) {
-          this._localSearchTerm.set(result.searchTerm);
-        }
-      }
-    });
-  }
-
 }

@@ -28,7 +28,7 @@
   .custom .e-list-item {
     padding: 4px 0; /* Reduced padding between rows */
     border-bottom: 1px solid #f0f0f0;
-    transition: all 0.2s ease;
+    /* REMOVED: transition: all 0.2s ease; */
     width: 100%;
     max-width: 100%; /* Limit maximum width */
     box-sizing: border-box;
@@ -38,7 +38,7 @@
   .custom .e-list-item:hover {
     background-color: #f9f9f9;
   }
-
+  
   /* Only style the direct selected item, not its children */
   .custom .e-list-item.e-active > .node-container,
   .custom .e-list-item.e-active > .e-text-content .node-container {
@@ -107,7 +107,7 @@
     box-sizing: border-box;
     overflow: hidden; /* Prevent content overflow */
     position: relative; /* For proper positioning */
-    transition: all 0.2s ease;
+    /* REMOVED: transition: all 0.2s ease; */
     min-height: 34px; /* Reduced height */
   }
   

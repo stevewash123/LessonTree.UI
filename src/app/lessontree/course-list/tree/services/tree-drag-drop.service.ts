@@ -1,4 +1,6 @@
-// src/app/lessontree/course-list/tree/services/tree-drag-drop.service.ts - COMPLETE FILE
+// RESPONSIBILITY: Handles tree drag & drop operations, validation, and coordinates with NodeOperationsService.
+// DOES NOT: Manage tree UI state, store drag state, or handle data persistence.
+// CALLED BY: TreeWrapper drag event handlers.
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Topic } from '../../../../models/topic';
@@ -60,7 +62,7 @@ export class TreeDragDropService {
       Math.pow(currentY - dragState.dragStartY, 2)
     );
 
-    if (distance >= 15 && !dragState.allowDrag) {
+    if (distance >= 25 && !dragState.allowDrag) {
       dragState.allowDrag = true;
       console.log('[TreeDragDropService] Drag threshold reached, allowing drag', {
         distance,

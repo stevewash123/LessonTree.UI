@@ -1,100 +1,139 @@
-/* src/app/lessontree/calendar/lesson-calendar.component.css */
+/* src/app/lessontree/calendar/components/lesson-calendar.component.css - COMPLETE FILE */
+
+/* Calendar container styling */
 .calendar-container {
-    padding: 16px;
-    background-color: #f9f9f9;
-    border-radius: 4px;
-    height: 100%;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    --fc-selected-lesson-bg-color: #4caf50;
+    --fc-selected-lesson-border-color: #2e7d32;
+    --fc-selected-lesson-shadow: 0 0 12px rgba(76, 175, 80, 0.6), inset 0 0 8px rgba(76, 175, 80, 0.3);
   }
   
-  .schedule-controls {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 16px;
-  }
-  
-  .schedule-controls mat-form-field {
-    flex: 1;
-  }
-  
-  :host ::ng-deep .fc {
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  
-  :host ::ng-deep .fc-view-harness {
-    flex: 1;
-  }
-  
-  :host ::ng-deep .fc-daygrid-day:hover {
-    background-color: #f5f5f5;
-    cursor: pointer;
-  }
-  
-  :host ::ng-deep .fc-event {
-    border-radius: 4px;
-    padding: 4px;
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-  }
-  
-  :host ::ng-deep .fc-event .fc-event-main::before {
-    margin-right: 5px;
-    font-family: 'Material Icons';
-    vertical-align: middle;
-  }
-  
-  :host ::ng-deep .fc-event[data-icon='school'] .fc-event-main::before {
-    content: 'school';
-  }
-  
-  :host ::ng-deep .fc-event[data-icon='event_busy'] .fc-event-main::before {
-    content: 'event_busy';
-  }
-  
-  /* Add styles for weekend days */
-  :host ::ng-deep .fc-day-sat, 
-  :host ::ng-deep .fc-day-sun {
-    background-color: #f8f8f8;
-  }
-  
-  /* Add styles for today */
-  :host ::ng-deep .fc-day-today {
-    background-color: #e8f5e9 !important;
-  }
-  
-  /* Make event title more readable */
-  :host ::ng-deep .fc-event-title {
-    font-weight: 500;
-    padding: 2px 0;
-  }
-  
-  /* Add tooltip-like effect for events with descriptions */
-  :host ::ng-deep .fc-event[data-bs-toggle="tooltip"] {
+  /* Selected lesson day highlighting - much more prominent */
+  .calendar-container ::ng-deep .fc-daygrid-day.selected-lesson-day {
+    background-color: var(--fc-selected-lesson-bg-color) !important;
+    border: 3px solid var(--fc-selected-lesson-border-color) !important;
+    box-shadow: var(--fc-selected-lesson-shadow) !important;
     position: relative;
+    z-index: 10;
+    transform: scale(1.02);
+    transition: all 0.2s ease;
   }
   
-  /* Add custom styles for special day events */
-  :host ::ng-deep .fc-event[data-description]:hover::after {
-    content: attr(data-description);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(0, 0, 0, 0.8);
-    color: #fff;
-    padding: 6px 8px;
-    border-radius: 4px;
+  /* Style the day number for selected lesson days - more prominent */
+  .calendar-container ::ng-deep .fc-daygrid-day.selected-lesson-day .fc-daygrid-day-number {
+    background-color: var(--fc-selected-lesson-border-color) !important;
+    color: white !important;
+    font-weight: 900 !important;
+    font-size: 16px !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.3) !important;
+    border: 2px solid white !important;
+  }
+  
+  /* Calendar events - seamless blending with day background colors */
+  .calendar-container ::ng-deep .fc-event {
+    border: none !important;
     font-size: 12px;
+    font-weight: 500;
+    padding: 2px 4px;
+    margin: 1px 0;
+    cursor: pointer;
+  }
+  
+  /* Lesson events - match the pink/red day background */
+  .calendar-container ::ng-deep .fc-event.lesson-event,
+  .calendar-container ::ng-deep .fc-event.lesson-event .fc-event-title,
+  .calendar-container ::ng-deep .fc-event.lesson-event .fc-event-time {
+    background-color: transparent !important;
+    color: #1976d2 !important;
+  }
+  
+  /* Special day events - match the yellow day background */
+  .calendar-container ::ng-deep .fc-event.special-event,
+  .calendar-container ::ng-deep .fc-event.special-event .fc-event-title,
+  .calendar-container ::ng-deep .fc-event.special-event .fc-event-time {
+    background-color: transparent !important;
+    color: #d32f2f !important;
+  }
+  
+  /* Error day events - blend with day background */
+  .calendar-container ::ng-deep .fc-event.error-event,
+  .calendar-container ::ng-deep .fc-event.error-event .fc-event-title,
+  .calendar-container ::ng-deep .fc-event.error-event .fc-event-time {
+    background-color: transparent !important;
+    color: #666 !important;
+    font-style: italic;
+  }
+  
+  /* Event title text styling */
+  .calendar-container ::ng-deep .fc-event-title {
+    font-weight: 600 !important;
+    text-overflow: ellipsis;
+    overflow: hidden;
     white-space: nowrap;
-    z-index: 1000;
+  }
+  
+  /* Material Design context menu styling */
+  .calendar-context-menu {
+    min-width: 200px;
+  }
+  
+  .calendar-context-menu .mat-mdc-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .calendar-context-menu .mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: rgba(0, 0, 0, 0.6);
+  }
+  
+  /* Calendar day cell hover effects */
+  .calendar-container ::ng-deep .fc-daygrid-day:hover {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+  
+  /* Today highlighting */
+  .calendar-container ::ng-deep .fc-day-today {
+    background-color: rgba(33, 150, 243, 0.1) !important;
+  }
+  
+  .calendar-container ::ng-deep .fc-day-today .fc-daygrid-day-number {
+    background-color: #2196f3;
+    color: white;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 600;
+  }
+  
+  /* Weekend styling if weekends are shown */
+  .calendar-container ::ng-deep .fc-day-sat,
+  .calendar-container ::ng-deep .fc-day-sun {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+  
+  /* Calendar header styling */
+  .calendar-container ::ng-deep .fc-toolbar-title {
+    font-size: 1.5em;
+    font-weight: 600;
+    color: #333;
+  }
+  
+  /* Calendar button styling */
+  .calendar-container ::ng-deep .fc-button {
+    background-color: #f5f5f5;
+    border-color: #ddd;
+    color: #333;
+  }
+  
+  .calendar-container ::ng-deep .fc-button:hover {
+    background-color: #e0e0e0;
+    border-color: #bbb;
+  }
+  
+  .calendar-container ::ng-deep .fc-button:focus {
+    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.3);
   }

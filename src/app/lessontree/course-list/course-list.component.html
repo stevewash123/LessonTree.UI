@@ -1,20 +1,4 @@
-<!-- src/app/lessontree/course-list/course-list.component.html -->
 <div class="course-list-wrapper">
-    <div class="course-header-container">
-      <h2 class="courses-header">Courses ({{courseDataService.coursesCount()}})</h2>
-      <mat-icon class="filter-icon" (click)="openFilterDialog()" matTooltip="Filter Courses">filter_list</mat-icon>
-    </div>
-    
-    <!-- Local search input -->
-    <div class="search-container">
-      <input 
-        type="text" 
-        placeholder="Search courses..."
-        [value]="localSearchTerm"
-        (input)="onSearchInput($event)"
-        class="search-input">
-    </div>
-    
     @for (course of displayCourses(); track course.id) {        
       <mat-card class="course-card">
         <div class="tree-view-container">

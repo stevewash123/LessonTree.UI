@@ -1,0 +1,28 @@
+<div class="split-panel-header" 
+     [class.dragging]="splitPanelDragService.isSplitPanelBeingDragged(splitPanelType)"
+     [class.drop-target]="splitPanelDragService.isSplitPanelDropTarget(splitPanelType)"
+     draggable="true"
+     (dragstart)="onDragStart($event)"
+     (dragover)="onDragOver($event)"
+     (dragleave)="onDragLeave($event)"
+     (drop)="onDrop($event)"
+     (dragend)="onDragEnd($event)">
+  
+  <div class="split-panel-title" [attr.draggable]="false">
+    <mat-icon class="drag-handle" matTooltip="Drag to reorder panels" [attr.draggable]="false">drag_indicator</mat-icon>
+    <span class="title-text" [attr.draggable]="false">{{ title }}</span>
+  </div>
+  
+  @if (showActions) {
+    <div class="split-panel-actions" [attr.draggable]="false">
+      <ng-content></ng-content>
+    </div>
+  }
+  
+  @if (splitPanelDragService.isSplitPanelDropTarget(splitPanelType)) {
+    <div class="drop-indicator" [attr.draggable]="false">
+      <mat-icon [attr.draggable]="false">swap_horiz</mat-icon>
+      <span [attr.draggable]="false">Drop to swap split panels</span>
+    </div>
+  }
+</div>

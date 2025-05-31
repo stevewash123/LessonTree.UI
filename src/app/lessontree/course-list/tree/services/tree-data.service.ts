@@ -1,11 +1,12 @@
-// src/app/lessontree/course-list/tree/services/tree-data.service.ts - COMPLETE FILE
+// RESPONSIBILITY: Transforms course data into tree structures and provides tree manipulation utilities.
+// DOES NOT: Manage state, handle API calls, or track selections - pure data transformation only.
+// CALLED BY: TreeWrapper, TreeDragDropService for building and manipulating tree structures.
 import { Injectable } from '@angular/core';
 import { Course } from '../../../../models/course';
-import { Topic } from '../../../../models/topic';
-import { SubTopic, createSubTopicNode } from '../../../../models/subTopic';
-import { Lesson, createLessonNode } from '../../../../models/lesson';
+import { createTopicNode, Topic } from '../../../../models/topic';
 import { TreeNode, TreeData } from '../../../../models/tree-node';
-import { createTopicNode } from '../../../../models/topic';
+import { createLessonNode, Lesson } from '../../../../models/lesson';
+import { SubTopic, createSubTopicNode } from '../../../../models/subTopic';
 
 @Injectable({
   providedIn: 'root'
@@ -170,39 +171,34 @@ export class TreeDataService {
   }
 
   // Add node to tree structure
-  addNodeToTree(treeData: TreeNode[], newNode: TreeNode): boolean {
+  addNodeToTreeWithParentFinding(treeData: TreeNode[], newNode: TreeNode): { success: boolean; parentNodeId?: string } {
     let parentNodeId: string | undefined;
-
+  
     if (newNode.nodeType === 'Topic') {
-      // For topics, the parent is the course
-      parentNodeId = treeData[0]?.id; // Course is always the first node
+      // For topics, the parent is the course (always the first node)
+      parentNodeId = treeData[0]?.id;
     } else if (newNode.nodeType === 'SubTopic') {
       const subTopic = newNode.original as SubTopic;
-      const courseNode = treeData[0]; // Course node
-      if (courseNode && courseNode.child) {
-        const parentTopic = courseNode.child.find(t => 
-          t.nodeType === 'Topic' && (t.original as Topic).id === subTopic.topicId
-        );
-        parentNodeId = parentTopic?.id;
-      }
+      parentNodeId = this.findTopicNodeId(treeData, subTopic.topicId);
     } else if (newNode.nodeType === 'Lesson') {
       const lesson = newNode.original as Lesson;
       if (lesson.subTopicId) {
-        // Find the subtopic node
+        // Lesson belongs to a subtopic
         parentNodeId = this.findSubTopicNodeId(treeData, lesson.subTopicId);
       } else if (lesson.topicId) {
-        // Find the topic node
+        // Lesson belongs directly to a topic
         parentNodeId = this.findTopicNodeId(treeData, lesson.topicId);
       }
     }
-
+  
     if (!parentNodeId) {
-      console.warn(`[TreeDataService] No valid parent nodeId for ${newNode.nodeType}`, { 
+      console.warn(`[TreeDataService] No valid parent nodeId found for ${newNode.nodeType}`, { 
+        nodeId: newNode.id,
         timestamp: new Date().toISOString() 
       });
-      return false;
+      return { success: false };
     }
-
+  
     const parentNode = this.findNodeById(treeData, parentNodeId);
     if (parentNode) {
       if (!parentNode.child) parentNode.child = [];
@@ -214,16 +210,37 @@ export class TreeDataService {
         newNodeId: newNode.id,
         timestamp: new Date().toISOString()
       });
-      return true;
+      return { success: true, parentNodeId };
     } else {
       console.warn(`[TreeDataService] Parent node not found in treeData`, {
         parentNodeId,
         timestamp: new Date().toISOString()
       });
-      return false;
+      return { success: false };
     }
   }
 
+  addNodeToTreeAndSort(treeData: TreeNode[], newNode: TreeNode): { success: boolean; sortedData: TreeNode[]; parentNodeId?: string } {
+    const result = this.addNodeToTreeWithParentFinding(treeData, newNode);
+    
+    if (result.success) {
+      // Sort the tree data after adding
+      this.sortTreeData(treeData);
+      
+      console.log(`[TreeDataService] Added and sorted ${newNode.nodeType} node`, {
+        newNodeId: newNode.id,
+        parentNodeId: result.parentNodeId,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    return {
+      success: result.success,
+      sortedData: [...treeData], // Return copy of sorted data
+      parentNodeId: result.parentNodeId
+    };
+  }
+  
   // Update tree data with children for a specific parent
   updateTreeDataWithChildren(treeData: TreeNode[], parentId: string, childNodes: TreeNode[]): TreeNode[] {
     const updateChildren = (nodes: TreeNode[]): TreeNode[] => {

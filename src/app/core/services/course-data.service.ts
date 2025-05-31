@@ -1,10 +1,15 @@
-// src/app/core/services/course-data.service.ts - Phase 1 + Generic Mutations (Validated)
+// RESPONSIBILITY: Manages course data state, signals, and reactive queries. Pure data layer with proper Lesson/LessonDetail separation.
+// DOES NOT: Handle API calls, user feedback, or business logic.
+// CALLED BY: CourseCrudService, TreeWrapper, Calendar, NodeOperationsService
+
 import { Injectable, signal, computed } from '@angular/core';
 import { Course } from '../../models/course';
 import { TreeData } from '../../models/tree-node';
 import { Topic } from '../../models/topic';
 import { SubTopic } from '../../models/subTopic';
 import { Lesson, LessonDetail } from '../../models/lesson';
+
+export type ChangeSource = 'tree' | 'calendar' | 'infopanel' | 'api' | 'initialization';
 
 @Injectable({
   providedIn: 'root'
@@ -75,33 +80,59 @@ export class CourseDataService {
     };
   });
   
-  // Existing signals for node state changes (unchanged)
-  readonly nodeAdded = signal<TreeData | null>(null);
-  readonly nodeEdited = signal<TreeData | null>(null);
-  readonly nodeDeleted = signal<TreeData | null>(null);
-  readonly nodeMoved = signal<{node: TreeData, source: string, target: string} | null>(null);
+  // Signals for node state changes with source tracking
+  readonly nodeAdded = signal<{node: TreeData, source: ChangeSource} | null>(null);
+  readonly nodeEdited = signal<{node: TreeData, source: ChangeSource} | null>(null);
+  readonly nodeDeleted = signal<{node: TreeData, source: ChangeSource} | null>(null);
+  readonly nodeMoved = signal<{node: TreeData, sourceLocation: string, targetLocation: string, changeSource: ChangeSource} | null>(null);
 
   constructor() {
-    console.log('[CourseDataService] Service initialized with Phase 1 signals', { 
+    console.log('[CourseDataService] Service initialized with Lesson/LessonDetail separation', { 
       timestamp: new Date().toISOString() 
     });
   }
 
-  // === SIGNAL EMISSION METHODS ===
-  emitNodeAdded(node: TreeData): void {
-    this.nodeAdded.set(node);
+  // === SIGNAL EMISSION METHODS (Updated with Source Tracking) ===
+  emitNodeAdded(node: TreeData, source: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Node added', {
+      nodeType: node.nodeType,
+      nodeId: node.nodeId,
+      source,
+      timestamp: new Date().toISOString()
+    });
+    this.nodeAdded.set({node, source});
   }
 
-  emitNodeEdited(node: TreeData): void {
-    this.nodeEdited.set(node);
+  emitNodeEdited(node: TreeData, source: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Node edited', {
+      nodeType: node.nodeType,
+      nodeId: node.nodeId,
+      source,
+      timestamp: new Date().toISOString()
+    });
+    this.nodeEdited.set({node, source});
   }
 
-  emitNodeDeleted(node: TreeData): void {
-    this.nodeDeleted.set(node);
+  emitNodeDeleted(node: TreeData, source: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Node deleted', {
+      nodeType: node.nodeType,
+      nodeId: node.nodeId,
+      source,
+      timestamp: new Date().toISOString()
+    });
+    this.nodeDeleted.set({node, source});
   }
 
-  emitNodeMoved(event: {node: TreeData, source: string, target: string}): void {
-    this.nodeMoved.set(event);
+  emitNodeMoved(event: {node: TreeData, sourceLocation: string, targetLocation: string}, changeSource: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Node moved', {
+      nodeType: event.node.nodeType,
+      nodeId: event.node.nodeId,
+      sourceLocation: event.sourceLocation,
+      targetLocation: event.targetLocation,
+      changeSource,
+      timestamp: new Date().toISOString()
+    });
+    this.nodeMoved.set({...event, changeSource});
   }
 
   // === FILTER STATE METHODS ===
@@ -143,11 +174,25 @@ export class CourseDataService {
    */
   private mutateTree<T extends TreeData>(
     entity: T, 
-    operation: 'add' | 'update' | 'remove'
+    operation: 'add' | 'update' | 'remove',
+    source: ChangeSource = 'api'
   ): void {
     const currentCourses = this._courses();
     const newCourses = this.processCoursesArray(currentCourses, entity, operation);
     this.updateSignal(newCourses);
+    
+    // Emit appropriate signal based on operation
+    switch (operation) {
+      case 'add':
+        this.emitNodeAdded(entity, source);
+        break;
+      case 'update':
+        this.emitNodeEdited(entity, source);
+        break;
+      case 'remove':
+        this.emitNodeDeleted(entity, source);
+        break;
+    }
   }
 
   /**
@@ -220,7 +265,7 @@ export class CourseDataService {
   }
 
   /**
-   * Handle mutations within a specific topic
+   * Handle mutations within a specific topic - FIXED: Proper lesson type handling
    */
   private mutateTopic<T extends TreeData>(topic: Topic, entity: T, operation: 'add' | 'update' | 'remove'): Topic {
     const newTopic = { ...topic };
@@ -234,11 +279,13 @@ export class CourseDataService {
     }
     
     if (entity.nodeType === 'Lesson') {
-      const lesson = entity as unknown as LessonDetail;
+      // FIXED: Accept both Lesson and LessonDetail, but store as Lesson
+      const lesson = entity as unknown as Lesson | LessonDetail;
       
       // Lesson belongs directly to this topic
       if (lesson.topicId === topic.id && !lesson.subTopicId) {
-        newTopic.lessons = this.mutateLessonArray(newTopic.lessons || [], lesson, operation);
+        const basicLesson = this.toLessonBasic(lesson);
+        newTopic.lessons = this.mutateLessonArray(newTopic.lessons || [], basicLesson, operation);
         return newTopic;
       }
       
@@ -268,21 +315,22 @@ export class CourseDataService {
   }
 
   /**
-   * Handle mutations within a specific subtopic
+   * Handle mutations within a specific subtopic - FIXED: Proper lesson type handling
    */
-  private mutateSubTopic(subTopic: SubTopic, lesson: LessonDetail, operation: 'add' | 'update' | 'remove'): SubTopic {
+  private mutateSubTopic(subTopic: SubTopic, lesson: Lesson | LessonDetail, operation: 'add' | 'update' | 'remove'): SubTopic {
     if (lesson.subTopicId === subTopic.id) {
       const newSubTopic = { ...subTopic };
-      newSubTopic.lessons = this.mutateLessonArray(newSubTopic.lessons || [], lesson, operation);
+      const basicLesson = this.toLessonBasic(lesson);
+      newSubTopic.lessons = this.mutateLessonArray(newSubTopic.lessons || [], basicLesson, operation);
       return newSubTopic;
     }
     return subTopic;
   }
 
   /**
-   * Handle lesson array mutations
+   * Handle lesson array mutations - FIXED: Only work with Lesson type
    */
-  private mutateLessonArray(lessons: Lesson[], lesson: LessonDetail, operation: 'add' | 'update' | 'remove'): Lesson[] {
+  private mutateLessonArray(lessons: Lesson[], lesson: Lesson, operation: 'add' | 'update' | 'remove'): Lesson[] {
     switch (operation) {
       case 'add':
         return [...lessons, lesson];
@@ -293,7 +341,29 @@ export class CourseDataService {
     }
   }
 
-  // === DATA ACCESS METHODS (backward compatible) ===
+  /**
+   * Convert LessonDetail to basic Lesson for tree storage - NEW METHOD
+   */
+  private toLessonBasic(lesson: Lesson | LessonDetail): Lesson {
+    return {
+      id: lesson.id,
+      nodeId: lesson.nodeId,
+      courseId: lesson.courseId,
+      subTopicId: lesson.subTopicId,
+      topicId: lesson.topicId,
+      title: lesson.title,
+      objective: lesson.objective,
+      nodeType: 'Lesson',
+      description: lesson.description,
+      archived: lesson.archived,
+      visibility: lesson.visibility,
+      userId: lesson.userId,
+      sortOrder: lesson.sortOrder,
+      hasChildren: false
+    } as Lesson;
+  }
+
+  // === DATA ACCESS METHODS (Query Only) - UPDATED ===
   getCourses(): Course[] {
     return [...this._courses()];
   }
@@ -326,6 +396,7 @@ export class CourseDataService {
     return null;
   }
 
+  // UPDATED: Returns basic Lesson for tree operations
   getLessonById(lessonId: number): Lesson | null {
     for (const course of this._courses()) {
       if (course.topics) {
@@ -348,137 +419,68 @@ export class CourseDataService {
     return null;
   }
 
-  // === SIMPLIFIED PUBLIC MUTATION METHODS ===
+  // NEW: Returns LessonDetail by fetching full details from API via CRUD service
+  getLessonDetailById(lessonId: number): LessonDetail | null {
+    // This method should be used by InfoPanel components
+    // Implementation should delegate to API service for full details
+    const basicLesson = this.getLessonById(lessonId);
+    if (!basicLesson) return null;
+    
+    // For now, create a basic LessonDetail from Lesson
+    // In practice, this should call API service for full details
+    return {
+      ...basicLesson,
+      level: '',
+      materials: '',
+      classTime: '',
+      methods: '',
+      specialNeeds: '',
+      assessment: '',
+      standards: [],
+      attachments: [],
+      notes: []
+    } as LessonDetail;
+  }
 
-  setCourses(courses: Course[]): void {
+  // === PUBLIC MUTATION METHODS (Called by External Services Only) ===
+
+  setCourses(courses: Course[], source: ChangeSource = 'initialization'): void {
     console.log('[CourseDataService] Setting courses via signal', {
       count: courses.length,
+      source,
       timestamp: new Date().toISOString()
     });
     this.updateSignal([...courses]);
   }
 
-  addCourse(course: Course): void {
-    console.log('[CourseDataService] Adding course', {
-      courseId: course.id,
-      title: course.title,
+  // Generic mutation methods - called by CourseCrudService, NodeOperationsService, etc.
+  addEntity<T extends TreeData>(entity: T, source: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Adding entity', {
+      entityType: entity.nodeType,
+      entityId: entity.nodeId,
+      source,
       timestamp: new Date().toISOString()
     });
-    this.mutateTree(course, 'add');
+    this.mutateTree(entity, 'add', source);
   }
 
-  updateCourse(updatedCourse: Course): void {
-    console.log('[CourseDataService] Updating course', {
-      courseId: updatedCourse.id,
-      title: updatedCourse.title,
+  updateEntity<T extends TreeData>(entity: T, source: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Updating entity', {
+      entityType: entity.nodeType,
+      entityId: entity.nodeId,
+      source,
       timestamp: new Date().toISOString()
     });
-    this.mutateTree(updatedCourse, 'update');
+    this.mutateTree(entity, 'update', source);
   }
 
-  removeCourse(courseId: number): void {
-    console.log('[CourseDataService] Removing course', {
-      courseId,
+  removeEntity<T extends TreeData>(entity: T, source: ChangeSource = 'api'): void {
+    console.log('[CourseDataService] Removing entity', {
+      entityType: entity.nodeType,
+      entityId: entity.nodeId,
+      source,
       timestamp: new Date().toISOString()
     });
-    const course = this.getCourseById(courseId);
-    if (course) {
-      this.mutateTree(course, 'remove');
-    }
-  }
-
-  addTopicToCourse(topic: Topic): void {
-    console.log('[CourseDataService] Adding topic to course', {
-      topicId: topic.id,
-      courseId: topic.courseId,
-      title: topic.title,
-      timestamp: new Date().toISOString()
-    });
-    this.mutateTree(topic, 'add');
-  }
-
-  updateTopicInCourse(updatedTopic: Topic): void {
-    console.log('[CourseDataService] Updating topic in course', {
-      topicId: updatedTopic.id,
-      courseId: updatedTopic.courseId,
-      title: updatedTopic.title,
-      timestamp: new Date().toISOString()
-    });
-    this.mutateTree(updatedTopic, 'update');
-  }
-
-  removeTopicFromCourse(topicId: number): void {
-    console.log('[CourseDataService] Removing topic from course', {
-      topicId,
-      timestamp: new Date().toISOString()
-    });
-    const topic = this.getTopicById(topicId);
-    if (topic) {
-      this.mutateTree(topic, 'remove');
-    }
-  }
-
-  addSubTopicToTopic(subTopic: SubTopic): void {
-    console.log('[CourseDataService] Adding subtopic to topic', {
-      subTopicId: subTopic.id,
-      topicId: subTopic.topicId,
-      title: subTopic.title,
-      timestamp: new Date().toISOString()
-    });
-    this.mutateTree(subTopic, 'add');
-  }
-
-  updateSubTopicInTopic(updatedSubTopic: SubTopic): void {
-    console.log('[CourseDataService] Updating subtopic in topic', {
-      subTopicId: updatedSubTopic.id,
-      topicId: updatedSubTopic.topicId,
-      title: updatedSubTopic.title,
-      timestamp: new Date().toISOString()
-    });
-    this.mutateTree(updatedSubTopic, 'update');
-  }
-
-  removeSubTopicFromTopic(subTopicId: number): void {
-    console.log('[CourseDataService] Removing subtopic from topic', {
-      subTopicId,
-      timestamp: new Date().toISOString()
-    });
-    const subTopic = this.getSubTopicById(subTopicId);
-    if (subTopic) {
-      this.mutateTree(subTopic, 'remove');
-    }
-  }
-
-  addLessonToParent(lesson: LessonDetail): void {
-    console.log('[CourseDataService] Adding lesson to parent', {
-      lessonId: lesson.id,
-      subTopicId: lesson.subTopicId,
-      topicId: lesson.topicId,
-      title: lesson.title,
-      timestamp: new Date().toISOString()
-    });
-    this.mutateTree(lesson, 'add');
-  }
-
-  updateLessonInParent(updatedLesson: LessonDetail): void {
-    console.log('[CourseDataService] Updating lesson in parent', {
-      lessonId: updatedLesson.id,
-      subTopicId: updatedLesson.subTopicId,
-      topicId: updatedLesson.topicId,
-      title: updatedLesson.title,
-      timestamp: new Date().toISOString()
-    });
-    this.mutateTree(updatedLesson, 'update');
-  }
-
-  removeLessonFromParent(lessonId: number): void {
-    console.log('[CourseDataService] Removing lesson from parent', {
-      lessonId,
-      timestamp: new Date().toISOString()
-    });
-    const lesson = this.getLessonById(lessonId);
-    if (lesson) {
-      this.mutateTree(lesson as LessonDetail, 'remove');
-    }
+    this.mutateTree(entity, 'remove', source);
   }
 }

@@ -1,17 +1,18 @@
 /* src/app/lessontree/lesson-tree-container/lesson-tree-container.component.css */
+/* COMPLETE FILE */
 :host {
     display: block;
-    height: calc(100vh - 64px); /* Adjust for toolbar height (64px is Material toolbar default) */
+    height: calc(100vh - 64px);
   }
   
-  /* Status Bar Styles */
+  /* Status Bar */
   .status-bar-container {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     z-index: 1000;
-    height: 0; /* No height by default */
+    height: 0;
   }
   
   .hover-trigger-zone {
@@ -19,7 +20,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 12px; /* Slightly larger hover area */
+    height: 12px;
     z-index: 1000;
   }
   
@@ -28,12 +29,13 @@
     top: 0;
     left: 0;
     right: 0;
-    background-color: #f0f5fa; /* Lighter blue-gray background */
-    border-bottom: 1px solid #c0d0e0; /* Softer border color */
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     transform: translateY(-100%);
-    transition: transform 0.25s ease-in-out; /* Slightly slower for smoother reveal */
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 999;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    backdrop-filter: blur(10px);
   }
   
   .status-bar.visible {
@@ -44,73 +46,139 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 24px; /* More padding for better spacing */
-    max-width: 1400px; /* Limit width on very wide screens */
-    margin: 0 auto; /* Center the content */
+    padding: 16px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
   }
   
   .control-group {
     display: flex;
     align-items: center;
-    margin: 0 16px; /* Horizontal spacing between control groups */
+    margin: 0 20px;
   }
   
-  /* Drag Mode Toggle Styling */
-  .drag-mode-toggle {
-    display: flex;
-    align-items: center;
+  /* Drag Mode Button Toggle Group */
+  .drag-mode-toggle-group {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
   }
   
-  .drag-mode-toggle ::ng-deep .mat-slide-toggle-label {
-    margin-right: 8px;
+  .drag-mode-toggle-group ::ng-deep .mat-button-toggle {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    min-width: 80px;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
   }
   
-  .drag-mode-toggle ::ng-deep .mat-slide-toggle-bar {
-    background-color: #e0e0e0; /* Neutral color for both states */
+  .drag-mode-toggle-group ::ng-deep .mat-button-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
   }
   
-  .drag-mode-toggle ::ng-deep.mat-slide-toggle.mat-checked .mat-slide-toggle-bar {
-    background-color: rgba(33, 150, 243, 0.5); /* Blue for copy mode */
+  .drag-mode-toggle-group ::ng-deep .mat-button-toggle.mat-button-toggle-checked {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
   }
   
-  .drag-mode-toggle ::ng-deep .mat-slide-toggle-thumb {
-    background-color: #ffffff; /* White thumb */
+  .drag-mode-toggle-group ::ng-deep .mat-icon {
+    margin-right: 6px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
   }
   
-  .drag-mode-toggle ::ng-deep.mat-slide-toggle.mat-checked .mat-slide-toggle-thumb {
-    background-color: #2196f3; /* Blue thumb for copy mode */
-  }
-  
-  .drag-mode-label {
-    font-weight: 500;
-    margin-right: 8px;
-    color: #555;
+  .drag-mode-label, .view-mode-label {
+    font-weight: 600;
+    margin-right: 12px;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
   }
   
   .control-label {
-    margin-left: 8px;
+    margin-left: 12px;
     font-size: 14px;
-    color: #333;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
   
+  /* Responsive behavior for drag mode buttons */
+  @media (max-width: 1200px) {
+    .drag-mode-toggle-group ::ng-deep .toggle-label {
+      display: none;
+    }
+    .drag-mode-toggle-group ::ng-deep .mat-button-toggle {
+      min-width: 48px;
+      padding: 8px;
+    }
+  }
+  
+  /* View Mode Toggle Group */
   .view-mode-selector {
-    margin-left: 24px; /* More space between controls */
+    margin-left: 32px;
   }
   
-  .view-mode-select {
-    min-width: 180px; /* Wider for better readability */
-    font-size: 14px;
+  .view-mode-toggle-group {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+  }
+  
+  .view-mode-toggle-group ::ng-deep .mat-button-toggle {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    min-width: 120px;
+    padding: 8px 12px;
+    transition: all 0.2s ease;
+  }
+  
+  .view-mode-toggle-group ::ng-deep .mat-button-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+  
+  .view-mode-toggle-group ::ng-deep .mat-button-toggle.mat-button-toggle-checked {
+    background-color: rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
+  
+  .view-mode-toggle-group ::ng-deep .mat-icon {
+    margin-right: 6px;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+  
+  @media (max-width: 1200px) {
+    .view-mode-toggle-group ::ng-deep .toggle-label {
+      display: none;
+    }
+    .view-mode-toggle-group ::ng-deep .mat-button-toggle {
+      min-width: 48px;
+      padding: 8px;
+    }
   }
   
   .status-info {
     flex: 1;
     text-align: center;
-    font-size: 15px;
-    color: #444;
-    font-weight: 500;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.95);
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    letter-spacing: 0.5px;
   }
   
-  /* Split Pane Styles */
+  /* Layout */
   as-split {
     height: 100%;
     width: 100%;
@@ -118,21 +186,51 @@
   }
   
   as-split-area {
-    overflow-y: auto; /* Scroll if content overflows */
-    padding: 16px; /* Optional padding */
-    position: relative; /* Allow absolute positioning of overlay */
+    overflow: hidden; /* Changed from auto to hidden since panels handle their own scrolling */
+    position: relative;
+  }
+  
+  .split-panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .panel-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    position: relative;
   }
   
   .left-split-area, .middle-split-area, .right-split-area {
-    position: relative; /* Ensure overlay stays within this area */
+    position: relative;
   }
   
-  /* Sidebar Styles */
+  .left-split-area.disabled, .middle-split-area.disabled, .right-split-area.disabled {
+    pointer-events: none;
+  }
+  
+  .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 10;
+    pointer-events: auto;
+  }
+  
+  /* Sidebar */
   .sidebar {
     background-color: #f8f9fa;
     border-left: 1px solid #ddd;
-    overflow-y: auto;
-    padding: 0 !important; /* Override default padding */
+    overflow: hidden; /* Changed to match other panels */
+  }
+  
+  .sidebar .panel-content {
+    padding: 0 !important; /* Override default padding for sidebar content */
   }
   
   .sidebar-header {
@@ -141,6 +239,7 @@
     padding: 8px;
     border-bottom: 1px solid #ddd;
     background-color: #f0f0f0;
+    min-height: 48px; /* Match panel header height */
   }
   
   .sidebar-header h3 {
@@ -149,65 +248,23 @@
     font-weight: 500;
   }
   
-  /* Disable interactions only when disabled class is applied */
-  .left-split-area.disabled, .middle-split-area.disabled, .right-split-area.disabled {
-    pointer-events: none; /* Disable interactions when overlay is active */
-  }
-  
-  /* Overlay styling */
-  .overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.6); /* Increased opacity for visibility */
-    z-index: 10; /* Above content */
-    pointer-events: auto; /* Overlay captures events */
-  }
-  
-  /* Ensure components are interactive by default */
-  .left-split-area course-list,
-  .right-split-area course-list,
-  .left-split-area app-lesson-calendar {
-    pointer-events: auto; /* Explicitly enable unless disabled */
-  }
-  
-  /* Optional: Customize the splitter (gutter) */
+  /* Splitter */
   as-split ::ng-deep .as-split-gutter {
     background-color: #ccc;
     cursor: col-resize;
-    width: 4px; /* Thickness of the splitter */
+    width: 4px;
   }
   
   as-split ::ng-deep .as-split-gutter:hover {
     background-color: #999;
   }
   
-  /* Placeholder Message */
-  .placeholder-message {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    height: calc(100vh - 64px - 40px); /* Adjust for toolbar and footer */
-    background-color: #f9f9f9;
-    color: #666;
-    text-align: center;
-    padding: 20px;
-  }
-  
-  .placeholder-message h2 {
-    margin-bottom: 10px;
-    color: #333;
-  }
-  
-  /* Main Container & Footer */
+  /* Footer */
   .main-container {
     margin-top: 20px;
     display: flex;
     flex-direction: column;
-    height: 100vh; /* Full viewport height */
+    height: 100vh;
   }
   
   .footer {
@@ -215,4 +272,93 @@
     color: white;
     padding: 10px;
     text-align: center;
+  }
+
+  /* Course Information and Filter styles */
+  .course-info {
+    margin-left: 32px;
+  }
+  
+  .course-label {
+    font-weight: 600;
+    margin-right: 8px;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-size: 14px;
+  }
+  
+  .filter-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    width: 32px;
+    height: 32px;
+    line-height: 32px;
+    transition: all 0.2s ease;
+  }
+  
+  .filter-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  .filter-button .mat-icon {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Schedule Management styles */
+  .schedule-management {
+    margin-left: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .schedule-selector {
+    min-width: 200px;
+  }
+
+  .schedule-selector ::ng-deep .mat-mdc-form-field {
+    font-size: 12px;
+  }
+
+  .schedule-selector ::ng-deep .mat-mdc-text-field-wrapper {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+
+  .schedule-selector ::ng-deep .mdc-notched-outline__leading,
+  .schedule-selector ::ng-deep .mdc-notched-outline__notch,
+  .schedule-selector ::ng-deep .mdc-notched-outline__trailing {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .schedule-selector ::ng-deep .mat-mdc-input-element {
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 12px;
+  }
+
+  .schedule-selector ::ng-deep .mat-mdc-floating-label {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 11px;
+  }
+
+  .save-schedule-button {
+    min-width: 120px !important;
+    font-size: 12px !important;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
   }
