@@ -54,12 +54,22 @@ export class ScheduleContextService {
   // Get available context menu actions based on current context
   getContextMenuActions(): ContextMenuAction[] {
     const actions: ContextMenuAction[] = [];
+
+    console.log('[ScheduleContextService] Getting context menu actions:', {
+      hasDateContext: !!this.lastClickedDate,
+      hasEventContext: !!this.lastClickedEvent,
+      lastClickedDate: this.lastClickedDate ? format(this.lastClickedDate, 'yyyy-MM-dd') : null,
+      lastClickedEventId: this.lastClickedEvent?.event?.id || null,
+      timestamp: new Date().toISOString()
+    });
   
     if (this.lastClickedDate) {
+      console.log('[ScheduleContextService] Processing date context');
       // Check if this date already has a special day
       const existingSpecialDay = this.getSpecialDayOnDate(this.lastClickedDate);
       
       if (existingSpecialDay) {
+        console.log('[ScheduleContextService] Found existing special day:', existingSpecialDay);
         // Date has an existing non-teaching day - only allow edit/delete
         actions.push(
           {
@@ -74,9 +84,10 @@ export class ScheduleContextService {
           }
         );
       } else {
+        console.log('[ScheduleContextService] No existing special day, adding add option');
         // Date is empty - allow adding non-teaching day
         actions.push({
-          id: 'nonTeaching',
+          id: 'addNonTeaching',
           label: 'Add Non-Teaching Day',
           handler: () => this.specialDayModalService.openSpecialDayModal('add', this.lastClickedDate!)
         });
@@ -84,14 +95,36 @@ export class ScheduleContextService {
     }
   
     if (this.lastClickedEvent) {
+      const event = this.lastClickedEvent.event;
+      const extendedProps = event.extendedProps || {};
+      
+      console.log('[ScheduleContextService] Processing event context:', {
+        eventId: event.id,
+        eventTitle: event.title,
+        specialCode: extendedProps['specialCode'],
+        hasLesson: !!extendedProps['lesson'],
+        isErrorDay: this.isErrorDayEvent(this.lastClickedEvent),
+        isSpecialDay: this.isSpecialDayEvent(this.lastClickedEvent),
+        isLesson: this.isLessonEvent(this.lastClickedEvent)
+      });
+
       if (this.isErrorDayEvent(this.lastClickedEvent)) {
-        // Error day event context - show info
-        actions.push({
-          id: 'errorDayInfo',
-          label: 'Error Day Info',
-          handler: () => this.specialDayModalService.showErrorDayInfo()
-        });
+        console.log('[ScheduleContextService] Adding error day actions');
+        // Error day event context - can add lesson or add non-teaching day
+        actions.push(
+          {
+            id: 'addLesson',
+            label: 'Add Lesson',
+            handler: () => this.handleAddLesson()
+          },
+          {
+            id: 'addNonTeaching',
+            label: 'Add Non-Teaching Day',
+            handler: () => this.handleAddNonTeachingToErrorDay()
+          }
+        );
       } else if (this.isSpecialDayEvent(this.lastClickedEvent)) {
+        console.log('[ScheduleContextService] Adding special day actions');
         // Special day event context - can edit or delete
         actions.push(
           {
@@ -105,8 +138,31 @@ export class ScheduleContextService {
             handler: () => this.specialDayModalService.deleteSpecialDayFromEvent(this.lastClickedEvent!)
           }
         );
+      } else if (this.isLessonEvent(this.lastClickedEvent)) {
+        console.log('[ScheduleContextService] Adding lesson actions');
+        // Lesson event context - can edit or delete lesson
+        actions.push(
+          {
+            id: 'editLesson',
+            label: 'Edit Lesson',
+            handler: () => this.handleEditLesson()
+          },
+          {
+            id: 'deleteLesson',
+            label: 'Delete Lesson',
+            handler: () => this.handleDeleteLesson()
+          }
+        );
+      } else {
+        console.log('[ScheduleContextService] Event type not recognized - no actions added');
       }
     }
+
+    console.log('[ScheduleContextService] Final actions array:', {
+      actionCount: actions.length,
+      actionIds: actions.map(a => a.id),
+      actionLabels: actions.map(a => a.label)
+    });
   
     return actions;
   }
@@ -129,6 +185,15 @@ export class ScheduleContextService {
     return specialDay || null;
   }
 
+  // Check if event is a lesson (has lesson but no special code)
+  private isLessonEvent(event: EventClickArg): boolean {
+    const extendedProps = event.event.extendedProps || {};
+    const lesson = extendedProps['lesson'];
+    const specialCode = extendedProps['specialCode'];
+    
+    return !!lesson && !specialCode;
+  }
+
   // Check if event is a special day (but not an error day)
   private isSpecialDayEvent(event: EventClickArg): boolean {
     const specialCode = event.event.extendedProps['specialCode'];
@@ -138,6 +203,97 @@ export class ScheduleContextService {
   // Check if event is an error day
   private isErrorDayEvent(event: EventClickArg): boolean {
     return event.event.extendedProps['specialCode'] === 'Error Day';
+  }
+
+  // STUBBED LESSON ACTIONS - To be implemented with proper lesson services
+
+  private handleEditLesson(): void {
+    if (!this.lastClickedEvent) {
+      console.warn('[ScheduleContextService] No event context for edit lesson');
+      return;
+    }
+
+    const lesson = this.lastClickedEvent.event.extendedProps['lesson'];
+    if (!lesson) {
+      console.warn('[ScheduleContextService] No lesson data in event');
+      return;
+    }
+
+    console.log('[ScheduleContextService] STUBBED: Edit lesson', {
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      eventDate: this.lastClickedEvent.event.start,
+      timestamp: new Date().toISOString()
+    });
+
+    // TODO: Implement with proper lesson service
+    // Example: this.lessonCrudService.openEditLessonModal(lesson);
+  }
+
+  private handleDeleteLesson(): void {
+    if (!this.lastClickedEvent) {
+      console.warn('[ScheduleContextService] No event context for delete lesson');
+      return;
+    }
+
+    const lesson = this.lastClickedEvent.event.extendedProps['lesson'];
+    if (!lesson) {
+      console.warn('[ScheduleContextService] No lesson data in event');
+      return;
+    }
+
+    console.log('[ScheduleContextService] STUBBED: Delete lesson', {
+      lessonId: lesson.id,
+      lessonTitle: lesson.title,
+      eventDate: this.lastClickedEvent.event.start,
+      timestamp: new Date().toISOString()
+    });
+
+    // TODO: Implement with proper lesson service
+    // Example: this.lessonCrudService.confirmDeleteLesson(lesson);
+  }
+
+  private handleAddLesson(): void {
+    if (!this.lastClickedEvent) {
+      console.warn('[ScheduleContextService] No event context for add lesson');
+      return;
+    }
+
+    const eventDate = this.lastClickedEvent.event.start;
+    if (!eventDate) {
+      console.warn('[ScheduleContextService] No date available for add lesson');
+      return;
+    }
+
+    console.log('[ScheduleContextService] STUBBED: Add lesson to error day', {
+      targetDate: format(eventDate, 'yyyy-MM-dd'),
+      eventTitle: this.lastClickedEvent.event.title,
+      timestamp: new Date().toISOString()
+    });
+
+    // TODO: Implement with proper lesson service
+    // Example: this.lessonCrudService.openAddLessonModal(eventDate);
+  }
+
+  private handleAddNonTeachingToErrorDay(): void {
+    if (!this.lastClickedEvent) {
+      console.warn('[ScheduleContextService] No event context for add non-teaching day');
+      return;
+    }
+
+    const eventDate = this.lastClickedEvent.event.start;
+    if (!eventDate) {
+      console.warn('[ScheduleContextService] No date available for add non-teaching day');
+      return;
+    }
+
+    console.log('[ScheduleContextService] Converting error day to non-teaching day', {
+      targetDate: format(eventDate, 'yyyy-MM-dd'),
+      timestamp: new Date().toISOString()
+    });
+
+    // Reuse existing special day modal for error day conversion
+    this.specialDayModalService.openSpecialDayModal('add', eventDate);
   }
 
   // Clear context (useful for cleanup)

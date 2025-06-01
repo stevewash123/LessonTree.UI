@@ -1,11 +1,26 @@
 /* src/app/lessontree/lesson-tree-container/lesson-tree-container.component.css */
-/* COMPLETE FILE */
-:host {
+/* COMPLETE FILE - CLEANED VERSION */
+/* RESPONSIBILITY: Main layout container with status bar, splitter panels, and basic styling */
+/* DOES NOT: Style child components internally, handle complex animations, duplicate code */
+/* CALLED BY: lesson-tree-container.component.html */
+
+/* 
+ * ⚠️  NO ::ng-deep IN THIS FILE! ⚠️
+ * Material component styling has been moved to styles.scss:
+ * - .status-bar-toggle-group for button toggle styling
+ * - .status-bar-form-field for form field styling  
+ * - .as-split-gutter for splitter styling
+ * 
+ * BEFORE adding ::ng-deep, check if global styling already exists in styles.scss and confirm w Steve
+ * If new Material component styling is needed, add it to styles.scss with appropriate class names
+ */
+
+ :host {
     display: block;
     height: calc(100vh - 64px);
   }
   
-  /* Status Bar */
+  /* Status Bar - Simplified */
   .status-bar-container {
     position: fixed;
     top: 0;
@@ -32,10 +47,9 @@
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
     transform: translateY(-100%);
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s ease;
     z-index: 999;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   }
   
   .status-bar.visible {
@@ -57,115 +71,19 @@
     margin: 0 20px;
   }
   
-  /* Drag Mode Button Toggle Group */
-  .drag-mode-toggle-group {
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
-  }
-  
-  .drag-mode-toggle-group ::ng-deep .mat-button-toggle {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12px;
-    min-width: 80px;
-    padding: 8px 12px;
-    transition: all 0.2s ease;
-  }
-  
-  .drag-mode-toggle-group ::ng-deep .mat-button-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-  
-  .drag-mode-toggle-group ::ng-deep .mat-button-toggle.mat-button-toggle-checked {
-    background-color: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
-    font-weight: 600;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-  
-  .drag-mode-toggle-group ::ng-deep .mat-icon {
-    margin-right: 6px;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-  }
-  
-  .drag-mode-label, .view-mode-label {
-    font-weight: 600;
-    margin-right: 12px;
-    color: rgba(255, 255, 255, 0.95);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    font-size: 14px;
-  }
-  
-  .control-label {
-    margin-left: 12px;
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(255, 255, 255, 0.9);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  }
-  
-  /* Responsive behavior for drag mode buttons */
-  @media (max-width: 1200px) {
-    .drag-mode-toggle-group ::ng-deep .toggle-label {
-      display: none;
-    }
-    .drag-mode-toggle-group ::ng-deep .mat-button-toggle {
-      min-width: 48px;
-      padding: 8px;
-    }
-  }
-  
-  /* View Mode Toggle Group */
-  .view-mode-selector {
-    margin-left: 32px;
-  }
-  
+  /* Consolidated Toggle Group Styling - applies global class */
+  .drag-mode-toggle-group,
   .view-mode-toggle-group {
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
   
-  .view-mode-toggle-group ::ng-deep .mat-button-toggle {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 12px;
-    min-width: 120px;
-    padding: 8px 12px;
-    transition: all 0.2s ease;
-  }
-  
-  .view-mode-toggle-group ::ng-deep .mat-button-toggle:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-  }
-  
-  .view-mode-toggle-group ::ng-deep .mat-button-toggle.mat-button-toggle-checked {
-    background-color: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
+  .control-label {
     font-weight: 600;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
-  }
-  
-  .view-mode-toggle-group ::ng-deep .mat-icon {
-    margin-right: 6px;
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-  }
-  
-  @media (max-width: 1200px) {
-    .view-mode-toggle-group ::ng-deep .toggle-label {
-      display: none;
-    }
-    .view-mode-toggle-group ::ng-deep .mat-button-toggle {
-      min-width: 48px;
-      padding: 8px;
-    }
+    margin-right: 12px;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 14px;
   }
   
   .status-info {
@@ -174,8 +92,61 @@
     font-size: 18px;
     color: rgba(255, 255, 255, 0.95);
     font-weight: 600;
-    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
     letter-spacing: 0.5px;
+  }
+  
+  /* View Mode Selector */
+  .view-mode-selector {
+    margin-left: 32px;
+  }
+  
+  /* Course Info */
+  .course-info {
+    margin-left: 32px;
+  }
+  
+  .filter-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    width: 32px;
+    height: 32px;
+    transition: all 0.2s ease;
+  }
+  
+  .filter-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  /* Schedule Management */
+  .schedule-management {
+    margin-left: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .schedule-selector {
+    min-width: 200px;
+  }
+  
+  .save-schedule-button {
+    min-width: 120px !important;
+    font-size: 12px !important;
+    animation: pulse 2s infinite;
+  }
+  
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
+    }
   }
   
   /* Layout */
@@ -186,7 +157,7 @@
   }
   
   as-split-area {
-    overflow: hidden; /* Changed from auto to hidden since panels handle their own scrolling */
+    overflow: hidden;
     position: relative;
   }
   
@@ -201,14 +172,6 @@
     overflow-y: auto;
     padding: 16px;
     position: relative;
-  }
-  
-  .left-split-area, .middle-split-area, .right-split-area {
-    position: relative;
-  }
-  
-  .left-split-area.disabled, .middle-split-area.disabled, .right-split-area.disabled {
-    pointer-events: none;
   }
   
   .overlay {
@@ -226,11 +189,11 @@
   .sidebar {
     background-color: #f8f9fa;
     border-left: 1px solid #ddd;
-    overflow: hidden; /* Changed to match other panels */
+    overflow: hidden;
   }
   
   .sidebar .panel-content {
-    padding: 0 !important; /* Override default padding for sidebar content */
+    padding: 0 !important;
   }
   
   .sidebar-header {
@@ -239,7 +202,7 @@
     padding: 8px;
     border-bottom: 1px solid #ddd;
     background-color: #f0f0f0;
-    min-height: 48px; /* Match panel header height */
+    min-height: 48px;
   }
   
   .sidebar-header h3 {
@@ -248,16 +211,7 @@
     font-weight: 500;
   }
   
-  /* Splitter */
-  as-split ::ng-deep .as-split-gutter {
-    background-color: #ccc;
-    cursor: col-resize;
-    width: 4px;
-  }
-  
-  as-split ::ng-deep .as-split-gutter:hover {
-    background-color: #999;
-  }
+  /* Simplified Splitter - styling moved to global styles.scss */
   
   /* Footer */
   .main-container {
@@ -272,93 +226,4 @@
     color: white;
     padding: 10px;
     text-align: center;
-  }
-
-  /* Course Information and Filter styles */
-  .course-info {
-    margin-left: 32px;
-  }
-  
-  .course-label {
-    font-weight: 600;
-    margin-right: 8px;
-    color: rgba(255, 255, 255, 0.95);
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-    font-size: 14px;
-  }
-  
-  .filter-button {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
-    width: 32px;
-    height: 32px;
-    line-height: 32px;
-    transition: all 0.2s ease;
-  }
-  
-  .filter-button:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-  }
-  
-  .filter-button .mat-icon {
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-  }
-
-  /* Schedule Management styles */
-  .schedule-management {
-    margin-left: 32px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .schedule-selector {
-    min-width: 200px;
-  }
-
-  .schedule-selector ::ng-deep .mat-mdc-form-field {
-    font-size: 12px;
-  }
-
-  .schedule-selector ::ng-deep .mat-mdc-text-field-wrapper {
-    background-color: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-  }
-
-  .schedule-selector ::ng-deep .mdc-notched-outline__leading,
-  .schedule-selector ::ng-deep .mdc-notched-outline__notch,
-  .schedule-selector ::ng-deep .mdc-notched-outline__trailing {
-    border-color: rgba(255, 255, 255, 0.3);
-  }
-
-  .schedule-selector ::ng-deep .mat-mdc-input-element {
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 12px;
-  }
-
-  .schedule-selector ::ng-deep .mat-mdc-floating-label {
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 11px;
-  }
-
-  .save-schedule-button {
-    min-width: 120px !important;
-    font-size: 12px !important;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-    }
   }

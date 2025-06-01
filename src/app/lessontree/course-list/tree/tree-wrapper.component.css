@@ -1,20 +1,61 @@
-#treeparent {
+/* src/app/lessontree/course-list/tree/tree-wrapper.component.css */
+/* COMPLETE FILE - CLEANED VERSION */
+/* RESPONSIBILITY: SyncFusion tree styling, node rendering, and tree-specific interactions */
+/* DOES NOT: Handle global layout, use ::ng-deep, duplicate common patterns */
+/* CALLED BY: tree-wrapper.component.html */
+
+/* 
+ * ✅ NO ::ng-deep IN THIS FILE! ✅
+ * This file properly uses SyncFusion's class override system
+ * All styling is scoped to component using .custom class prefix
+ * 
+ * Note: SyncFusion .e-* class overrides are necessary and cannot be moved to global styles
+ */
+
+/* CSS Custom Properties for consistent theming */
+:host {
+    --tree-border-color: #e0e0e0;
+    --tree-background: #e1e8f0;
+    --tree-hover-background: #f9f9f9;
+    --tree-active-border: rgba(63, 81, 181, 0.5);
+    --node-height: 34px;
+    --icon-size: 20px;
+    --text-color: #333;
+    --text-secondary: #666;
+  }
+  
+  /* TARGETED ANIMATION CONTROL - Only disable problematic transitions */
+  .custom .e-list-item,
+  .custom .e-text-content,
+  .node-container {
+    transition: none !important; /* These were causing the jumpiness */
+  }
+  
+  /* PRESERVE SyncFusion's good animations for expand/collapse and selection */
+  .custom .e-icons,
+  .custom .e-fullrow {
+    /* Let SyncFusion handle these animations - they work well */
+  }
+  
+  /* Tree Container */
+  #treeparent {
     display: block;
     max-height: 320px;
     overflow: auto;
-    overflow-x: hidden; /* Prevent horizontal scrollbar */
-    border: 1px solid #e0e0e0;
+    overflow-x: hidden;
+    border: 1px solid var(--tree-border-color);
     border-radius: 6px;
-    background-color: #e1e8f0; /* Match the course background color */
+    background-color: var(--tree-background);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     width: 100%;
     box-sizing: border-box;
     margin: 0;
-    padding-right: 8px; /* Add some padding to accommodate the scrollbar */
+    padding-right: 8px;
   }
   
+  /* SyncFusion Tree Overrides */
   .custom .e-treeview {
-    width: 100% !important; /* Ensure Syncfusion tree fills treeparent */
+    width: 100% !important;
     overflow-x: hidden !important;
   }
   
@@ -24,62 +65,52 @@
     margin: 0;
   }
   
-  /* List item styles - control width to prevent overflow */
   .custom .e-list-item {
-    padding: 4px 0; /* Reduced padding between rows */
+    padding: 4px 0;
     border-bottom: 1px solid #f0f0f0;
-    /* REMOVED: transition: all 0.2s ease; */
     width: 100%;
-    max-width: 100%; /* Limit maximum width */
     box-sizing: border-box;
-    position: relative; /* Needed for proper positioning of children */
+    position: relative;
   }
   
   .custom .e-list-item:hover {
-    background-color: #f9f9f9;
+    background-color: var(--tree-hover-background);
   }
   
-  /* Only style the direct selected item, not its children */
+  .custom .e-list-item:last-child {
+    border-bottom: none;
+  }
+  
+  /* Active Selection Styling */
   .custom .e-list-item.e-active > .node-container,
   .custom .e-list-item.e-active > .e-text-content .node-container {
-    border: 1px solid rgba(63, 81, 181, 0.5); /* Indigo border */
+    border: 1px solid var(--tree-active-border);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
   
-  /* Brighten colors when selected - target only direct node */
-  .custom .e-list-item.e-active > .e-text-content .node-container.course {
-    background-color: #cedcf0; /* Brighter blue-gray */
-  }
+  /* Node Type Colors - Active States */
+  .custom .e-list-item.e-active > .e-text-content .node-container.course { background-color: #cedcf0; }
+  .custom .e-list-item.e-active > .e-text-content .node-container.topic { background-color: #b3e5fc; }
+  .custom .e-list-item.e-active > .e-text-content .node-container.subtopic { background-color: #c8e6c9; }
+  .custom .e-list-item.e-active > .e-text-content .node-container.lesson { background-color: #fff9c4; }
   
-  .custom .e-list-item.e-active > .e-text-content .node-container.topic {
-    background-color: #b3e5fc; /* Brighter cyan */
-  }
-  
-  .custom .e-list-item.e-active > .e-text-content .node-container.subtopic {
-    background-color: #c8e6c9; /* Brighter green */
-  }
-  
-  .custom .e-list-item.e-active > .e-text-content .node-container.lesson {
-    background-color: #fff9c4; /* Brighter yellow */
-  }
-  
-  /* Work with SyncFusion's fullrow */
+  /* SyncFusion Full Row */
   .custom .e-fullrow {
-    opacity: 0 !important; /* Hide by default */
-    min-height: 38px; /* Reduced height */
-    z-index: -1; /* Place behind content */
+    opacity: 0 !important;
+    min-height: var(--node-height);
+    z-index: -1;
   }
   
   .custom .e-list-item.e-active > .e-fullrow {
-    opacity: 0.05 !important; /* Very subtle background when active */
-    background-color: #3f51b5; /* Indigo to match theme */
+    opacity: 0.05 !important;
+    background-color: #3f51b5;
   }
   
-  /* Fix for text content and list text - control width */
+  /* Text Content */
   .custom .e-text-content {
-    padding-left: 8px; /* Reduced to allow room for expansion icon */
+    padding-left: 8px;
     padding-right: 0;
-    width: 100%; /* Use 100% instead of calculating */
+    width: 100%;
     box-sizing: border-box;
     display: flex;
     align-items: center;
@@ -91,13 +122,45 @@
     box-sizing: border-box;
   }
   
-  .treeviewdiv {
-    width: 100% !important; /* Full width */
-    box-sizing: border-box;
-    overflow: hidden; /* Prevent overflow */
+  /* Hierarchy Indentation */
+  .custom .e-list-item.e-level-1 { padding-left: 8px; }
+  .custom .e-list-item.e-level-2 { padding-left: 24px; }
+  .custom .e-list-item.e-level-3 { padding-left: 40px; }
+  .custom .e-list-item.e-level-4 { padding-left: 56px; }
+  
+  .custom .e-list-item:not(.e-has-child) .e-text-content {
+    padding-left: 16px;
   }
   
-  /* Node container - controlled width to prevent overflow */
+  /* Expand/Collapse Icons */
+  .custom .e-list-item .e-icons {
+    margin-left: 0;
+    font-size: 14px;
+    color: #5c7099;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .custom .e-list-item .e-icons.e-icon-collapsible::before {
+    content: "▼";
+    font-size: 10px;
+  }
+  
+  .custom .e-list-item .e-icons.e-icon-expandable::before {
+    content: "►";
+    font-size: 10px;
+  }
+  
+  /* Node Container and Content */
+  .treeviewdiv {
+    width: 100% !important;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  
   .node-container {
     display: flex;
     align-items: center;
@@ -105,164 +168,99 @@
     padding: 4px 8px;
     border-radius: 4px;
     box-sizing: border-box;
-    overflow: hidden; /* Prevent content overflow */
-    position: relative; /* For proper positioning */
-    /* REMOVED: transition: all 0.2s ease; */
-    min-height: 34px; /* Reduced height */
+    overflow: hidden;
+    position: relative;
+    min-height: var(--node-height);
   }
   
-  /* More subtle colors for different node types */
-  .node-container.course {
-    background-color: #e1e8f0; /* Subtle blue-gray */
-  }
+  /* Node Type Colors - Default States */
+  .node-container.course { background-color: #e1e8f0; }
+  .node-container.topic { background-color: #e0f7fa; }
+  .node-container.subtopic { background-color: #e8f5e9; }
+  .node-container.lesson { background-color: #fff8e1; }
   
-  .node-container.topic {
-    background-color: #e0f7fa; /* Subtle cyan */
-  }
-  
-  .node-container.subtopic {
-    background-color: #e8f5e9; /* Subtle green */
-  }
-  
-  .node-container.lesson {
-    background-color: #fff8e1; /* Subtle yellow */
-  }
-  
-  /* Node type icon - keep consistent with what's working */
+  /* Node Content Layout */
   .node-type-icon {
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
+    width: var(--icon-size);
+    height: var(--icon-size);
+    line-height: var(--icon-size);
     text-align: center;
     margin-right: 8px;
     font-size: 16px;
-    color: #666;
+    color: var(--text-secondary);
     flex-shrink: 0;
   }
   
-  /* Node content */
   .node-content {
     flex: 1;
-    min-width: 0; /* Prevent flex item overflow */
+    min-width: 0;
     display: flex;
-    flex-direction: row; /* Changed to row to place description inline */
-    align-items: center; /* Center vertically */
-    padding-right: 60px; /* Make room for action buttons */
-    gap: 8px; /* Space between title and description */
+    flex-direction: row;
+    align-items: center;
+    padding-right: 60px;
+    gap: 8px;
     overflow: hidden;
   }
   
-  /* Node title and description */
   .node-title {
-    font-size: 14px; /* Slightly smaller */
+    font-size: 14px;
     font-weight: 500;
-    color: #333;
+    color: var(--text-color);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-shrink: 0; /* Don't shrink title */
-    min-width: 120px; /* Minimum width for title */
+    flex-shrink: 0;
+    min-width: 120px;
   }
   
   .node-description {
     font-size: 12px;
-    color: #666;
+    color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex: 1; /* Let description fill remaining space */
+    flex: 1;
   }
   
-  /* Node actions - positioned absolute and styled similar to node-type-icon */
+  /* Node Actions */
   .node-actions {
     display: flex;
-    gap: 4px; /* Slightly more space between buttons */
+    gap: 4px;
     position: absolute;
     right: 8px;
     top: 50%;
     transform: translateY(-50%);
   }
   
-  /* Style buttons similar to how the emoji icons are styled */
   .node-actions button {
-    width: 20px;
-    height: 20px;
-    min-width: 20px; /* Prevent flex shrinking */
-    min-height: 20px;
-    padding: 0; /* Remove padding that might be affecting size */
+    width: var(--icon-size);
+    height: var(--icon-size);
+    min-width: var(--icon-size);
+    min-height: var(--icon-size);
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    color: var(--text-secondary);
     flex-shrink: 0;
   }
   
+  .node-actions button:hover {
+    color: var(--text-color);
+  }
+  
   .node-actions button mat-icon {
-    font-size: 16px; /* Match the size used by emoji icons */
+    font-size: 16px;
     width: 16px;
     height: 16px;
     line-height: normal;
     text-align: center;
   }
   
-  .node-actions button:hover {
-    color: #333;
-  }
-  
-  /* Fix indentation for hierarchy levels */
-  .custom .e-list-item.e-level-1 {
-    padding-left: 8px;
-  }
-  
-  .custom .e-list-item.e-level-2 {
-    padding-left: 24px;
-  }
-  
-  .custom .e-list-item.e-level-3 {
-    padding-left: 40px;
-  }
-  
-  .custom .e-list-item.e-level-4 {
-    padding-left: 56px;
-  }
-  
-  /* Extra indentation for empty rows */
-  .custom .e-list-item:not(.e-has-child) .e-text-content {
-    padding-left: 16px; /* Additional padding for rows without children */
-  }
-  
-  /* Fix for the last child item */
-  .custom .e-list-item:last-child {
-    border-bottom: none;
-  }
-  
-  /* Fix for expand/collapse icons - nicer chevrons */
-  .custom .e-list-item .e-icons {
-    margin-left: 0;
-    font-size: 14px;
-    color: #5c7099; /* Blueish gray to match theme */
-    width: 20px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  /* Use custom chevron styles */
-  .custom .e-list-item .e-icons.e-icon-collapsible::before {
-    content: "▼"; /* Unicode down triangle */
-    font-size: 10px;
-  }
-  
-  .custom .e-list-item .e-icons.e-icon-expandable::before {
-    content: "►"; /* Unicode right triangle */
-    font-size: 10px;
-  }
-  
-  /* Custom scrollbar */
+  /* Custom Scrollbar */
   #treeparent::-webkit-scrollbar {
     width: 8px;
-    height: 0; /* No horizontal scrollbar */
+    height: 0;
   }
   
   #treeparent::-webkit-scrollbar-thumb {

@@ -33,12 +33,10 @@ export class NodeSelectionService {
   readonly selectedNodeId = computed(() => this._selectedNode()?.nodeId || null);
   readonly isSelectedNodeType = computed(() => (type: NodeType) => this._selectedNode()?.nodeType === type);
   
-  // Course-specific computed signals
-  readonly selectedCourse = computed(() => {
-    const node = this._selectedNode();
-    return node?.nodeType === 'Course' ? node : null;
-  });
-
+  // Course context computed signal - extracts courseId from any selected node
+  readonly activeCourseId = computed(() => this._selectedNode()?.courseId ?? null);
+  
+  // Individual node type computed signals for specific type checking
   readonly selectedTopic = computed(() => {
     const node = this._selectedNode();
     return node?.nodeType === 'Topic' ? node : null;
@@ -118,6 +116,7 @@ export class NodeSelectionService {
     console.log('[NodeSelectionService] Node selected', {
       nodeId: node?.nodeId,
       nodeType: node?.nodeType,
+      courseId: node?.courseId,
       source,
       previousNodeId: previousNode?.nodeId,
       previousNodeType: previousNode?.nodeType,
@@ -222,7 +221,7 @@ export class NodeSelectionService {
     const node: TreeData = {
       id: id,
       courseId: courseId,
-      nodeId: formattedNodeId, // ✅ PROPERLY FORMATTED: "lesson_186" instead of "186"
+      nodeId: formattedNodeId,
       nodeType,
       title: `${nodeType} ${id}`,
       description: '',
@@ -354,6 +353,7 @@ export class NodeSelectionService {
       selectedNode: node,
       selectedNodeType: node?.nodeType || null,
       selectedNodeId: node?.nodeId || null,
+      selectedCourseId: node?.courseId || null,
       selectionSource: source,
       selectionStats: stats,
       timestamp: new Date().toISOString()

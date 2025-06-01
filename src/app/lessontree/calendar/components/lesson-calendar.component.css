@@ -1,4 +1,21 @@
 /* src/app/lessontree/calendar/components/lesson-calendar.component.css - COMPLETE FILE */
+/* ================================================================
+ * FULLCALENDAR STYLING ARCHITECTURE NOTES
+ * ================================================================ 
+ * 
+ * FullCalendar requires DOM manipulation for day cell styling, not just CSS.
+ * 
+ * SUCCESSFUL PATTERN:
+ * 1. Use eventDidMount in CalendarConfigurationService.setDayCellBackgroundColor()
+ * 2. Find day cell: info.el.closest('.fc-daygrid-day')  
+ * 3. Set styles directly: dayCell.style.backgroundColor = '#color'
+ * 4. This modifies existing DOM elements, doesn't recreate them
+ * 
+ * DO NOT try to use CSS classes alone for day cell backgrounds - 
+ * FullCalendar's specificity will override them.
+ * 
+ * KEY FILE: calendar-configuration.service.ts -> setDayCellBackgroundColor()
+ * ================================================================ */
 
 /* Calendar container styling */
 .calendar-container {

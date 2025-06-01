@@ -24,9 +24,9 @@ import { UserService } from '../../core/services/user.service';
 import { SplitPanelDragService } from '../../core/services/split-panel-drag.service';
 import { SplitPanelType, ContainerViewModeService, ContainerViewMode } from './container-view-mode.service';
 import { CourseFilterDialogComponent } from '../course-list/course-filter/course-filter-dialog.component';
-import { ScheduleStateService } from '../calendar/services/schedule-state.service';
 import { parseId } from '../../core/utils/type-conversion.utils';
 import { CalendarConfigModalComponent } from '../calendar/components/calendar-config-modal.component';
+import { ScheduleStateService } from '../calendar/services/schedule-state.service';
 
 @Component({
   selector: 'lesson-tree-container',
@@ -203,15 +203,14 @@ export class LessonTreeContainerComponent implements OnDestroy {
 
   // Calendar configuration dialog method (moved from Calendar)
   openCalendarConfigModal(): void {
-    const selectedCourse = this.nodeSelectionService.selectedCourse();
+    const activeCourseId  = this.nodeSelectionService.activeCourseId();
     
-    if (!selectedCourse) {
-      console.error('[LessonTreeContainer] Cannot open calendar config modal - no course selected');
-      return;
+    if (!activeCourseId) {
+        console.error('[LessonTreeContainer] Cannot open calendar config modal - no course selected');
+        return;
     }
 
-    const courseId = parseId(selectedCourse.id);
-    const courseData = this.courseDataService.getCourseById(courseId);
+    const courseData = this.courseDataService.getCourseById(activeCourseId);
     
     if (!courseData) {
       console.error('[LessonTreeContainer] Cannot open calendar config modal - course data not found');
@@ -225,13 +224,13 @@ export class LessonTreeContainerComponent implements OnDestroy {
     }
     
     const dialogRef = this.dialog.open(CalendarConfigModalComponent, {
-      data: {
-        courseId,
-        userId: currentUser.id,
-        courseTitle: courseData.title,
-        existingSchedule: null, // Could be enhanced to pass current schedule
-        mode: 'create'
-      },
+        data: {
+            courseId: activeCourseId,  // ✅ Use activeCourseId directly
+            userId: currentUser.id,
+            courseTitle: courseData.title,
+            existingSchedule: null, // Could be enhanced to pass current schedule
+            mode: 'create'
+          },
       width: '600px',
       panelClass: 'custom-dialog-container'
     });
@@ -252,7 +251,7 @@ export class LessonTreeContainerComponent implements OnDestroy {
       timestamp: new Date().toISOString() 
     });
     this.scheduleStateService.selectScheduleById(scheduleId).subscribe({
-      error: (error) => {
+      error: (error: any) => {
         console.error(`[LessonTreeContainer] Failed to select schedule ${scheduleId}:`, error);
       }
     });
@@ -264,7 +263,7 @@ export class LessonTreeContainerComponent implements OnDestroy {
       timestamp: new Date().toISOString() 
     });
     this.scheduleStateService.saveCurrentSchedule().subscribe({
-      error: (error) => {
+      error: (error: any) => {
         console.error('[LessonTreeContainer] Failed to save schedule:', error);
       }
     });

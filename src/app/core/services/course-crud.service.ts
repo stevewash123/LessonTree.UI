@@ -89,30 +89,6 @@ export class CourseCrudService {
   }
 
   /**
-   * Ensure a course is selected, selecting first available if none selected
-   */
-  ensureCourseSelected(source: 'calendar' | 'programmatic' = 'programmatic'): Course | null {
-    const currentSelection = this.nodeSelectionService.selectedCourse();
-    
-    if (currentSelection) {
-      console.log('[CourseCrudService] Course already selected', {
-        courseId: currentSelection.id,
-        courseTitle: currentSelection.title,
-        timestamp: new Date().toISOString()
-      });
-      return currentSelection as Course;
-    }
-
-    console.log('[CourseCrudService] No course selected, selecting first available', {
-      source,
-      timestamp: new Date().toISOString()
-    });
-
-    const selected = this.selectFirstAvailableCourse(source);
-    return selected ? this.getFirstAvailableCourse() : null;
-  }
-
-  /**
    * Load courses and optionally select first available
    */
   loadCoursesAndSelectFirst(
@@ -130,30 +106,28 @@ export class CourseCrudService {
     });
 
     return this.loadCourses(courseFilter, visibilityFilter).pipe(
-      tap(courses => {
-        if (autoSelectFirst && courses.length > 0) {
-          // Only auto-select if no course is currently selected
-          const hasSelection = this.nodeSelectionService.hasSelection();
-          const hasCourseSelection = this.nodeSelectionService.selectedNodeType() === 'Course';
-          
-          if (!hasSelection || !hasCourseSelection) {
-            console.log('[CourseCrudService] Auto-selecting first course after load', {
-              coursesLoaded: courses.length,
-              hasSelection,
-              hasCourseSelection,
-              timestamp: new Date().toISOString()
-            });
-            
-            this.selectFirstAvailableCourse(selectionSource);
-          } else {
-            console.log('[CourseCrudService] Skipping auto-selection - course already selected', {
-              selectedNodeType: this.nodeSelectionService.selectedNodeType(),
-              selectedNodeId: this.nodeSelectionService.selectedNodeId(),
-              timestamp: new Date().toISOString()
-            });
-          }
-        }
-      })
+        tap(courses => {
+            if (autoSelectFirst && courses.length > 0) {
+              // Only auto-select if nothing is currently selected
+              const hasSelection = this.nodeSelectionService.hasSelection();
+              
+              if (!hasSelection) {
+                console.log('[CourseCrudService] Auto-selecting first course after load', {
+                  coursesLoaded: courses.length,
+                  hasSelection,
+                  timestamp: new Date().toISOString()
+                });
+                
+                this.selectFirstAvailableCourse(selectionSource);
+              } else {
+                console.log('[CourseCrudService] Skipping auto-selection - node already selected', {
+                  selectedNodeType: this.nodeSelectionService.selectedNodeType(),
+                  selectedNodeId: this.nodeSelectionService.selectedNodeId(),
+                  timestamp: new Date().toISOString()
+                });
+              }
+            }
+          })
     );
   }
 

@@ -1,5 +1,5 @@
 <!-- src/app/lessontree/lesson-tree-container/lesson-tree-container.component.html -->
-<!-- COMPLETE FILE -->
+<!-- COMPLETE FILE - UNIFIED TEMPLATE THAT PRESERVES TREE STATE -->
 <!-- Hover-reveal status bar -->
 <div class="status-bar-container" 
      (mouseenter)="onStatusBarHover(true)"
@@ -53,9 +53,9 @@
             <span class="toggle-label">Tree + Calendar</span>
           </mat-button-toggle>
           
-          <mat-button-toggle value="calendar-details" matTooltip="Calendar, tree, and details in three-panel layout">
-            <mat-icon>view_column</mat-icon>
-            <span class="toggle-label">Calendar + Tree + Details</span>
+          <mat-button-toggle value="calendar-details" matTooltip="Calendar view with lesson details panel">
+            <mat-icon>view_day</mat-icon>
+            <span class="toggle-label">Calendar + Details</span>
           </mat-button-toggle>
         </mat-button-toggle-group>
       </div>
@@ -119,184 +119,74 @@
   </div>
 </div>
 
-<!-- Main container with splitter -->
+<!-- Main container with unified splitter layout -->
 <div class="main-container">
-  <!-- FIXED: Only show overlay on non-InfoPanel panels -->
-
-<!-- Tree-Details Layout -->
-@if (viewModeService.isTreeDetailsMode()) {
-    <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
-      
-      <!-- Left Panel -->
-      <as-split-area [size]="defaultSizes[0]" class="split-panel">
-        <split-panel-header 
-          [splitPanelType]="viewModeService.getLeftSplitPanel()"
-          [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
-          (splitPanelSwap)="onSplitPanelSwap()">
-        </split-panel-header>
-        
-        <div class="panel-content">
-          @if (viewModeService.getLeftSplitPanel() === 'tree') {
-            <course-list></course-list>
-          }
-          @if (viewModeService.getLeftSplitPanel() === 'details') {
-            <info-panel #infoPanel></info-panel>
-          }
-          
-          <!-- FIXED: Only show overlay if this panel is NOT the details panel -->
-          @if (isOverlayActive && viewModeService.getLeftSplitPanel() !== 'details') {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-      
-      <!-- Right Panel -->
-      <as-split-area [size]="defaultSizes[1]" class="split-panel">
-        <split-panel-header 
-          [splitPanelType]="viewModeService.getRightSplitPanel()"
-          [title]="getPanelTitle(viewModeService.getRightSplitPanel())"
-          (splitPanelSwap)="onSplitPanelSwap()">
-        </split-panel-header>
-        
-        <div class="panel-content">
-          @if (viewModeService.getRightSplitPanel() === 'tree') {
-            <course-list></course-list>
-          }
-          @if (viewModeService.getRightSplitPanel() === 'details') {
-            <info-panel #infoPanel></info-panel>
-          }
-          
-          <!-- FIXED: Only show overlay if this panel is NOT the details panel -->
-          @if (isOverlayActive && viewModeService.getRightSplitPanel() !== 'details') {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-    </as-split>
-  }
   
-  <!-- Tree-Calendar Layout -->
-  @if (viewModeService.isTreeCalendarMode()) {
-    <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
+  <!-- ✅ UNIFIED LAYOUT - Single splitter that preserves component state -->
+  <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
+    
+    <!-- Left Panel - Dynamic Content Based on View Mode -->
+    <as-split-area [size]="defaultSizes[0]" class="split-panel">
+      <split-panel-header 
+        [splitPanelType]="viewModeService.getLeftSplitPanel()"
+        [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
+        (splitPanelSwap)="onSplitPanelSwap()">
+      </split-panel-header>
       
-      <!-- Left Panel -->
-      <as-split-area [size]="defaultSizes[0]" class="split-panel">
-        <split-panel-header 
-          [splitPanelType]="viewModeService.getLeftSplitPanel()"
-          [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
-          (splitPanelSwap)="onSplitPanelSwap()">
-        </split-panel-header>
-        
-        <div class="panel-content">
-          @if (viewModeService.getLeftSplitPanel() === 'tree') {
-            <course-list></course-list>
-          }
-          @if (viewModeService.getLeftSplitPanel() === 'calendar') {
-            <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
-          }
-          
-          <!-- FIXED: Always show overlay (no details panel in this mode) -->
-          @if (isOverlayActive) {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-      
-      <!-- Right Panel -->
-      <as-split-area [size]="defaultSizes[1]" class="split-panel">
-        <split-panel-header 
-          [splitPanelType]="viewModeService.getRightSplitPanel()"
-          [title]="getPanelTitle(viewModeService.getRightSplitPanel())"
-          (splitPanelSwap)="onSplitPanelSwap()">
-        </split-panel-header>
-        
-        <div class="panel-content">
-          @if (viewModeService.getRightSplitPanel() === 'tree') {
-            <course-list></course-list>
-          }
-          @if (viewModeService.getRightSplitPanel() === 'calendar') {
-            <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
-          }
-          
-          <!-- FIXED: Always show overlay (no details panel in this mode) -->
-          @if (isOverlayActive) {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-    </as-split>
-  }
-  
-  <!-- Calendar-Details Layout -->
-  @if (viewModeService.isCalendarDetailsMode()) {
-    <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
-      
-      <!-- Left Panel -->
-      <as-split-area [size]="defaultCalendarDetailsSizes[0]" class="split-panel">
-        <split-panel-header 
-          [splitPanelType]="viewModeService.getLeftSplitPanel()"
-          [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
-          (splitPanelSwap)="onSplitPanelSwap()">
-        </split-panel-header>
-        
-        <div class="panel-content">
-          @if (viewModeService.getLeftSplitPanel() === 'calendar') {
-            <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
-          }
-          @if (viewModeService.getLeftSplitPanel() === 'details') {
-            <info-panel #infoPanel></info-panel>
-          }
-          
-          <!-- FIXED: Only show overlay if this panel is NOT the details panel -->
-          @if (isOverlayActive && viewModeService.getLeftSplitPanel() !== 'details') {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-      
-      <!-- Middle Panel (Tree) -->
-      <as-split-area [size]="defaultCalendarDetailsSizes[1]" class="split-panel">
-        <split-panel-header 
-          [splitPanelType]="'tree'"
-          [title]="getPanelTitle('tree')"
-          (splitPanelSwap)="onSplitPanelSwap()">
-        </split-panel-header>
-        
-        <div class="panel-content">
+      <div class="panel-content">
+        <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
+        @if (viewModeService.getLeftSplitPanel() === 'tree') {
           <course-list></course-list>
-          
-          <!-- FIXED: Always show overlay (tree panel, not details) -->
-          @if (isOverlayActive) {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-      
-      <!-- Right Panel (Sidebar) -->
-      <as-split-area [size]="defaultCalendarDetailsSizes[2]" [visible]="viewModeService.sidebarVisible()" class="sidebar split-panel">
-        <div class="sidebar-header">
-          <button mat-icon-button (click)="toggleSidebar()" matTooltip="Toggle sidebar">
-            <mat-icon>{{ viewModeService.sidebarVisible() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
-          </button>
-          <h3>{{ getPanelTitle(viewModeService.getRightSplitPanel()) }}</h3>
-        </div>
+        }
         
-        <div class="panel-content">
-          @if (viewModeService.getRightSplitPanel() === 'details') {
-            <info-panel #sidebarInfoPanel></info-panel>
-          }
-          @if (viewModeService.getRightSplitPanel() === 'calendar') {
-            <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
-          }
-          
-          <!-- FIXED: Only show overlay if this panel is NOT the details panel -->
-          @if (isOverlayActive && viewModeService.getRightSplitPanel() !== 'details') {
-            <div class="overlay"></div>
-          }
-        </div>
-      </as-split-area>
-    </as-split>
-  }
+        <!-- Calendar Panel -->
+        @if (viewModeService.getLeftSplitPanel() === 'calendar') {
+          <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
+        }
+        
+        <!-- Details Panel -->
+        @if (viewModeService.getLeftSplitPanel() === 'details') {
+          <info-panel #infoPanel></info-panel>
+        }
+        
+        <!-- Overlay (only show if this panel is NOT the details panel) -->
+        @if (isOverlayActive && viewModeService.getLeftSplitPanel() !== 'details') {
+          <div class="overlay"></div>
+        }
+      </div>
+    </as-split-area>
+    
+    <!-- Right Panel - Dynamic Content Based on View Mode -->
+    <as-split-area [size]="defaultSizes[1]" class="split-panel">
+      <split-panel-header 
+        [splitPanelType]="viewModeService.getRightSplitPanel()"
+        [title]="getPanelTitle(viewModeService.getRightSplitPanel())"
+        (splitPanelSwap)="onSplitPanelSwap()">
+      </split-panel-header>
+      
+      <div class="panel-content">
+        <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
+        @if (viewModeService.getRightSplitPanel() === 'tree') {
+          <course-list></course-list>
+        }
+        
+        <!-- Calendar Panel -->
+        @if (viewModeService.getRightSplitPanel() === 'calendar') {
+          <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
+        }
+        
+        <!-- Details Panel -->
+        @if (viewModeService.getRightSplitPanel() === 'details') {
+          <info-panel #infoPanel></info-panel>
+        }
+        
+        <!-- Overlay (only show if this panel is NOT the details panel) -->
+        @if (isOverlayActive && viewModeService.getRightSplitPanel() !== 'details') {
+          <div class="overlay"></div>
+        }
+      </div>
+    </as-split-area>
+  </as-split>
   
   <footer class="footer">
     <a href="#">Contact Info</a>

@@ -2,7 +2,7 @@
 // DOES NOT: Handle data storage, API calls, or cross-course operations.
 // CALLED BY: CourseList for each active course, displays hierarchical course structure.
 
-import { Component, OnInit, AfterViewInit, Input, ViewChild, computed, effect, OnDestroy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, Input, ViewChild, computed, OnDestroy } from '@angular/core';
 import { TreeViewComponent } from '@syncfusion/ej2-angular-navigations';
 import { Topic } from '../../../models/topic';
 import { NodeType, TreeData, TreeNode } from '../../../models/tree-node';
@@ -24,7 +24,6 @@ import { TreeExpansionService } from './services/tree-expansion.service';
 import { TreeSyncService } from './services/tree-sync.service';
 import { TreeNodeActionsService } from './services/tree-node-actions.service';
 import { TreeEffectsService, TreeEffectCallbacks } from './services/tree-effect.service';
-
 
 @Component({
     selector: 'app-tree',
@@ -57,22 +56,13 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         cssClass: 'nodeType',
     };
 
-    // Component lifecycle state
     private isViewInitialized = false;
-    private pendingCourseData: Course | null = null;
-
-    // Drag and drop state
     private dragState: DragState;
 
-    // Computed signals for reactive data access
+    // Simplified computed signals - removed unused isCourseAvailable
     readonly currentCourse = computed(() => {
         if (!this.courseId) return null;
         return this.courseDataService.getCourseById(this.courseId);
-    });
-
-    readonly isCourseAvailable = computed(() => {
-        const course = this.currentCourse();
-        return course !== null && !course.archived;
     });
 
     constructor(
@@ -87,211 +77,103 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         private treeNodeActionsService: TreeNodeActionsService,
         private treeEffectsService: TreeEffectsService  
     ) {
-        console.log('[TreeWrapper] Component initialized with TreeDataService and TreeDragDropService', { 
-            timestamp: new Date().toISOString() 
-        });
-
-        // Initialize drag state
         this.dragState = this.treeDragDropService.initializeDragState();
     }
 
     ngOnInit() {
-        console.log(`[TreeWrapper] Component initialized for course ${this.courseId}`, {
-            timestamp: new Date().toISOString()
-        });
+        if (!this.courseId) return;
         
-        // Setup reactive effects
-        if (this.courseId) {
-            const callbacks: TreeEffectCallbacks = {
-                onCourseDataUpdated: (course) => this.handleCourseDataUpdated(course),
-                onCourseCleared: () => this.handleCourseCleared(),
-                onExternalSelection: (node) => this.handleExternalSelection(node),
-                onInternalTreeChange: () => this.handleInternalTreeChange(),
-                onExternalTreeChange: () => this.handleExternalTreeChange()
-            };
-            
-            const result = this.treeEffectsService.setupEffects(this.courseId, callbacks);
-            
-            if (!result.success) {
-                console.error(`[TreeWrapper] Failed to setup effects:`, result.error);
-            } else {
-                console.log(`[TreeWrapper] Effects setup completed`, {
-                    courseId: this.courseId,
-                    effectsCreated: result.effectsCreated,
-                    timestamp: new Date().toISOString()
-                });
-            }
+        const callbacks: TreeEffectCallbacks = {
+            onCourseDataUpdated: (course) => this.handleCourseDataUpdated(course),
+            onCourseCleared: () => this.handleCourseCleared(),
+            onExternalSelection: (node) => this.handleExternalSelection(node),
+            onInternalTreeChange: () => this.handleInternalTreeChange(),
+            onExternalTreeChange: () => this.handleExternalTreeChange()
+        };
+        
+        const result = this.treeEffectsService.setupEffects(this.courseId, callbacks);
+        if (!result.success) {
+            console.error(`[TreeWrapper] Failed to setup effects:`, result.error);
         }
         
-        // Get initial course data but don't try to update tree yet
-        if (this.courseId) {
-            this.course = this.courseDataService.getCourseById(this.courseId);
-            // Store course data for when view is ready
-            this.pendingCourseData = this.course;
-        }
+        this.course = this.courseDataService.getCourseById(this.courseId);
     }
     
     ngOnDestroy() {
-        console.log(`[TreeWrapper] Component destroying for course ${this.courseId}`, {
-            timestamp: new Date().toISOString()
-        });
-        
         if (this.courseId) {
             this.treeEffectsService.destroyEffectsForCourse(this.courseId);
         }
     }
 
     ngAfterViewInit() {
-        console.log(`[TreeWrapper] AfterViewInit - syncFuncTree exists: ${!!this.syncFuncTree}`, {
-            courseId: this.courseId,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Mark view as initialized
         this.isViewInitialized = true;
-        
-        // Process any pending course data now that view is ready
-        if (this.pendingCourseData) {
-            console.log('[TreeWrapper] Processing pending course data in AfterViewInit');
+        if (this.course) {
             this.updateTreeData();
-            this.pendingCourseData = null;
         }
     }
 
     private handleCourseDataUpdated(course: Course): void {
-        console.log(`[TreeWrapper] Course data updated`, {
-            courseId: course.id,
-            courseTitle: course.title,
-            viewInitialized: this.isViewInitialized,
-            timestamp: new Date().toISOString()
-        });
-        
         this.course = course;
-        
         if (this.isViewInitialized) {
-            // View is ready, update immediately
             this.updateTreeData();
-        } else {
-            // View not ready yet, store for later
-            this.pendingCourseData = course;
-            console.log('[TreeWrapper] Storing course data for later processing');
         }
     }
     
     private handleCourseCleared(): void {
-        console.log(`[TreeWrapper] Course cleared`, {
-            courseId: this.courseId,
-            viewInitialized: this.isViewInitialized,
-            timestamp: new Date().toISOString()
-        });
-        
         this.course = null;
-        this.pendingCourseData = null;
-        
         if (this.isViewInitialized) {
             this.clearTreeData();
         }
     }
     
     private handleInternalTreeChange(): void {
-        console.log(`[TreeWrapper] Internal tree change - syncing data only`, {
-            courseId: this.courseId,
-            viewInitialized: this.isViewInitialized,
-            timestamp: new Date().toISOString()
-        });
-        
         if (this.isViewInitialized) {
             this.syncDataOnly();
         }
     }
     
     private handleExternalTreeChange(): void {
-        console.log(`[TreeWrapper] External change - rebuilding tree`, {
-            courseId: this.courseId,
-            viewInitialized: this.isViewInitialized,
-            timestamp: new Date().toISOString()
-        });
-        
         if (this.isViewInitialized) {
             this.updateTreeData();
         } else {
-            // Store the current course for later processing
             const updatedCourse = this.courseDataService.getCourseById(this.courseId);
             if (updatedCourse) {
-                this.pendingCourseData = updatedCourse;
                 this.course = updatedCourse;
             }
         }
     }
 
-    // Helper methods with view initialization checks
     private syncDataOnly(): void {
-        if (!this.courseId || !this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping syncDataOnly - view not ready', {
-                courseId: this.courseId,
-                viewInitialized: this.isViewInitialized,
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
+        if (!this.courseId || !this.isViewInitialized) return;
         
         const updatedCourse = this.courseDataService.getCourseById(this.courseId);
         if (updatedCourse) {
             this.course = updatedCourse;
-            
-            const result = this.treeSyncService.syncDataOnly(
-                updatedCourse, 
-                this.syncFuncTree, 
-                this.courseId
-            );
-            
+            const result = this.treeSyncService.syncDataOnly(updatedCourse, this.syncFuncTree, this.courseId);
             if (!result.success) {
-                console.error(`[TreeWrapper] Failed to sync data:`, result.error);
+                console.error(`[TreeWrapper] Sync failed:`, result.error);
             }
         }
     }
 
     private clearTreeData(): void {
-        if (!this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping clearTreeData - view not ready', {
-                courseId: this.courseId,
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-
+        if (!this.isViewInitialized) return;
         const result = this.treeSyncService.clearTreeData(this.syncFuncTree, this.courseId);
-        
         if (!result.success) {
-            console.error(`[TreeWrapper] Failed to clear tree data:`, result.error);
+            console.error(`[TreeWrapper] Clear failed:`, result.error);
         }
     }
     
     private updateTreeData(): void {
-        if (!this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping updateTreeData - view not ready', {
-                courseId: this.courseId,
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
+        if (!this.isViewInitialized) return;
 
         this.treeSyncService.updateTreeData(this.course, this.syncFuncTree, this.courseId)
             .then(result => {
-                if (result.success) {
-                    console.log(`[TreeWrapper] Tree data updated successfully`, {
-                        courseId: this.courseId,
-                        nodeCount: result.nodeCount,
-                        timestamp: new Date().toISOString()
-                    });
-                    
-                    // Update local reference for other operations
-                    if (this.syncFuncTree && this.syncFuncTree.fields) {
-                        this.treeData = (this.syncFuncTree.fields as any).dataSource || [];
-                        this.treeFields = this.syncFuncTree.fields;
-                    }
-                } else {
-                    console.error(`[TreeWrapper] Failed to update tree data:`, result.error);
+                if (result.success && this.syncFuncTree?.fields) {
+                    this.treeData = (this.syncFuncTree.fields as any).dataSource || [];
+                    this.treeFields = this.syncFuncTree.fields;
+                } else if (!result.success) {
+                    console.error(`[TreeWrapper] Update failed:`, result.error);
                 }
             });
     }
@@ -300,67 +182,27 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         this.treeSyncService.handleDataBound(this.treeData, this.course?.id);
     }
 
-    // SyncFusion event handlers
     public emitNodeSelected(args: any): void {
-        if (!this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping node selection - view not ready');
-            return;
-        }
-
-        const result = this.treeNodeActionsService.handleNodeSelected(
-            args, 
-            this.treeData, 
-            this.courseId
-        );
-        
+        if (!this.isViewInitialized) return;
+        const result = this.treeNodeActionsService.handleNodeSelected(args, this.treeData, this.courseId);
         if (!result.success) {
-            console.error(`[TreeWrapper] Node selection failed:`, result.error);
+            console.error(`[TreeWrapper] Selection failed:`, result.error);
         }
     }
 
     private async handleExternalSelection(node: TreeData): Promise<void> {
-        if (!this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping external selection - view not ready', {
-                nodeId: node.nodeId,
-                courseId: this.courseId,
-                timestamp: new Date().toISOString()
-            });
-            return;
-        }
-
-        console.log(`[TreeWrapper] Delegating external selection to TreeExpansionService`, { 
-            nodeId: node.nodeId,
-            nodeType: node.nodeType,
-            courseId: this.courseId,
-            timestamp: new Date().toISOString() 
-        });
+        if (!this.isViewInitialized) return;
         
         const result = await this.treeExpansionService.handleExternalSelection(
-            node,
-            this.syncFuncTree,
-            this.treeData,
-            this.courseId
+            node, this.syncFuncTree, this.treeData, this.courseId
         );
         
         if (!result.success) {
-            console.error(`[TreeWrapper] External selection failed:`, {
-                nodeId: node.nodeId,
-                error: result.error,
-                courseId: this.courseId,
-                timestamp: new Date().toISOString()
-            });
-        } else {
-            console.log(`[TreeWrapper] External selection completed successfully`, {
-                nodeId: node.nodeId,
-                expandedNodes: result.expandedNodes,
-                targetNodeId: result.targetNodeId,
-                courseId: this.courseId,
-                timestamp: new Date().toISOString()
-            });
+            console.error(`[TreeWrapper] External selection failed:`, result.error);
         }
     }
 
-    // Drag and drop handlers - now using TreeDragDropService
+    // Drag and drop handlers
     public onNodeDragStart(args: any): void {
         if (!this.isViewInitialized) {
             args.cancel = true;
@@ -384,105 +226,52 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         }
 
         const operation = this.treeDragDropService.handleDragStop(
-            args, 
-            this.dragState, 
-            this.treeData, 
-            this.courseId
+            args, this.dragState, this.treeData, this.courseId
         );
 
         if (operation) {
             operation.subscribe({
-                next: (result) => {
-                    console.log('[TreeWrapper] Drag operation completed successfully', {
-                        courseId: this.courseId,
-                        timestamp: new Date().toISOString()
-                    });
-                },
-                error: (error) => {
-                    console.error('[TreeWrapper] Drag operation failed:', error, {
-                        courseId: this.courseId,
-                        timestamp: new Date().toISOString()
-                    });
-                }
+                error: (error) => console.error('[TreeWrapper] Drag operation failed:', error)
             });
         }
     }
 
     // Node action handlers
     public initiateAddChildNode(data: any, childType: NodeType): void {
-        if (!this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping add child node - view not ready');
-            return;
-        }
-
-        const result = this.treeNodeActionsService.initiateAddChildNode(
-            data,
-            childType,
-            this.treeData,
-            this.courseId
-        );
-        
+        if (!this.isViewInitialized) return;
+        const result = this.treeNodeActionsService.initiateAddChildNode(data, childType, this.treeData, this.courseId);
         if (!result.success) {
-            console.error(`[TreeWrapper] Add child node failed:`, result.error);
+            console.error(`[TreeWrapper] Add child failed:`, result.error);
         }
     }
     
     public deleteNode(data: any): void {
-        if (!this.isViewInitialized) {
-            console.log('[TreeWrapper] Skipping delete node - view not ready');
-            return;
-        }
-
-        const result = this.treeNodeActionsService.deleteNode(
-            data,
-            this.treeData,
-            this.courseId
-        );
-        
+        if (!this.isViewInitialized) return;
+        const result = this.treeNodeActionsService.deleteNode(data, this.treeData, this.courseId);
         if (!result.success) {
-            console.error(`[TreeWrapper] Delete node failed:`, result.error);
+            console.error(`[TreeWrapper] Delete failed:`, result.error);
         }
     }
 
-    // Template helper methods - delegate to TreeDataService
+    // Template helper method - RESTORED (used in template)
     public getNodeTypeIcon(nodeType: string): string {
         return this.treeNodeActionsService.getNodeTypeIcon(nodeType);
     }
 
-    private sortTreeData(): void {
-        if (!this.isViewInitialized) {
-            return;
-        }
-
-        const result = this.treeSyncService.sortAndRebind(this.treeData, this.syncFuncTree);
-        
-        if (!result.success) {
-            console.error(`[TreeWrapper] Failed to sort and rebind tree data:`, result.error);
-        }
-    }
-
     public onNodeExpanded(args: any): void {
-        if (!this.isViewInitialized) {
-            return;
-        }
+        if (!this.isViewInitialized) return;
 
         const result = this.treeNodeActionsService.handleAutoSelectOnExpand(
-            args,
-            this.treeData,
-            this.courseId,
-            this.nodeSelectionService.hasSelection()
+            args, this.treeData, this.courseId, this.nodeSelectionService.hasSelection()
         );
         
         if (result.success) {
-            // Update SyncFusion's selectedNodes array for visual feedback
             try {
                 this.syncFuncTree.selectedNodes = [args.nodeData.id];
-                console.log('[TreeWrapper] Updated SyncFusion selectedNodes array for auto-selection');
             } catch (err) {
-                console.warn('[TreeWrapper] Failed to update SyncFusion selectedNodes:', err);
+                console.warn('[TreeWrapper] Failed to update selectedNodes:', err);
             }
         }
-        // Note: Don't log errors for auto-select failures - they're expected when selection exists
     }
 }
 

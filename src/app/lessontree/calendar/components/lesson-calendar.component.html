@@ -30,11 +30,13 @@
           <button mat-menu-item (click)="executeContextAction(action)">
             <mat-icon>
               @switch (action.id) {
-                @case ('nonTeaching') { event_busy }
-                @case ('instructorPT') { school }
+                @case ('addNonTeaching') { event_busy }
                 @case ('editSpecialDay') { edit }
                 @case ('deleteSpecialDay') { delete }
                 @case ('errorDayInfo') { info }
+                @case ('editLesson') { edit_note }
+                @case ('deleteLesson') { delete_outline }
+                @case ('addLesson') { add_circle_outline }
                 @default { event }
               }
             </mat-icon>
@@ -55,9 +57,13 @@
       </div>
 
       <!-- Debug Info (Development Only) -->
-      @if (false) { <!-- Set to true for debugging -->
+      @if (true) { <!-- TEMPORARILY SET TO TRUE FOR DEBUGGING -->
         <div class="debug-panel">
           <h4>Debug Information</h4>
+          <p><strong>Context Menu Actions:</strong> {{ contextMenuActions.length }}</p>
+          @for (action of contextMenuActions; track action.id) {
+            <p>- {{ action.id }}: {{ action.label }}</p>
+          }
           <pre>{{ debugInfo | json }}</pre>
         </div>
       }

@@ -155,10 +155,12 @@ export class TreeEffectsService {
       });
       
       // Only process selections from sources other than the tree
-      if (source !== 'tree' && node && this.isNodeInCourse(node, courseId)) {
+      if (source !== 'tree' && node) {
         console.log(`[TreeEffectsService] Processing external selection for course ${courseId}`, {
           nodeId: node.nodeId,
           nodeType: node.nodeType,
+          nodeCourseId: node.courseId,
+          treeCourseId: courseId,
           source,
           timestamp: new Date().toISOString()
         });

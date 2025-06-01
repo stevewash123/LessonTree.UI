@@ -1,11 +1,9 @@
-// COMPLETE FILE
-// RESPONSIBILITY: Handles special day business logic, CRUD operations, and API coordination.
-// DOES NOT: Handle UI interactions, modal coordination, or context management - pure business logic.
+// RESPONSIBILITY: Handles special day business logic and CRUD operations.
+// DOES NOT: Handle UI notifications, API persistence details, or modal coordination - focused on business logic.
 // CALLED BY: SpecialDayModalService for special day data operations.
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { format } from 'date-fns';
-import { ToastrService } from 'ngx-toastr';
 
 import { ScheduleDay } from '../../../models/schedule';
 import { ScheduleStateService } from './schedule-state.service';
@@ -19,6 +17,11 @@ export interface SpecialDayData {
   description?: string;
 }
 
+export interface SpecialDayValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -27,140 +30,87 @@ export class SpecialDayManagementService {
   private readonly scheduleStateService = inject(ScheduleStateService);
   private readonly calendarService = inject(LessonCalendarService);
   private readonly lessonShiftingService = inject(LessonShiftingService);
-  private readonly toastr = inject(ToastrService);
-
-  constructor() {
-    console.log('[SpecialDayManagementService] Initialized', { timestamp: new Date().toISOString() });
-  }
 
   // Create a new special day
-  createSpecialDay(data: SpecialDayData): void {
+  createSpecialDay(data: SpecialDayData): Observable<ScheduleDay> {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule) {
-      console.error(`[SpecialDayManagementService] Cannot create special day: No schedule available`, { 
-        timestamp: new Date().toISOString() 
-      });
-      this.toastr.error('No schedule available', 'Error');
-      return;
+      console.error('[SpecialDayManagement] Cannot create special day: No schedule available');
+      throw new Error('No schedule available');
     }
 
-    // Build comment from title and description
-    const comment = this.buildComment(data);
-
-    const newScheduleDay: ScheduleDay = {
-      id: this.scheduleStateService.isInMemorySchedule() ? -(Date.now()) : 0,
-      scheduleId: currentSchedule.id,
-      date: new Date(data.date),
-      lessonId: null,
-      specialCode: data.specialCode,
-      comment
-    };
-
-    if (this.scheduleStateService.isInMemorySchedule()) {
-      // Add to in-memory schedule
-      this.scheduleStateService.addScheduleDay(newScheduleDay);
-      
-      // Shift lessons after adding the special day
-      this.lessonShiftingService.shiftLessonsForward(data.date);
-      
-      console.log(`[SpecialDayManagementService] Added special day to in-memory schedule and shifted lessons`, {
-        specialCode: data.specialCode,
-        title: data.title,
-        date: format(newScheduleDay.date, 'yyyy-MM-dd'),
-        timestamp: new Date().toISOString()
-      });
-      this.toastr.success('Special day added and lessons shifted', 'Success');
-    } else {
-      // Add through API
-      this.calendarService.addScheduleDay(newScheduleDay).subscribe({
-        next: (createdDay: ScheduleDay) => {
-          this.scheduleStateService.addScheduleDay(createdDay);
-          
-          // Shift lessons after successfully adding the special day
-          this.lessonShiftingService.shiftLessonsForward(data.date);
-          
-          console.log(`[SpecialDayManagementService] Added special day ID ${createdDay.id} and shifted lessons`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.success('Special day added and lessons shifted', 'Success');
-        },
-        error: (err: any) => {
-          console.error(`[SpecialDayManagementService] Failed to add special day: ${err.message}`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.error('Failed to add special day', 'Error');
-        }
-      });
-    }
+    const newScheduleDay = this.buildScheduleDay(data, currentSchedule.id);
+    
+    return new Observable<ScheduleDay>(observer => {
+      if (this.scheduleStateService.isInMemorySchedule()) {
+        this.scheduleStateService.addScheduleDay(newScheduleDay);
+        this.lessonShiftingService.shiftLessonsForward(data.date);
+        observer.next(newScheduleDay);
+        observer.complete();
+      } else {
+        this.calendarService.addScheduleDay(newScheduleDay).subscribe({
+          next: (createdDay: ScheduleDay) => {
+            this.scheduleStateService.addScheduleDay(createdDay);
+            this.lessonShiftingService.shiftLessonsForward(data.date);
+            observer.next(createdDay);
+            observer.complete();
+          },
+          error: (err: any) => {
+            console.error('[SpecialDayManagement] Failed to create special day:', err.message);
+            observer.error(err);
+          }
+        });
+      }
+    });
   }
 
   // Update an existing special day
-  updateSpecialDay(data: SpecialDayData, originalScheduleDay: ScheduleDay): void {
-    // Build comment from title and description
-    const comment = this.buildComment(data);
-
+  updateSpecialDay(data: SpecialDayData, originalScheduleDay: ScheduleDay): Observable<ScheduleDay> {
     const updatedScheduleDay: ScheduleDay = {
       id: originalScheduleDay.id,
       scheduleId: originalScheduleDay.scheduleId,
       date: new Date(data.date),
       lessonId: null,
       specialCode: data.specialCode,
-      comment
+      comment: this.buildComment(data)
     };
 
-    this.performScheduleDayUpdate(updatedScheduleDay);
+    return this.performScheduleDayUpdate(updatedScheduleDay);
   }
 
   // Delete a special day
-  deleteSpecialDay(scheduleDay: ScheduleDay): void {
-    if (this.scheduleStateService.isInMemorySchedule()) {
-      // Remove from in-memory schedule
-      this.scheduleStateService.removeScheduleDay(scheduleDay.id);
-      
-      // Add reverse shifting after deletion
-      this.lessonShiftingService.shiftLessonsBackward(scheduleDay.date);
-      
-      console.log(`[SpecialDayManagementService] Deleted special day from in-memory schedule and shifted lessons backward`, { 
-        id: scheduleDay.id, 
-        timestamp: new Date().toISOString() 
-      });
-      this.toastr.success('Non-teaching day deleted and lessons shifted backward', 'Success');
-    } else {
-      // Delete through API
-      this.calendarService.deleteScheduleDay(scheduleDay.id).subscribe({
-        next: () => {
-          this.scheduleStateService.removeScheduleDay(scheduleDay.id);
-          this.lessonShiftingService.shiftLessonsBackward(scheduleDay.date);
-          
-          console.log(`[SpecialDayManagementService] Deleted special day ID ${scheduleDay.id} and shifted lessons backward`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.success('Non-teaching day deleted and lessons shifted backward', 'Success');
-        },
-        error: (err: any) => {
-          console.error(`[SpecialDayManagementService] Failed to delete special day: ${err.message}`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.error('Failed to delete non-teaching day', 'Error');
-        }
-      });
-    }
+  deleteSpecialDay(scheduleDay: ScheduleDay): Observable<void> {
+    return new Observable<void>(observer => {
+      if (this.scheduleStateService.isInMemorySchedule()) {
+        this.scheduleStateService.removeScheduleDay(scheduleDay.id);
+        this.lessonShiftingService.shiftLessonsBackward(scheduleDay.date);
+        observer.next();
+        observer.complete();
+      } else {
+        this.calendarService.deleteScheduleDay(scheduleDay.id).subscribe({
+          next: () => {
+            this.scheduleStateService.removeScheduleDay(scheduleDay.id);
+            this.lessonShiftingService.shiftLessonsBackward(scheduleDay.date);
+            observer.next();
+            observer.complete();
+          },
+          error: (err: any) => {
+            console.error('[SpecialDayManagement] Failed to delete special day:', err.message);
+            observer.error(err);
+          }
+        });
+      }
+    });
   }
 
   // Extract special day data from a ScheduleDay for editing
   extractSpecialDayData(scheduleDay: ScheduleDay): SpecialDayData | null {
     if (!scheduleDay.specialCode) {
-      console.error(`[SpecialDayManagementService] Cannot extract data: Not a special day`, { 
-        timestamp: new Date().toISOString() 
-      });
+      console.error('[SpecialDayManagement] Cannot extract data: Not a special day');
       return null;
     }
 
-    // Parse title from comment if it contains the special code prefix
-    let title = scheduleDay.comment || scheduleDay.specialCode;
-    if (title.startsWith(scheduleDay.specialCode + ':')) {
-      title = title.substring((scheduleDay.specialCode + ':').length).trim();
-    }
+    const title = this.extractTitleFromComment(scheduleDay.comment, scheduleDay.specialCode);
 
     return {
       date: new Date(scheduleDay.date),
@@ -174,18 +124,14 @@ export class SpecialDayManagementService {
   findSpecialDayById(scheduleDayId: number): ScheduleDay | null {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleDays) {
-      console.error(`[SpecialDayManagementService] Cannot find special day: No schedule available`, { 
-        timestamp: new Date().toISOString() 
-      });
+      console.error('[SpecialDayManagement] Cannot find special day: No schedule available');
       return null;
     }
 
     const scheduleDay = currentSchedule.scheduleDays.find(day => day.id === scheduleDayId);
     
     if (!scheduleDay?.specialCode) {
-      console.error(`[SpecialDayManagementService] Cannot find special day: Item is not a special day`, { 
-        timestamp: new Date().toISOString() 
-      });
+      console.error('[SpecialDayManagement] Cannot find special day: Item is not a special day');
       return null;
     }
 
@@ -193,7 +139,7 @@ export class SpecialDayManagementService {
   }
 
   // Validate special day data
-  validateSpecialDayData(data: SpecialDayData): { isValid: boolean; errors: string[] } {
+  validateSpecialDayData(data: SpecialDayData): SpecialDayValidationResult {
     const errors: string[] = [];
 
     if (!data.date) {
@@ -222,7 +168,51 @@ export class SpecialDayManagementService {
     };
   }
 
-  // Build comment from title and description
+  // Helper method to create Error Days (called by LessonShiftingService)
+  createErrorDay(date: Date, scheduleId: number, comment?: string): ScheduleDay {
+    const defaultComment = comment || 'No lesson assigned - schedule needs more content';
+    
+    return {
+      id: this.scheduleStateService.isInMemorySchedule() ? this.generateInMemoryId() : 0,
+      scheduleId: scheduleId,
+      date: new Date(date),
+      lessonId: null,
+      specialCode: 'Error Day',
+      comment: defaultComment
+    };
+  }
+
+  // Helper method to remove Error Days (called by LessonShiftingService)
+  removeErrorDayIfExists(date: Date): boolean {
+    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    if (!currentSchedule?.scheduleDays) return false;
+
+    const existingErrorDay = currentSchedule.scheduleDays.find(day => {
+      const dayDateStr = format(new Date(day.date), 'yyyy-MM-dd');
+      const targetDateStr = format(date, 'yyyy-MM-dd');
+      return dayDateStr === targetDateStr && day.specialCode === 'Error Day';
+    });
+    
+    if (existingErrorDay) {
+      this.scheduleStateService.removeScheduleDay(existingErrorDay.id);
+      return true;
+    }
+    
+    return false;
+  }
+
+  // Private helper methods
+  private buildScheduleDay(data: SpecialDayData, scheduleId: number): ScheduleDay {
+    return {
+      id: this.scheduleStateService.isInMemorySchedule() ? this.generateInMemoryId() : 0,
+      scheduleId: scheduleId,
+      date: new Date(data.date),
+      lessonId: null,
+      specialCode: data.specialCode,
+      comment: this.buildComment(data)
+    };
+  }
+
   private buildComment(data: SpecialDayData): string {
     let comment = data.title;
     if (data.description) {
@@ -231,34 +221,41 @@ export class SpecialDayManagementService {
     return comment;
   }
 
-  // Update a schedule day (extracted for reuse)
-  private performScheduleDayUpdate(scheduleDay: ScheduleDay): void {
-    if (this.scheduleStateService.isInMemorySchedule()) {
-      this.scheduleStateService.updateScheduleDay(scheduleDay);
-      this.scheduleStateService.markAsChanged();
-      
-      console.log(`[SpecialDayManagementService] Updated special day in in-memory schedule`, { 
-        id: scheduleDay.id, 
-        timestamp: new Date().toISOString() 
-      });
-      this.toastr.success('Special day updated in in-memory schedule', 'Success');
-    } else {
-      this.calendarService.updateScheduleDay(scheduleDay).subscribe({
-        next: (updatedDay: ScheduleDay) => {
-          this.scheduleStateService.updateScheduleDay(updatedDay);
-          
-          console.log(`[SpecialDayManagementService] Updated special day ID ${updatedDay.id}`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.success('Special day updated successfully', 'Success');
-        },
-        error: (err: any) => {
-          console.error(`[SpecialDayManagementService] Failed to update special day: ${err.message}`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.error('Failed to update special day', 'Error');
-        }
-      });
+  private extractTitleFromComment(comment: string | null | undefined, specialCode: string): string {
+    if (!comment) return specialCode;
+    
+    // Parse title from comment if it contains the special code prefix
+    if (comment.startsWith(specialCode + ':')) {
+      return comment.substring((specialCode + ':').length).trim();
     }
+    
+    return comment;
+  }
+
+  private generateInMemoryId(): number {
+    return -(Date.now() + Math.floor(Math.random() * 1000));
+  }
+
+  private performScheduleDayUpdate(scheduleDay: ScheduleDay): Observable<ScheduleDay> {
+    return new Observable<ScheduleDay>(observer => {
+      if (this.scheduleStateService.isInMemorySchedule()) {
+        this.scheduleStateService.updateScheduleDay(scheduleDay);
+        this.scheduleStateService.markAsChanged();
+        observer.next(scheduleDay);
+        observer.complete();
+      } else {
+        this.calendarService.updateScheduleDay(scheduleDay).subscribe({
+          next: (updatedDay: ScheduleDay) => {
+            this.scheduleStateService.updateScheduleDay(updatedDay);
+            observer.next(updatedDay);
+            observer.complete();
+          },
+          error: (err: any) => {
+            console.error('[SpecialDayManagement] Failed to update special day:', err.message);
+            observer.error(err);
+          }
+        });
+      }
+    });
   }
 }
