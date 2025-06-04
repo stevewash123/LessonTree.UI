@@ -1,6 +1,6 @@
 // RESPONSIBILITY: Coordinates calendar state reactions and delegates to appropriate services for calendar component.
-// DOES NOT: Handle UI interactions, direct API calls, or template logic - pure coordination service.
-// CALLED BY: LessonCalendarComponent for managing complex reactive state coordination.
+// DOES NOT: Handle UI interactions, direct API calls, or template logic - pure reactive coordination service.
+// CALLED BY: LessonCalendarComponent for managing reactive state coordination.
 import { Injectable, effect, signal } from '@angular/core';
 import { CalendarOptions } from '@fullcalendar/core';
 
@@ -35,24 +35,26 @@ export class CalendarCoordinationService {
     private courseDataService: CourseDataService,
     private courseCrudService: CourseCrudService
   ) {
-    console.log('[CalendarCoordinationService] Initialized for ScheduleEvent period-based calendars');
+    console.log('[CalendarCoordinationService] Initialized for reactive state coordination');
   }
 
   // Initialize the coordination service with calendar refresh callbacks
   initialize(callbacks: CalendarRefreshCallbacks): void {
+    console.log('[CalendarCoordinationService] initialize');
+    
     this._callbacks = callbacks;
     this._initialized.set(true);
 
-    // Set up all reactive effects
+    // Set up core reactive effects
     this.setupCourseSelectionEffect();
     this.setupCalendarEventsEffect();
     this.setupCalendarDateEffect();
     this.setupCalendarConfigurationEffect();
-    this.setupCourseDataChangesEffect();
-    this.setupLessonMovesEffect();
-    this.setupScheduleVersionEffect();
     this.setupLessonSelectionHighlightEffect();
+    this.setupScheduleVersionEffect();
   }
+
+  // === REACTIVE EFFECTS ===
 
   // Effect: Highlight selected lessons in calendar via DOM manipulation
   private setupLessonSelectionHighlightEffect(): void {
@@ -64,10 +66,8 @@ export class CalendarCoordinationService {
       
       // Only highlight for lesson selections from tree (avoid circular highlighting from calendar clicks)
       if (selectedNode?.nodeType === 'Lesson' && selectionSource === 'tree') {
-        console.log('[CalendarCoordinationService] Highlighting lesson in calendar');
         this.calendarConfigService.updateEventSelectionHighlighting();
       } else if (!selectedNode || selectedNode.nodeType !== 'Lesson') {
-        console.log('[CalendarCoordinationService] Clearing lesson highlighting');
         this.calendarConfigService.updateEventSelectionHighlighting();
       }
     });
@@ -81,8 +81,6 @@ export class CalendarCoordinationService {
       const scheduleVersion = this.scheduleStateService.scheduleVersion();
       const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
       const courseId = this.getActiveCourseId();
-
-      console.log(`[CalendarCoordinationService] Schedule version changed: ${scheduleVersion}`);
 
       if (courseId && scheduleEvents.length > 0) {
         this.refreshCalendarEventsOnly(courseId, scheduleEvents);
@@ -105,17 +103,11 @@ export class CalendarCoordinationService {
         
         if (!hasScheduleForCourse || selectedNode?.nodeType === 'Course') {
           // Load schedules if: 1) No schedule exists for this course, OR 2) Course was directly selected
-          console.log(`[CalendarCoordinationService] Loading schedules for course ${activeCourseId}`);
-          
           this.schedulePersistenceService.loadSchedulesForCourse(activeCourseId).subscribe({
             next: () => console.log(`[CalendarCoordinationService] Schedules loaded for course ${activeCourseId}`),
             error: (error: any) => console.error(`[CalendarCoordinationService] Failed to load schedules:`, error)
           });
-        } else {
-          console.log(`[CalendarCoordinationService] Schedule already exists for course ${activeCourseId}, skipping reload`);
         }
-      } else {
-        console.log('[CalendarCoordinationService] No active course ID available');
       }
     });
   }
@@ -130,10 +122,8 @@ export class CalendarCoordinationService {
       const courseId = selectedNode ? selectedNode.courseId : null;
       
       if (courseId && scheduleEvents.length > 0) {
-        console.log(`[CalendarCoordinationService] Updating calendar events for course ${courseId}`);
         this.refreshCalendarEventsOnly(courseId, scheduleEvents);
       } else {
-        console.log('[CalendarCoordinationService] Clearing calendar events');
         this.refreshCalendarEventsOnly(null, []);
       }
     });
@@ -147,7 +137,6 @@ export class CalendarCoordinationService {
       const schedule = this.scheduleStateService.selectedSchedule();
       
       if (schedule?.startDate) {
-        console.log('[CalendarCoordinationService] Updating calendar date');
         this.updateCalendarDate(new Date(schedule.startDate));
       }
     });
@@ -159,52 +148,13 @@ export class CalendarCoordinationService {
       if (!this._initialized() || !this._callbacks) return;
 
       const schedule = this.scheduleStateService.selectedSchedule();
-      console.log('[CalendarCoordinationService] Updating calendar configuration');
       
       const hiddenDays = this.calendarConfigService.getCurrentHiddenDays();
       this.updateHiddenDays(hiddenDays);
     });
   }
 
-  // Effect: React to courses data changes
-  private setupCourseDataChangesEffect(): void {
-    effect(() => {
-      const nodeAddedInfo = this.courseDataService.nodeAdded();
-      const nodeDeletedInfo = this.courseDataService.nodeDeleted();
-      const coursesCount = this.courseCrudService.getActiveCourseCount();
-      
-      console.log('[CalendarCoordinationService] Courses data potentially changed', {
-        coursesCount,
-        nodeAdded: nodeAddedInfo?.node.nodeType || null,
-        nodeDeleted: nodeDeletedInfo?.node.nodeType || null
-      });
-      
-      // Calendar never auto-selects - it only reacts to existing selections
-    });
-  }
-
-  // Effect: React to lesson moves for calendar optimization
-  private setupLessonMovesEffect(): void {
-    effect(() => {
-      if (!this._initialized() || !this._callbacks) return;
-
-      const movedInfo = this.courseDataService.nodeMoved();
-      const currentCourseId = this.getActiveCourseId();
-      
-      if (movedInfo?.node.nodeType === 'Lesson' && movedInfo.node.courseId === currentCourseId) {
-        console.log('[CalendarCoordinationService] Lesson moved in current course');
-        
-        if (movedInfo.changeSource === 'tree') {
-          // Tree move - refresh events only, schedule structure unchanged
-          const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
-          this.refreshCalendarEventsOnly(currentCourseId, scheduleEvents);
-        } else if (movedInfo.changeSource === 'calendar') {
-          // Calendar-initiated move - full schedule refresh
-          this.refreshScheduleAndEvents(currentCourseId);
-        }
-      }
-    });
-  }
+  // === PRIVATE HELPER METHODS ===
 
   // Get current course ID helper
   private getActiveCourseId(): number | null {
@@ -218,12 +168,10 @@ export class CalendarCoordinationService {
     if (!this._callbacks) return;
 
     if (courseId && scheduleEvents.length > 0) {
-      console.log('[CalendarCoordinationService] Refreshing calendar events only');
       const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents, courseId);
       const currentOptions = this._callbacks.getCalendarOptions();
       this._callbacks.setCalendarOptions({ ...currentOptions, events });
     } else {
-      console.log('[CalendarCoordinationService] Clearing calendar events');
       const currentOptions = this._callbacks.getCalendarOptions();
       this._callbacks.setCalendarOptions({ ...currentOptions, events: [] });
     }
@@ -232,14 +180,6 @@ export class CalendarCoordinationService {
     const calendarApi = this._callbacks.getCalendarApi();
     if (calendarApi) {
       calendarApi.refetchEvents();
-    }
-  }
-
-  // Refresh schedule and events - loads fresh schedule data
-  private refreshScheduleAndEvents(courseId: number | null): void {
-    if (courseId) {
-      console.log('[CalendarCoordinationService] Refreshing schedule and events');
-      this.schedulePersistenceService.loadSchedulesForCourse(courseId).subscribe();
     }
   }
 
@@ -271,11 +211,6 @@ export class CalendarCoordinationService {
 
   // === PUBLIC API METHODS ===
 
-  // Get current course ID from NodeSelectionService
-  getCurrentCourseId(): number | null {
-    return this.nodeSelectionService.activeCourseId();
-  }
-
   // Get current course data
   getCurrentCourse(): any | null {
     const activeCourseId = this.nodeSelectionService.activeCourseId();
@@ -292,9 +227,19 @@ export class CalendarCoordinationService {
     return this.courseCrudService.getActiveCourseCount();
   }
 
+  // Refresh schedule and events - loads fresh schedule data
+  refreshScheduleAndEvents(courseId: number | null): void {
+    console.log('[CalendarCoordinationService] refreshScheduleAndEvents');
+    
+    if (courseId) {
+      this.schedulePersistenceService.loadSchedulesForCourse(courseId).subscribe();
+    }
+  }
+
   // Cleanup method for component destruction
   cleanup(): void {
-    console.log('[CalendarCoordinationService] Cleaning up');
+    console.log('[CalendarCoordinationService] cleanup');
+    
     this._callbacks = null;
     this._initialized.set(false);
   }

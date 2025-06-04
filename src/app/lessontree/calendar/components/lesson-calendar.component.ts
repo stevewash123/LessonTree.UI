@@ -1,10 +1,9 @@
-/* src/app/lessontree/calendar/lesson-calendar.component.ts - COMPLETE FILE */
+/* src/app/lessontree/calendar/lesson-calendar.component.ts - UPDATED FOR NEW INTERACTION SERVICE */
 // RESPONSIBILITY: Displays lessons in calendar format and handles direct UI interactions.
 // DOES NOT: Store schedule data, handle API operations, manage calendar configuration, handle course management, manage node selection, or coordinate complex effects - delegates to appropriate services.
 // CALLED BY: Main application router, displays calendar view of selected course lessons.
-import { Component, OnInit, OnDestroy, ViewChild, Input, computed, signal, effect } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, Input, computed, Signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, EventDropArg } from '@fullcalendar/core';
@@ -20,9 +19,9 @@ import { CalendarConfigModalComponent } from './calendar-config-modal.component'
 
 import { ScheduleStateService } from '../services/schedule-state.service';
 import { SchedulePersistenceService } from '../services/schedule-persistence.service';
-import { CalendarEventService } from '../services/calendar-event.service';
 import { CalendarConfigurationService } from '../services/calendar-configuration.service';
 import { CalendarCoordinationService } from '../services/calendar-coordination.service';
+import { CalendarInteractionService } from '../services/calendar-interaction.service';
 import { ScheduleContextService } from '../services/schedule-context.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { UserService } from '../../../core/services/user.service';
@@ -35,7 +34,6 @@ import { parseId } from '../../../core/utils/type-conversion.utils';
   standalone: true,
   imports: [
     CommonModule,
-    FormsModule,
     FullCalendarModule,
     MatDialogModule,
     MatIconModule,
@@ -59,12 +57,18 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   // Context menu state
   contextMenuPosition = { x: '0px', y: '0px' };
 
-  // Get available context menu actions dynamically
-  get contextMenuActions() {
-    return this.scheduleContextService.getContextMenuActions();
-  }
+  // PROPERLY FIXED: Readonly signals declared with proper initialization
+  readonly hasSelection: Signal<boolean>;
+  readonly selectedNodeType: Signal<string | null>;
+  readonly selectedCourse: Signal<any | null>;
 
-  // Computed signals using services - will be initialized in constructor
+  // Schedule state signals - properly typed with Signal interface
+  readonly selectedSchedule: Signal<any | null>;
+  readonly isInMemorySchedule: Signal<boolean>;
+  readonly hasUnsavedChanges: Signal<boolean>;
+  readonly canSaveSchedule: Signal<boolean>;
+
+  // Course and coordination signals
   readonly hasCoursesAvailable = computed(() => {
     return this.calendarCoordination.hasCoursesAvailable();
   });
@@ -73,13 +77,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
     return this.calendarCoordination.getActiveCourseCount();
   });
 
-  // NodeSelectionService signals - initialized in constructor
-  readonly selectedCourse!: any;
-  readonly hasSelection!: any;
-  readonly selectedNodeType!: any;
-
   readonly currentCourseId = computed(() => {
-    return this.calendarCoordination.getCurrentCourseId();
+    return this.nodeSelectionService.activeCourseId(); // FIXED: Use nodeSelectionService directly
   });
 
   readonly selectedCourseData = computed(() => {
@@ -87,22 +86,24 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   });
 
   readonly canGenerateReports = computed(() => {
-    const schedule = this.scheduleStateService.selectedSchedule();
-    return schedule && !this.scheduleStateService.isInMemorySchedule();
+    const schedule = this.selectedSchedule();
+    return schedule && !this.isInMemorySchedule();
   });
+
+  // Get available context menu actions dynamically
+  get contextMenuActions() {
+    return this.scheduleContextService.getContextMenuActions();
+  }
 
   // Calendar options - created by configuration service
   calendarOptions: CalendarOptions;
 
-  // Expose services for template - initialized in constructor
-  readonly scheduleState!: any;
-
   constructor(
     private scheduleStateService: ScheduleStateService,
     private schedulePersistenceService: SchedulePersistenceService,
-    private calendarEventService: CalendarEventService,
     private calendarConfigService: CalendarConfigurationService,
     private calendarCoordination: CalendarCoordinationService,
+    private calendarInteraction: CalendarInteractionService, // NEW: Interaction service
     private scheduleContextService: ScheduleContextService,
     private nodeSelectionService: NodeSelectionService,
     private userService: UserService,
@@ -112,17 +113,24 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   ) {
     console.log('[LessonCalendarComponent] Initializing');
 
-    // Initialize NodeSelectionService signals after injection
-    (this as any).hasSelection = this.nodeSelectionService.hasSelection;
-    (this as any).selectedNodeType = this.nodeSelectionService.selectedNodeType;
+    // PROPERLY INITIALIZE: Assign signals in constructor to avoid readonly issues
+    this.hasSelection = this.nodeSelectionService.hasSelection;
+    this.selectedNodeType = this.nodeSelectionService.selectedNodeType;
+    this.selectedCourse = computed(() => {
+      const node = this.nodeSelectionService.selectedNode();
+      return node?.nodeType === 'Course' ? node : null;
+    });
 
-    // Initialize scheduleState service reference for template
-    (this as any).scheduleState = this.scheduleStateService;
+    // Schedule state signals - assigned in constructor
+    this.selectedSchedule = this.scheduleStateService.selectedSchedule;
+    this.isInMemorySchedule = this.scheduleStateService.isInMemorySchedule;
+    this.hasUnsavedChanges = this.scheduleStateService.hasUnsavedChanges;
+    this.canSaveSchedule = this.scheduleStateService.canSaveSchedule;
 
     // Initialize calendar options using configuration service with right-click handler
     this.calendarOptions = this.calendarConfigService.createCalendarOptions(
         this.handleEventClick.bind(this),
-        this.handleEventContextMenu.bind(this), // NEW: Event-based context menu
+        this.handleEventContextMenu.bind(this), // Event-based context menu
         this.handleEventDrop.bind(this)
       );
 
@@ -135,7 +143,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    console.log('[LessonCalendarComponent] Initializing - using existing course data');
+    console.log('[LessonCalendarComponent] ngOnInit');
     
     // Initialize user subscription
     this.userSubscription = this.userService.user$.subscribe(user => {
@@ -143,21 +151,46 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
         console.log(`[LessonCalendarComponent] User available: ${user!.id}`);
       }
     });
-  
-    console.log('[LessonCalendarComponent] Initialization complete - coordination service handles the rest');
   }
 
   ngOnDestroy(): void {
-    console.log('[LessonCalendarComponent] Component destroying');
+    console.log('[LessonCalendarComponent] ngOnDestroy');
     
     this.userSubscription?.unsubscribe();
     this.scheduleContextService.clearContext();
-    this.calendarConfigService.cleanup(); // Simplified cleanup
+    this.calendarConfigService.cleanup();
     this.calendarCoordination.cleanup();
   }
 
+  // UPDATED: Use interaction service for event click orchestration
+  handleEventClick(arg: EventClickArg): void {
+    console.log('[LessonCalendarComponent] handleEventClick');
+    
+    // Delegate to interaction service - it handles node selection and toasts
+    const shouldOpenContextMenu = this.calendarInteraction.handleEventClick(arg);
+    
+    // If the interaction service says we should open context menu, handle it
+    if (shouldOpenContextMenu) {
+      // Convert to right-click-like event for context menu
+      const fakeRightClick = new MouseEvent('contextmenu', {
+        clientX: (arg.jsEvent as MouseEvent).clientX,
+        clientY: (arg.jsEvent as MouseEvent).clientY,
+        button: 2
+      });
+      this.handleEventContextMenu(arg, fakeRightClick);
+    }
+  }
+
+  // UPDATED: Use interaction service for event drop orchestration  
+  handleEventDrop(arg: EventDropArg): void {
+    console.log('[LessonCalendarComponent] handleEventDrop');
+    
+    // Delegate to interaction service - it handles persistence and state updates
+    this.calendarInteraction.handleEventDrop(arg);
+  }
+
   handleEventContextMenu(eventInfo: any, jsEvent: MouseEvent): void {
-    console.log('[LessonCalendarComponent] Event right-clicked:', eventInfo.event.title);
+    console.log('[LessonCalendarComponent] handleEventContextMenu');
     
     // FIRST: Always close any existing context menu
     if (this.contextMenuTrigger?.menuOpen) {
@@ -185,29 +218,16 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
     }, 10);
   }
 
-  // Handle event click from calendar
-  handleEventClick(arg: any): void {
-  console.log('[LessonCalendarComponent] Event left-clicked:', arg.event.title);
-  
-  // Delegate to event service for processing
-  const result = this.calendarEventService.handleEventClick(arg);
-  // Service handles node selection automatically
-}
-
-  // Handle event drop from calendar
-  handleEventDrop(arg: EventDropArg): void {
-    this.calendarEventService.handleEventDrop(arg);
-  }
-
   // Handle context menu selection
   executeContextAction(action: any): void {
-    console.log('[LessonCalendarComponent] Context menu action selected:', action.label);
+    console.log('[LessonCalendarComponent] executeContextAction');
     action.handler();
     this.contextMenuTrigger?.closeMenu();
   }
 
   // Handle schedule selection from controls
   selectSchedule(scheduleId: number): void {
+    console.log('[LessonCalendarComponent] selectSchedule');
     this.schedulePersistenceService.selectScheduleById(scheduleId).subscribe({
       error: (error: any) => {
         console.error(`[LessonCalendarComponent] Failed to select schedule ${scheduleId}:`, error);
@@ -217,6 +237,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Handle save schedule from controls
   saveSchedule(): void {
+    console.log('[LessonCalendarComponent] saveSchedule');
     this.schedulePersistenceService.saveCurrentSchedule().subscribe({
       error: (error: any) => {
         console.error('[LessonCalendarComponent] Failed to save schedule:', error);
@@ -226,6 +247,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Handle create schedule from controls
   openConfigModal(): void {
+    console.log('[LessonCalendarComponent] openConfigModal');
+    
     const selectedCourse = this.selectedCourse();
     
     if (!selectedCourse) {
@@ -252,8 +275,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
         courseId,
         userId: currentUser.id,
         courseTitle: courseData.title,
-        existingSchedule: this.scheduleStateService.isInMemorySchedule() 
-          ? this.scheduleStateService.selectedSchedule() 
+        existingSchedule: this.isInMemorySchedule() 
+          ? this.selectedSchedule() 
           : null,
         mode: 'create'
       },
@@ -271,12 +294,12 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Generate reports (stubbed for now)
   generateFullReport(): void {
-    console.log('[LessonCalendarComponent] Generating full report');
+    console.log('[LessonCalendarComponent] generateFullReport');
     // TODO: Implement full report generation
   }
 
   generateWeekReport(): void {
-    console.log('[LessonCalendarComponent] Generating week report');
+    console.log('[LessonCalendarComponent] generateWeekReport');
     // TODO: Implement week report generation
   }
 
@@ -287,7 +310,9 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
     return {
       ...coordinationDebug,
       teachingDays: this.calendarConfigService.getCurrentTeachingDays(),
-      hiddenDays: this.calendarConfigService.getCurrentHiddenDays()
+      hiddenDays: this.calendarConfigService.getCurrentHiddenDays(),
+      canInteract: this.calendarInteraction.canInteractWithCalendar(),
+      interactionContext: this.calendarInteraction.getInteractionContext()
     };
   }
 }

@@ -26,6 +26,8 @@ export class SchedulePersistenceService {
 
   // Load schedules for a course
   loadSchedulesForCourse(courseId: number): Observable<void> {
+    console.log('[SchedulePersistenceService] loadSchedulesForCourse');
+    
     return new Observable<void>(observer => {
       this.calendarService.getSchedulesByCourse(courseId).subscribe({
         next: (schedules: Schedule[]) => {
@@ -33,10 +35,22 @@ export class SchedulePersistenceService {
           
           if (schedules.length > 0) {
             this.scheduleStateService.setSelectedSchedule(schedules[0], false);
-            console.log(`[SchedulePersistenceService] Loaded ${schedules.length} schedules for course ${courseId}`);
           } else {
-            console.log(`[SchedulePersistenceService] No schedules found for course ${courseId}, creating in-memory schedule`);
-            this.scheduleGenerationService.createInMemorySchedule(courseId);
+            // Handle schedule generation result
+            const result = this.scheduleGenerationService.createInMemorySchedule(courseId);
+            
+            if (result.success && result.schedule) {
+              this.scheduleStateService.setSelectedSchedule(result.schedule, true);
+            } else {
+              // Show errors and warnings as toasts
+              result.errors.forEach(error => {
+                this.toastr.error(error, 'Schedule Creation Failed');
+              });
+              
+              result.warnings.forEach(warning => {
+                this.toastr.warning(warning, 'Schedule Warning');
+              });
+            }
           }
           
           observer.next();
@@ -44,7 +58,18 @@ export class SchedulePersistenceService {
         },
         error: (err: any) => {
           console.error('[SchedulePersistenceService] Failed to load schedules:', err.message);
-          this.scheduleGenerationService.createInMemorySchedule(courseId);
+          
+          // Handle schedule generation result on error fallback
+          const result = this.scheduleGenerationService.createInMemorySchedule(courseId);
+          
+          if (result.success && result.schedule) {
+            this.scheduleStateService.setSelectedSchedule(result.schedule, true);
+          } else {
+            result.errors.forEach(error => {
+              this.toastr.error(error, 'Schedule Creation Failed');
+            });
+          }
+          
           observer.next();
           observer.complete();
         }

@@ -1,15 +1,14 @@
 // RESPONSIBILITY: Generates in-memory schedules from course data and lesson hierarchies with period assignment matching.
-// DOES NOT: Manage state, save data, or handle UI - pure schedule generation logic.
+// DOES NOT: Manage state, save data, handle UI, or show notifications - pure schedule generation logic.
 // CALLED BY: SchedulePersistenceService when no saved schedules exist for a course.
 import { Injectable } from '@angular/core';
-import { ToastrService } from 'ngx-toastr';
 
 import { CourseDataService } from '../../../core/services/course-data.service';
-import { ScheduleStateService } from './schedule-state.service';
 import { Schedule, ScheduleEvent, PeriodAssignment } from '../../../models/schedule';
 import { Lesson } from '../../../models/lesson';
 import { Course } from '../../../models/course';
 import { UserService } from '../../../core/services/user.service';
+import { parseId } from '../../../core/utils/type-conversion.utils';
 
 // Constants for default schedule configuration
 const DEFAULT_TEACHING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -18,6 +17,13 @@ const SCHOOL_YEAR_START_DAY = 1;
 const SCHOOL_YEAR_END_MONTH = 5; // June (0-indexed) 
 const SCHOOL_YEAR_END_DAY = 15;
 
+export interface ScheduleGenerationResult {
+  success: boolean;
+  schedule?: Schedule;
+  errors: string[];
+  warnings: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -25,39 +31,45 @@ export class ScheduleGenerationService {
 
   constructor(
     private courseDataService: CourseDataService,
-    private userService: UserService,
-    private scheduleStateService: ScheduleStateService,
-    private toastr: ToastrService
-  ) {}
+    private userService: UserService
+  ) {
+    console.log('[ScheduleGenerationService] Initialized for schedule generation');
+  }
 
   // Create an in-memory schedule for a course with period assignment matching
-  createInMemorySchedule(courseId: number): void {
+  createInMemorySchedule(courseId: number): ScheduleGenerationResult {
+    console.log(`[ScheduleGenerationService] createInMemorySchedule for course ${courseId}`);
+    
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    
     const course = this.courseDataService.getCourseById(courseId);
     if (!course) {
-      console.error('[ScheduleGeneration] Course not found:', courseId);
-      this.toastr.error('Cannot create schedule: Course not found', 'Error');
-      return;
+      errors.push('Cannot create schedule: Course not found');
+      return { success: false, errors, warnings };
     }
 
     const teachingConfig = this.userService.getTeachingConfig();
     if (!teachingConfig) {
-      console.error('[ScheduleGeneration] No teaching configuration available');
-      this.toastr.error('Cannot create schedule: No teaching configuration found', 'Error');
-      return;
+      errors.push('Cannot create schedule: No teaching configuration found');
+      return { success: false, errors, warnings };
     }
 
     // Find periods assigned to this course
     const assignedPeriods = this.getPeriodsAssignedToCourse(courseId, teachingConfig.periodAssignments);
     if (assignedPeriods.length === 0) {
-      console.warn('[ScheduleGeneration] No periods assigned to this course', { courseId });
-      this.toastr.warning('No periods assigned to this course', 'Warning');
-      return;
+      warnings.push('No periods assigned to this course');
+      return { success: false, errors, warnings };
     }
 
     const lessons = this.collectLessonsFromCourse(course);
     if (lessons.length === 0) {
-      this.toastr.warning('No lessons available for scheduling', 'Warning');
+      warnings.push('No lessons available for scheduling');
     }
+
+    // Get userId from UserService directly
+    const currentUser = this.userService.getCurrentUser();
+    const userId = parseId(currentUser?.id || '0') || 0;
 
     const { startDate, endDate } = this.getDefaultDateRange();
     const scheduleEvents = this.generateScheduleEvents(
@@ -72,7 +84,7 @@ export class ScheduleGenerationService {
       id: 0,
       title: `${course.title} - ${startDate.getFullYear()}`,
       courseId: courseId,
-      userId: this.scheduleStateService.getCurrentUserId() || 0,
+      userId: userId,
       startDate,
       endDate,
       teachingDays: DEFAULT_TEACHING_DAYS.join(','),
@@ -80,16 +92,12 @@ export class ScheduleGenerationService {
       scheduleEvents
     };
 
-    console.log('[ScheduleGeneration] Created in-memory schedule', {
-      courseId,
-      courseName: course.title,
-      lessonCount: lessons.length,
-      assignedPeriods: assignedPeriods.map(p => p.period).join(', '),
-      totalEvents: scheduleEvents.length,
-      dateRange: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`
-    });
-
-    this.scheduleStateService.setSelectedSchedule(inMemorySchedule, true);
+    return {
+      success: true,
+      schedule: inMemorySchedule,
+      errors,
+      warnings
+    };
   }
 
   // Get periods assigned to the specified course
@@ -99,15 +107,10 @@ export class ScheduleGenerationService {
     // Sort by period number for consistent lesson distribution
     assigned.sort((a, b) => a.period - b.period);
     
-    console.log('[ScheduleGeneration] Found assigned periods', {
-      courseId,
-      periods: assigned.map(p => `Period ${p.period} (${p.room || 'no room'})`).join(', ')
-    });
-    
     return assigned;
   }
 
-  // Collect lessons from course hierarchy in proper order (unchanged)
+  // Collect lessons from course hierarchy in proper order
   collectLessonsFromCourse(course: Course): Lesson[] {
     const lessons: Lesson[] = [];
     if (!course.topics) return lessons;
@@ -153,16 +156,9 @@ export class ScheduleGenerationService {
     const finalDate = new Date(endDate);
     
     if (startDate >= endDate) {
-      console.error('[ScheduleGeneration] Invalid date range');
+      console.error('[ScheduleGenerationService] Invalid date range');
       return scheduleEvents;
     }
-    
-    console.log('[ScheduleGeneration] Generating events', {
-      lessonCount: lessons.length,
-      assignedPeriodsCount: assignedPeriods.length,
-      periodsDetails: assignedPeriods.map(p => `P${p.period}`).join(', '),
-      dateRange: `${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`
-    });
     
     while (currentDate <= finalDate) {
       const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'long' });
@@ -190,12 +186,6 @@ export class ScheduleGenerationService {
       currentDate.setDate(currentDate.getDate() + 1);
     }
     
-    console.log('[ScheduleGeneration] Generated schedule events', {
-      totalEvents: scheduleEvents.length,
-      lessonsUsed: lessonIndex,
-      errorDays: scheduleEvents.filter(e => e.specialCode === 'Error Day').length
-    });
-    
     return scheduleEvents;
   }
 
@@ -213,28 +203,15 @@ export class ScheduleGenerationService {
     
     if (lessonIndex < lessons.length) {
       lessonId = lessons[lessonIndex].id;
-      console.log('[ScheduleGeneration] Assigned lesson to period', {
-        date: date.toISOString().split('T')[0],
-        period,
-        lessonIndex,
-        lessonId,
-        lessonTitle: lessons[lessonIndex].title
-      });
     } else {
       specialCode = 'Error Day';
       comment = 'No lesson assigned - schedule needs more content';
-      console.log('[ScheduleGeneration] Created error day for period', {
-        date: date.toISOString().split('T')[0],
-        period,
-        lessonIndex,
-        totalLessons: lessons.length
-      });
     }
     
     return {
       id: eventId,
       scheduleId: 0,
-      date: new Date(date), // Ensure clean date object
+      date: new Date(date),
       period,
       lessonId,
       specialCode,
@@ -242,7 +219,7 @@ export class ScheduleGenerationService {
     };
   }
 
-  // Get default date range for current school year (unchanged)
+  // Get default date range for current school year
   getDefaultDateRange(): { startDate: Date; endDate: Date } {
     const currentYear = new Date().getFullYear();
     return {

@@ -1,7 +1,7 @@
 // RESPONSIBILITY: Orchestrates lesson shifting operations and conflict resolution.
 // DOES NOT: Handle Error Day creation, UI notifications, or direct API calls - delegates to appropriate services.
 // CALLED BY: SpecialDayManagementService and other services that need lesson scheduling operations.
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { addDays, format, isAfter, isSameDay } from 'date-fns';
 
 import { ScheduleEvent } from '../../../models/schedule';
@@ -13,20 +13,21 @@ import { TeachingDayCalculationService } from './teaching-day-calculations.servi
   providedIn: 'root'
 })
 export class LessonShiftingService {
-  // Injected services
-  private readonly scheduleStateService = inject(ScheduleStateService);
-  private readonly calendarService = inject(LessonCalendarService);
-  private readonly teachingDayCalculation = inject(TeachingDayCalculationService);
-
-  constructor() {
-    console.log('[LessonShiftingService] Initialized for ScheduleEvent period-based lesson shifting');
+  constructor(
+    private scheduleStateService: ScheduleStateService,
+    private calendarService: LessonCalendarService,
+    private teachingDayCalculation: TeachingDayCalculationService
+  ) {
+    console.log('[LessonShiftingService] Initialized for period-based lesson shifting');
   }
 
   /**
    * Shift lessons that are scheduled on or after the given date forward by one teaching day
-   * UPDATED: Period-specific shifting - only affects the specified period
+   * Period-specific shifting - only affects the specified period
    */
   shiftLessonsForward(insertionDate: Date, period: number): void {
+    console.log(`[LessonShiftingService] shiftLessonsForward - Period ${period} from ${format(insertionDate, 'yyyy-MM-dd')}`);
+    
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents || !currentSchedule?.teachingDays) {
       console.error('[LessonShiftingService] Cannot shift: No schedule or teaching days available');
@@ -37,13 +38,10 @@ export class LessonShiftingService {
     const affectedLessons = this.findLessonsInPeriodOnOrAfter(currentSchedule.scheduleEvents, insertionDate, period);
 
     if (affectedLessons.length === 0) {
-      console.log(`[LessonShiftingService] No lessons found in Period ${period} to shift forward`);
       return;
     }
 
-    console.log(`[LessonShiftingService] Shifting ${affectedLessons.length} lessons in Period ${period} forward from ${format(insertionDate, 'yyyy-MM-dd')}`);
-
-    const shiftedLessons = this.calculatePeriodSpecificForwardShifts(
+    const shiftedLessons = this.calculateForwardShifts(
       affectedLessons, 
       insertionDate, 
       period,
@@ -56,9 +54,11 @@ export class LessonShiftingService {
 
   /**
    * Shift lessons that are scheduled after the given date backward by one teaching day
-   * UPDATED: Period-specific shifting - only affects the specified period
+   * Period-specific shifting - only affects the specified period
    */
   shiftLessonsBackward(deletedDate: Date, period: number): void {
+    console.log(`[LessonShiftingService] shiftLessonsBackward - Period ${period} from ${format(deletedDate, 'yyyy-MM-dd')}`);
+    
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents || !currentSchedule?.teachingDays) {
       console.error('[LessonShiftingService] Cannot shift backward: No schedule or teaching days available');
@@ -69,15 +69,14 @@ export class LessonShiftingService {
     const lessonsAfterDeleted = this.findLessonsInPeriodAfter(currentSchedule.scheduleEvents, deletedDate, period);
 
     if (lessonsAfterDeleted.length === 0) {
-      console.log(`[LessonShiftingService] No lessons found in Period ${period} to shift backward`);
       return;
     }
 
-    console.log(`[LessonShiftingService] Shifting ${lessonsAfterDeleted.length} lessons in Period ${period} backward from ${format(deletedDate, 'yyyy-MM-dd')}`);
-
-    this.performPeriodSpecificBackwardShifts(lessonsAfterDeleted, period, teachingDayNumbers, currentSchedule);
+    this.performBackwardShifts(lessonsAfterDeleted, period, teachingDayNumbers, currentSchedule);
     this.scheduleStateService.markAsChanged();
   }
+
+  // === PRIVATE HELPER METHODS ===
 
   // Helper method to get teaching day numbers
   private getTeachingDayNumbers(teachingDaysString: string): number[] {
@@ -87,34 +86,28 @@ export class LessonShiftingService {
 
   // Find lessons in a specific period on or after a date
   private findLessonsInPeriodOnOrAfter(scheduleEvents: ScheduleEvent[], targetDate: Date, period: number): ScheduleEvent[] {
-    const lessonEvents = scheduleEvents
+    return scheduleEvents
       .filter(event => 
         event.lessonId && 
         event.period === period &&
         (isSameDay(new Date(event.date), targetDate) || isAfter(new Date(event.date), targetDate))
       )
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-    console.log(`[LessonShiftingService] Found ${lessonEvents.length} lesson events in Period ${period} on or after ${format(targetDate, 'yyyy-MM-dd')}`);
-    return lessonEvents;
   }
 
   // Find lessons in a specific period after a date (not including the date itself)
   private findLessonsInPeriodAfter(scheduleEvents: ScheduleEvent[], targetDate: Date, period: number): ScheduleEvent[] {
-    const lessonEvents = scheduleEvents
+    return scheduleEvents
       .filter(event => 
         event.lessonId && 
         event.period === period &&
         isAfter(new Date(event.date), targetDate)
       )
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()); // Descending by date
-
-    console.log(`[LessonShiftingService] Found ${lessonEvents.length} lesson events in Period ${period} after ${format(targetDate, 'yyyy-MM-dd')}`);
-    return lessonEvents;
   }
 
-  // Calculate new dates for forward shifted lessons - PERIOD-SPECIFIC
-  private calculatePeriodSpecificForwardShifts(
+  // Calculate new dates for forward shifted lessons
+  private calculateForwardShifts(
     affectedLessons: ScheduleEvent[], 
     insertionDate: Date, 
     period: number,
@@ -143,16 +136,13 @@ export class LessonShiftingService {
         // Convert to error event
         shiftedLesson.lessonId = null;
         shiftedLesson.specialCode = 'Error Day';
-        shiftedLesson.comment = `ERROR: Lesson ${lesson.lessonId} pushed past schedule end (Period ${period})`;
-        
-        console.warn(`[LessonShiftingService] Lesson ${lesson.lessonId} (Period ${period}) pushed past schedule end`);
+        shiftedLesson.comment = `ERROR: Lesson pushed past schedule end (Period ${period})`;
       }
 
       shiftedLessons.push(shiftedLesson);
       currentShiftDate = this.teachingDayCalculation.getNextTeachingDay(addDays(currentShiftDate, 1), teachingDayNumbers);
     }
 
-    console.log(`[LessonShiftingService] Calculated ${shiftedLessons.length} forward shifts for Period ${period}`);
     return shiftedLessons;
   }
 
@@ -190,15 +180,13 @@ export class LessonShiftingService {
     return startDate; // Fallback
   }
 
-  // Perform backward shift operations - PERIOD-SPECIFIC
-  private performPeriodSpecificBackwardShifts(
+  // Perform backward shift operations
+  private performBackwardShifts(
     lessonsAfterDeleted: ScheduleEvent[], 
     period: number,
     teachingDayNumbers: number[], 
     currentSchedule: any
   ): void {
-    let shiftsApplied = 0;
-
     for (const currentLesson of lessonsAfterDeleted) {
       const currentLessonDate = new Date(currentLesson.date);
       const targetDate = this.findPreviousAvailableDateForPeriod(
@@ -214,12 +202,7 @@ export class LessonShiftingService {
       };
 
       this.scheduleStateService.updateScheduleEvent(updatedLesson);
-      shiftsApplied++;
-
-      console.log(`[LessonShiftingService] Shifted lesson ${currentLesson.lessonId} (Period ${period}) from ${format(currentLessonDate, 'yyyy-MM-dd')} to ${format(targetDate, 'yyyy-MM-dd')}`);
     }
-
-    console.log(`[LessonShiftingService] Applied ${shiftsApplied} backward shifts for Period ${period}`);
   }
 
   // Find previous available date for a specific period
@@ -256,11 +239,9 @@ export class LessonShiftingService {
     return addDays(startDate, -1); // Fallback
   }
 
-  // Apply lesson shifts - UPDATED for ScheduleEvent
+  // Apply lesson shifts
   private applyLessonShifts(shiftedLessons: ScheduleEvent[]): void {
     if (shiftedLessons.length === 0) return;
-
-    console.log(`[LessonShiftingService] Applying ${shiftedLessons.length} lesson shifts`);
 
     // Always update through state service - let it handle persistence
     shiftedLessons.forEach(lesson => {
@@ -268,27 +249,6 @@ export class LessonShiftingService {
     });
     
     this.scheduleStateService.markAsChanged();
-    console.log(`[LessonShiftingService] Successfully applied ${shiftedLessons.length} lesson shifts`);
-  }
-
-  // === NEW: PERIOD-SPECIFIC SHIFTING METHODS ===
-
-  /**
-   * Public method: Shift lessons in a specific period forward
-   * This is the main entry point for period-specific forward shifting
-   */
-  shiftLessonsInPeriodForward(insertionDate: Date, period: number): void {
-    // This is now the same as the main shiftLessonsForward method
-    this.shiftLessonsForward(insertionDate, period);
-  }
-
-  /**
-   * Public method: Shift lessons in a specific period backward  
-   * This is the main entry point for period-specific backward shifting
-   */
-  shiftLessonsInPeriodBackward(deletedDate: Date, period: number): void {
-    // This is now the same as the main shiftLessonsBackward method
-    this.shiftLessonsBackward(deletedDate, period);
   }
 
   // === DEBUG AND UTILITY METHODS ===
@@ -327,14 +287,4 @@ export class LessonShiftingService {
     
     return groupedByPeriod;
   }
-
-  // REMOVED METHODS (Single Responsibility Violations):
-  // - removeErrorDayIfExists() -> Should be handled by SpecialDayManagementService
-  // - addErrorDaysIfNeeded() -> Should be handled by SpecialDayManagementService  
-  // - updateShiftedLessons() API logic -> Should be handled by SchedulePersistenceService
-  // - Toast notifications -> Should be handled by calling service or UI layer
-
-  // NOTE: Error Event management should be delegated to SpecialDayManagementService
-  // NOTE: Toast notifications should be handled by the calling service
-  // NOTE: API persistence should be handled by SchedulePersistenceService
 }

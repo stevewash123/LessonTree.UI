@@ -1,46 +1,49 @@
-/* src/app/lessontree/calendar/services/calendar-event.service.ts - CLEAN SCHEDULE EVENT IMPLEMENTATION */
+/* src/app/lessontree/calendar/services/calendar-event.service.ts - FIXED SRP VIOLATIONS */
 // RESPONSIBILITY: Transforms schedule event data into calendar events with period-based multiple events per day.
-// DOES NOT: Store state, manage schedules, or calculate week numbers - pure transformation and event handling service.
-// CALLED BY: LessonCalendarComponent for event mapping and user interactions.
-import { Injectable, inject } from '@angular/core';
+// DOES NOT: Store state, manage schedules, show toasts, or handle persistence - pure transformation and event handling service.
+// CALLED BY: CalendarInteractionService for event mapping and CalendarCoordinationService for transformations.
+import { Injectable } from '@angular/core';
 import { EventInput, EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { format } from 'date-fns';
-import { ToastrService } from 'ngx-toastr';
 
 import { CourseDataService } from '../../../core/services/course-data.service';
-import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { UserService } from '../../../core/services/user.service';
-import { LessonCalendarService } from './lesson-calendar.service';
-import { ScheduleStateService } from './schedule-state.service';
 import { PeriodAssignment, ScheduleEvent } from '../../../models/schedule';
 import { Lesson } from '../../../models/lesson';
-import { parseId } from '../../../core/utils/type-conversion.utils';
+
+export interface EventClickResult {
+  eventType: 'lesson' | 'special' | 'error' | 'free';
+  lesson?: Lesson;
+  period: number;
+  shouldOpenContextMenu: boolean;
+  message?: string;
+}
+
+export interface EventDropResult {
+  success: boolean;
+  scheduleEventId?: number;
+  newDate?: Date;
+  errorMessage?: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class CalendarEventService {
-  // Injected services
-  private readonly courseDataService = inject(CourseDataService);
-  private readonly nodeSelectionService = inject(NodeSelectionService);
-  private readonly userService = inject(UserService);
-  private readonly calendarService = inject(LessonCalendarService);
-  private readonly scheduleStateService = inject(ScheduleStateService);
-  private readonly toastr = inject(ToastrService);
-
-  constructor() {
-    console.log('[CalendarEventService] Initialized with ScheduleEvent period-based support', { 
-      timestamp: new Date().toISOString() 
-    });
+  constructor(
+    private courseDataService: CourseDataService,
+    private userService: UserService
+  ) {
+    console.log('[CalendarEventService] Initialized with ScheduleEvent period-based support');
   }
 
   // Map schedule events to calendar events - GENERATES MULTIPLE EVENTS PER DAY
   mapScheduleEventsToCalendarEvents(events: ScheduleEvent[], courseId: number): EventInput[] {
+    console.log('[CalendarEventService] mapScheduleEventsToCalendarEvents');
+    
     const course = this.courseDataService.getCourseById(courseId);
     if (!course) {
-      console.warn(`[CalendarEventService] Course not found for ID ${courseId}`, { 
-        timestamp: new Date().toISOString() 
-      });
+      console.warn(`[CalendarEventService] Course not found for ID ${courseId}`);
       return [];
     }
 
@@ -49,12 +52,6 @@ export class CalendarEventService {
       console.warn('[CalendarEventService] No teaching config available, cannot generate period-based events');
       return [];
     }
-
-    console.log('[CalendarEventService] Generating period-based events', {
-      periodsPerDay: teachingConfig.periodsPerDay,
-      periodAssignments: teachingConfig.periodAssignments.length,
-      scheduleEvents: events.length
-    });
     
     // Collect all lessons from the course
     const lessonsMap = this.buildLessonsMap(course);
@@ -69,9 +66,70 @@ export class CalendarEventService {
       calendarEvents.push(...periodEvents);
     }
     
-    console.log(`[CalendarEventService] Generated ${calendarEvents.length} total calendar events for ${events.length} schedule events`);
     return calendarEvents;
   }
+
+  // Handle event click - RETURNS DATA FOR CALLER TO PROCESS
+  handleEventClick(arg: EventClickArg): EventClickResult {
+    console.log('[CalendarEventService] handleEventClick');
+    
+    const eventType = arg.event.extendedProps['eventType'];
+    const period = arg.event.extendedProps['period'];
+    
+    if (eventType === 'lesson') {
+      const lesson = arg.event.extendedProps['lesson'];
+      
+      if (lesson) {
+        return {
+          eventType: 'lesson',
+          lesson,
+          period,
+          shouldOpenContextMenu: false,
+          message: `Selected lesson: ${lesson.title} (Period ${period})`
+        };
+      }
+    }
+    
+    // All non-lesson events should open context menu
+    return {
+      eventType: eventType || 'unknown',
+      period,
+      shouldOpenContextMenu: true
+    };
+  }
+
+  // Handle event drop - RETURNS DATA FOR CALLER TO PROCESS
+  handleEventDrop(arg: EventDropArg): EventDropResult {
+    console.log('[CalendarEventService] handleEventDrop');
+    
+    if (!arg.event.start) {
+      return {
+        success: false,
+        errorMessage: 'Invalid event date'
+      };
+    }
+
+    // Extract original schedule event ID from period event ID
+    const eventId = arg.event.id;
+    const scheduleEventId = eventId.includes('-period-') 
+      ? parseInt(eventId.split('-period-')[0], 10)
+      : parseInt(eventId, 10);
+
+    if (isNaN(scheduleEventId)) {
+      return {
+        success: false,
+        errorMessage: 'Invalid event ID'
+      };
+    }
+
+    return {
+      success: true,
+      scheduleEventId,
+      newDate: new Date(arg.event.start)
+    };
+  }
+
+  // === PRIVATE HELPER METHODS ===
 
   // Group schedule events by date
   private groupEventsByDate(events: ScheduleEvent[]): Map<string, ScheduleEvent[]> {
@@ -293,7 +351,7 @@ export class CalendarEventService {
     return classes;
   }
 
-  // Build lessons map from course (unchanged)
+  // Build lessons map from course
   private buildLessonsMap(course: any): Map<number, Lesson> {
     const lessonsMap = new Map<number, Lesson>();
     
@@ -318,145 +376,5 @@ export class CalendarEventService {
     }
     
     return lessonsMap;
-  }
-
-  // Handle event click - ENHANCED for period events
-  handleEventClick(arg: EventClickArg): { shouldOpenContextMenu: boolean } {
-    const eventType = arg.event.extendedProps['eventType'];
-    const period = arg.event.extendedProps['period'];
-    
-    console.log('[CalendarEventService] Event clicked', {
-      eventId: arg.event.id,
-      eventTitle: arg.event.title,
-      eventType: eventType,
-      period: period,
-      timestamp: new Date().toISOString()
-    });
-    
-    if (eventType === 'lesson') {
-      const lesson = arg.event.extendedProps['lesson'];
-      
-      if (lesson) {
-        console.log('[CalendarEventService] Lesson period event clicked, selecting node', {
-          lessonId: lesson.id,
-          lessonTitle: lesson.title,
-          period: period,
-          nodeType: 'Lesson',
-          source: 'calendar',
-          timestamp: new Date().toISOString()
-        });
-
-        this.nodeSelectionService.selectById(lesson.id, 'Lesson', 'calendar');
-        
-        this.toastr.info(`Selected lesson: ${lesson.title} (Period ${period})`, 'Calendar Selection', {
-          timeOut: 2000
-        });
-        
-        return { shouldOpenContextMenu: false };
-      }
-    } else if (eventType === 'special' || eventType === 'error' || eventType === 'free') {
-      console.log('[CalendarEventService] Non-lesson period event clicked, opening context menu', {
-        eventType: eventType,
-        period: period,
-        timestamp: new Date().toISOString()
-      });
-      
-      return { shouldOpenContextMenu: true };
-    }
-    
-    console.log('[CalendarEventService] Unknown event type clicked', {
-      extendedProps: arg.event.extendedProps,
-      timestamp: new Date().toISOString()
-    });
-    
-    return { shouldOpenContextMenu: false };
-  }
-
-  // Handle event drag and drop
-  handleEventDrop(arg: EventDropArg): void {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
-    if (!currentSchedule || !currentSchedule.scheduleEvents) {
-      console.error(`[CalendarEventService] Cannot update event: No schedule selected`, { 
-        timestamp: new Date().toISOString() 
-      });
-      this.toastr.error('No schedule selected', 'Error');
-      arg.revert();
-      return;
-    }
-
-    // Extract original schedule event ID from period event ID
-    const eventId = arg.event.id;
-    const scheduleEventId = eventId.includes('-period-') 
-      ? parseInt(eventId.split('-period-')[0], 10)
-      : parseInt(eventId, 10);
-
-    const scheduleEvent = currentSchedule.scheduleEvents.find(event => event.id === scheduleEventId);
-    if (!scheduleEvent) {
-      console.error(`[CalendarEventService] Schedule event not found for event ID ${eventId}`, { 
-        timestamp: new Date().toISOString() 
-      });
-      this.toastr.error('Schedule event not found', 'Error');
-      arg.revert();
-      return;
-    }
-
-    if (!arg.event.start) {
-      console.error(`[CalendarEventService] Cannot update event: No start date`, { 
-        timestamp: new Date().toISOString() 
-      });
-      this.toastr.error('Invalid event date', 'Error');
-      arg.revert();
-      return;
-    }
-
-    // Update the schedule event
-    const updatedEvent = {
-      ...scheduleEvent,
-      date: new Date(arg.event.start)
-    };
-
-    if (this.scheduleStateService.isInMemorySchedule()) {
-      this.scheduleStateService.updateScheduleEvent(updatedEvent);
-      this.scheduleStateService.markAsChanged();
-      
-      console.log(`[CalendarEventService] Updated in-memory schedule event`, {
-        id: scheduleEvent.id,
-        period: scheduleEvent.period,
-        date: updatedEvent.date,
-        timestamp: new Date().toISOString()
-      });
-      this.toastr.success('Event rescheduled in temporary schedule', 'Success');
-    } else {
-      this.calendarService.updateScheduleEvent(updatedEvent).subscribe({
-        next: (apiUpdatedEvent: ScheduleEvent) => {
-          this.scheduleStateService.updateScheduleEvent(apiUpdatedEvent);
-          
-          console.log(`[CalendarEventService] Updated schedule event ID ${apiUpdatedEvent.id}`, { 
-            period: apiUpdatedEvent.period,
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.success('Event rescheduled successfully', 'Success');
-        },
-        error: (err: any) => {
-          console.error(`[CalendarEventService] Failed to update schedule event: ${err.message}`, { 
-            timestamp: new Date().toISOString() 
-          });
-          this.toastr.error('Failed to reschedule event', 'Error');
-          arg.revert();
-        }
-      });
-    }
-  }
-
-  // Get current course ID for event mapping
-  getCurrentCourseId(): number | null {
-    const selectedNode = this.nodeSelectionService.selectedNode();
-    
-    if (selectedNode && selectedNode.nodeType === 'Course') {
-      return parseId(selectedNode.id);
-    }
-    
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
-    return currentSchedule?.courseId || null;
   }
 }

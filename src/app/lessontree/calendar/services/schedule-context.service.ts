@@ -1,7 +1,7 @@
 // RESPONSIBILITY: Manages context menu state, event handling, and user interaction coordination for calendar operations.
 // DOES NOT: Handle modal operations, lesson shifting logic, or direct API calls - delegates to specialized services.
 // CALLED BY: LessonCalendarComponent for context menu operations and user interaction coordination.
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { EventClickArg } from '@fullcalendar/core';
 import { format } from 'date-fns';
 
@@ -20,63 +20,40 @@ export interface ContextMenuAction {
   providedIn: 'root'
 })
 export class ScheduleContextService {
-  // Injected services
-  private readonly scheduleStateService = inject(ScheduleStateService);
-  private readonly specialDayModalService = inject(SpecialDayModalService);
-  private readonly lessonShiftingService = inject(LessonShiftingService);
-
   // Context menu state
   private lastClickedEvent: EventClickArg | null = null;
 
-  constructor() {
-    console.log('[ScheduleContextService] Initialized for ScheduleEvent period-based operations', { 
-      timestamp: new Date().toISOString() 
-    });
+  constructor(
+    private scheduleStateService: ScheduleStateService,
+    private specialDayModalService: SpecialDayModalService,
+    private lessonShiftingService: LessonShiftingService
+  ) {
+    console.log('[ScheduleContextService] Initialized for ScheduleEvent period-based operations');
   }
 
   // Set context for operations
   setDateContext(date: Date): void {
+    console.log('[ScheduleContextService] setDateContext');
     this.lastClickedEvent = null;
-    console.log(`[ScheduleContextService] Date context set: ${format(date, 'yyyy-MM-dd')}`, { 
-      timestamp: new Date().toISOString() 
-    });
   }
 
   setEventContext(event: EventClickArg): void {
+    console.log('[ScheduleContextService] setEventContext');
     this.lastClickedEvent = event;
-    const period = event.event.extendedProps['period'];
-    console.log(`[ScheduleContextService] Event context set: ${event.event.id} (Period ${period})`, { 
-      timestamp: new Date().toISOString() 
-    });
   }
 
   // Get available context menu actions based on current context
   getContextMenuActions(): ContextMenuAction[] {
+    console.log('[ScheduleContextService] getContextMenuActions');
+    
     const actions: ContextMenuAction[] = [];
-
-    console.log('[ScheduleContextService] Getting context menu actions:', {
-      hasEventContext: !!this.lastClickedEvent,
-      lastClickedEventId: this.lastClickedEvent?.event?.id || null,
-      timestamp: new Date().toISOString()
-    });
 
     if (this.lastClickedEvent) {
       const event = this.lastClickedEvent.event;
       const extendedProps = event.extendedProps || {};
       const period = extendedProps['period'];
-      
-      console.log('[ScheduleContextService] Processing event context:', {
-        eventId: event.id,
-        eventTitle: event.title,
-        period: period,
-        eventType: extendedProps['eventType'],
-        specialCode: extendedProps['specialCode'],
-        hasLesson: !!extendedProps['lesson'],
-        timestamp: new Date().toISOString()
-      });
 
       if (this.isErrorDayEvent(this.lastClickedEvent)) {
-        console.log(`[ScheduleContextService] Adding error day actions for Period ${period}`);
         actions.push(
           {
             id: 'addLesson',
@@ -90,7 +67,6 @@ export class ScheduleContextService {
           }
         );
       } else if (this.isSpecialDayEvent(this.lastClickedEvent)) {
-        console.log(`[ScheduleContextService] Adding special day actions for Period ${period}`);
         actions.push(
           {
             id: 'editSpecialDay',
@@ -104,7 +80,6 @@ export class ScheduleContextService {
           }
         );
       } else if (this.isLessonEvent(this.lastClickedEvent)) {
-        console.log(`[ScheduleContextService] Adding lesson actions for Period ${period}`);
         actions.push(
           {
             id: 'editLesson',
@@ -118,7 +93,6 @@ export class ScheduleContextService {
           }
         );
       } else if (this.isFreePeriodEvent(this.lastClickedEvent)) {
-        console.log(`[ScheduleContextService] Adding free period actions for Period ${period}`);
         actions.push(
           {
             id: 'addLessonToPeriod',
@@ -131,36 +105,16 @@ export class ScheduleContextService {
             handler: () => this.handleAddSpecialToFreePeriod()
           }
         );
-      } else {
-        console.log('[ScheduleContextService] Event type not recognized - no actions added');
       }
-    } else {
-      console.log('[ScheduleContextService] No event context available');
     }
-
-    console.log('[ScheduleContextService] Final actions array:', {
-      actionCount: actions.length,
-      actionIds: actions.map(a => a.id),
-      actionLabels: actions.map(a => a.label)
-    });
 
     return actions;
   }
 
-  // Helper method to check if a date has special events
-  private getSpecialEventsOnDate(date: Date): ScheduleEvent[] {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
-    if (!currentSchedule?.scheduleEvents) {
-      return [];
-    }
-  
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return currentSchedule.scheduleEvents.filter(event => {
-      const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
-      return eventDateStr === dateStr && 
-             event.specialCode && 
-             event.specialCode !== 'Error Day'; // Exclude error days
-    });
+  // Clear context (useful for cleanup)
+  clearContext(): void {
+    console.log('[ScheduleContextService] clearContext');
+    this.lastClickedEvent = null;
   }
 
   // Check if event is a lesson (has lesson but no special code)
@@ -340,11 +294,5 @@ export class ScheduleContextService {
 
     // Reuse existing special day modal for error period conversion
     this.specialDayModalService.openSpecialDayModal('add', eventDate);
-  }
-
-  // Clear context (useful for cleanup)
-  clearContext(): void {
-    this.lastClickedEvent = null;
-    console.log('[ScheduleContextService] Context cleared', { timestamp: new Date().toISOString() });
   }
 }

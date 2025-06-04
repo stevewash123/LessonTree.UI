@@ -3,7 +3,7 @@
 // CALLED BY: ScheduleStateService and ScheduleEventService for persistence operations.
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, of } from 'rxjs';
+import { Observable } from 'rxjs';
 import { catchError, map, tap } from 'rxjs/operators';
 import { 
   Schedule, 
@@ -48,7 +48,7 @@ export class LessonCalendarService {
           value = value.$values || [];
         }
         
-        // UPDATED: Handle scheduleEvents instead of scheduleDays
+        // Handle scheduleEvents array
         if (camelKey === 'scheduleEvents') {
           value = Array.isArray(value) ? value : [];
         }
@@ -74,19 +74,6 @@ export class LessonCalendarService {
       catchError((error) => {
         console.error(`[LessonCalendarService] Failed to fetch schedule ID ${scheduleId}: ${error.message}`, { timestamp: new Date().toISOString() });
         throw error;
-      })
-    );
-  }
-
-  getScheduleByCourse(courseId: number): Observable<Schedule | null> {
-    console.log(`[LessonCalendarService] Fetching schedules for course ID ${courseId}`, { timestamp: new Date().toISOString() });
-    return this.http.get<Schedule[]>(`${this.apiUrl}/Schedule/course/${courseId}`).pipe(
-      map(response => this.transformResponse<Schedule[]>(response)),
-      tap((schedules) => console.log(`[LessonCalendarService] Fetched ${schedules.length} schedules for course ID ${courseId}`, { timestamp: new Date().toISOString() })),
-      map((schedules: Schedule[]) => schedules.length > 0 ? schedules[0] : null),
-      catchError((error) => {
-        console.error(`[LessonCalendarService] Failed to fetch schedules for course ID ${courseId}: ${error.message}`, { timestamp: new Date().toISOString() });
-        return of(null);
       })
     );
   }
@@ -215,26 +202,6 @@ export class LessonCalendarService {
       })),
       catchError((error) => {
         console.error(`[LessonCalendarService] Failed to update schedule events: ${error.message}`);
-        throw error;
-      })
-    );
-  }
-
-  // === BULK OPERATIONS ===
-
-  getScheduleEventsByDate(scheduleId: number, date: string): Observable<ScheduleEvent[]> {
-    console.log(`[LessonCalendarService] Fetching schedule events for date ${date}`, { 
-      scheduleId,
-      timestamp: new Date().toISOString() 
-    });
-    return this.http.get<ScheduleEvent[]>(`${this.apiUrl}/ScheduleEvent/byDate/${scheduleId}/${date}`).pipe(
-      map(response => this.transformResponse<ScheduleEvent[]>(response)),
-      tap((events) => console.log(`[LessonCalendarService] Fetched ${events.length} events for date ${date}`, {
-        scheduleId,
-        timestamp: new Date().toISOString()
-      })),
-      catchError((error) => {
-        console.error(`[LessonCalendarService] Failed to fetch events for date ${date}: ${error.message}`, { timestamp: new Date().toISOString() });
         throw error;
       })
     );

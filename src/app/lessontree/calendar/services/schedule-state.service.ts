@@ -1,12 +1,9 @@
 // RESPONSIBILITY: Core schedule state management with signals and reactive properties.
-// DOES NOT: Generate schedules, save/load data, or handle API calls - pure state management.
+// DOES NOT: Generate schedules, save/load data, handle API calls, or manage user state - pure schedule state management.
 // CALLED BY: Calendar components, ScheduleGenerationService, SchedulePersistenceService for state coordination.
 import { Injectable, signal, computed } from '@angular/core';
-import { Observable, of } from 'rxjs';
 import { format } from 'date-fns';
 import { Schedule, ScheduleEvent } from '../../../models/schedule';
-import { UserService } from '../../../core/services/user.service';
-import { parseId } from '../../../core/utils/type-conversion.utils';
 
 @Injectable({
   providedIn: 'root'
@@ -18,7 +15,6 @@ export class ScheduleStateService {
   private readonly _isInMemorySchedule = signal<boolean>(false);
   private readonly _hasUnsavedChanges = signal<boolean>(false);
   private readonly _scheduleVersion = signal<number>(0);
-  private readonly _currentUserId = signal<number | null>(null);
 
   // Counter for in-memory event IDs
   private _inMemoryEventIdCounter = -1;
@@ -30,7 +26,7 @@ export class ScheduleStateService {
   readonly hasUnsavedChanges = this._hasUnsavedChanges.asReadonly();
   readonly scheduleVersion = this._scheduleVersion.asReadonly();
 
-  // Computed signals - UPDATED for ScheduleEvent
+  // Computed signals
   readonly canSaveSchedule = computed(() => 
     this._isInMemorySchedule() && this._selectedSchedule() !== null
   );
@@ -39,13 +35,8 @@ export class ScheduleStateService {
     this._selectedSchedule()?.scheduleEvents || []
   );
 
-  constructor(private userService: UserService) {
+  constructor() {
     console.log('[ScheduleStateService] Initialized for ScheduleEvent period-based management');
-    
-    // Initialize user ID from user service
-    this.userService.user$.subscribe(user => {
-      this._currentUserId.set(parseId(user?.id || '0') || null);
-    });
   }
 
   // === SCHEDULE MANAGEMENT ===
@@ -100,13 +91,21 @@ export class ScheduleStateService {
       return;
     }
 
-    const updatedSchedule = { ...currentSchedule };
-    if (!updatedSchedule.scheduleEvents) return;
-    
-    const eventIndex = updatedSchedule.scheduleEvents.findIndex(event => event.id === updatedEvent.id);
+    // OPTIMIZED: Use more efficient update pattern
+    const events = currentSchedule.scheduleEvents;
+    const eventIndex = events.findIndex(event => event.id === updatedEvent.id);
     
     if (eventIndex !== -1) {
-      updatedSchedule.scheduleEvents[eventIndex] = updatedEvent;
+      // Create new events array with updated event
+      const newEvents = [...events];
+      newEvents[eventIndex] = updatedEvent;
+      
+      // Update schedule with new events array
+      const updatedSchedule = { 
+        ...currentSchedule, 
+        scheduleEvents: newEvents 
+      };
+      
       this._selectedSchedule.set(updatedSchedule);
       this.incrementScheduleVersion();
       this.markAsChangedIfInMemory();
@@ -128,8 +127,11 @@ export class ScheduleStateService {
       return;
     }
 
-    const updatedSchedule = { ...currentSchedule };
-    updatedSchedule.scheduleEvents = [...(updatedSchedule.scheduleEvents || []), newEvent];
+    // OPTIMIZED: Direct array creation
+    const updatedSchedule = { 
+      ...currentSchedule,
+      scheduleEvents: [...(currentSchedule.scheduleEvents || []), newEvent]
+    };
     
     this._selectedSchedule.set(updatedSchedule);
     this.incrementScheduleVersion();
@@ -151,13 +153,15 @@ export class ScheduleStateService {
       return;
     }
 
-    const updatedSchedule = { ...currentSchedule };
-    if (!updatedSchedule.scheduleEvents) return;
+    // OPTIMIZED: Direct filter operation
+    const newEvents = currentSchedule.scheduleEvents.filter(event => event.id !== eventId);
     
-    const originalLength = updatedSchedule.scheduleEvents.length;
-    updatedSchedule.scheduleEvents = updatedSchedule.scheduleEvents.filter(event => event.id !== eventId);
-    
-    if (updatedSchedule.scheduleEvents.length < originalLength) {
+    if (newEvents.length < currentSchedule.scheduleEvents.length) {
+      const updatedSchedule = { 
+        ...currentSchedule, 
+        scheduleEvents: newEvents 
+      };
+      
       this._selectedSchedule.set(updatedSchedule);
       this.incrementScheduleVersion();
       this.markAsChangedIfInMemory();
@@ -217,12 +221,12 @@ export class ScheduleStateService {
       const newEvent: ScheduleEvent = {
         id: this.generateInMemoryEventId(),
         scheduleId: currentSchedule.id,
-        date: new Date(date), // Ensure clean date object
+        date: new Date(date),
         period,
         lessonId: null,
         specialCode: null,
         comment: null,
-        ...updates // Apply provided updates
+        ...updates
       };
       
       this.addScheduleEvent(newEvent);
@@ -279,10 +283,6 @@ export class ScheduleStateService {
 
   // === GETTERS ===
 
-  getCurrentUserId(): number | null {
-    return this._currentUserId();
-  }
-
   getScheduleById(scheduleId: number): Schedule | null {
     return this._schedules().find(s => s.id === scheduleId) || null;
   }
@@ -317,30 +317,6 @@ export class ScheduleStateService {
     console.log('[ScheduleStateService] State reset');
   }
 
-  // === BACKWARD COMPATIBILITY METHODS ===
-
-  saveCurrentSchedule(): Observable<Schedule> {
-    // This should delegate to SchedulePersistenceService, but kept here for backward compatibility
-    // TODO: Update callers to use SchedulePersistenceService directly
-    const currentSchedule = this._selectedSchedule();
-    if (currentSchedule) {
-      console.log('[ScheduleStateService] saveCurrentSchedule called (deprecated - use SchedulePersistenceService)');
-      return of(currentSchedule);
-    }
-    return of({} as Schedule);
-  }
-
-  selectScheduleById(scheduleId: number): Observable<void> {
-    // This should delegate to SchedulePersistenceService, but kept here for backward compatibility  
-    // TODO: Update callers to use SchedulePersistenceService directly
-    const schedule = this.getScheduleById(scheduleId);
-    if (schedule) {
-      console.log(`[ScheduleStateService] selectScheduleById called (deprecated - use SchedulePersistenceService): ${scheduleId}`);
-      this.setSelectedSchedule(schedule, false);
-    }
-    return of(void 0);
-  }
-
   // === DEBUG METHODS ===
 
   getDebugInfo() {
@@ -356,7 +332,6 @@ export class ScheduleStateService {
       scheduleVersion: this._scheduleVersion(),
       eventCount: events.length,
       eventCountByPeriod: this.getEventCountByPeriod(),
-      currentUserId: this._currentUserId(),
       inMemoryEventIdCounter: this._inMemoryEventIdCounter
     };
   }

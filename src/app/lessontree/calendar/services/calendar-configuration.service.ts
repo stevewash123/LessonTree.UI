@@ -1,8 +1,8 @@
-/* src/app/lessontree/calendar/services/calendar-configuration.service.ts - PHASE 2 COMPLETE */
+/* src/app/lessontree/calendar/services/calendar-configuration.service.ts - CONSTRUCTOR INJECTION FIXED */
 // RESPONSIBILITY: Manages FullCalendar configuration options and calendar-specific settings.
 // DOES NOT: Handle events, state management, or API calls - pure configuration service.
 // CALLED BY: LessonCalendarComponent for calendar setup and configuration updates.
-import { Injectable, inject, computed } from '@angular/core';
+import { Injectable, computed } from '@angular/core';
 import { CalendarOptions } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -15,14 +15,6 @@ import { NodeSelectionService } from '../../../core/services/node-selection.serv
   providedIn: 'root'
 })
 export class CalendarConfigurationService {
-  // Injected services
-  private readonly scheduleStateService = inject(ScheduleStateService);
-  private readonly nodeSelectionService = inject(NodeSelectionService);
-
-  constructor() {
-    console.log('[CalendarConfigurationService] Initialized - event-based interactions only');
-  }
-
   // Computed teaching days for calendar display
   readonly teachingDays = computed(() => {
     const schedule = this.scheduleStateService.selectedSchedule();
@@ -48,6 +40,14 @@ export class CalendarConfigurationService {
     console.log(`[CalendarConfigurationService] Teaching: ${teaching.join(', ')}, Hidden: ${hiddenDayNumbers.join(', ')}`);
     return hiddenDayNumbers;
   });
+
+  constructor(
+    private scheduleStateService: ScheduleStateService,
+    private nodeSelectionService: NodeSelectionService
+  ) {
+    console.log('[CalendarConfigurationService] Initialized - event-based interactions only');
+  }
+
 
   // Create base calendar options - EVENT-BASED ONLY
   createCalendarOptions(

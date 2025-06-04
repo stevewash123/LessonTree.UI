@@ -1,8 +1,10 @@
+/* COMPLETE FILE - src/app/lessontree/calendar/services/special-day-management.service.ts */
 // RESPONSIBILITY: Handles special day business logic and CRUD operations with multi-period support.
 // DOES NOT: Handle UI notifications, API persistence details, or modal coordination - focused on business logic.
 // CALLED BY: SpecialDayModalService for special day data operations.
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, forkJoin, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { format } from 'date-fns';
 
 import { ScheduleEvent } from '../../../models/schedule';
@@ -12,7 +14,7 @@ import { LessonShiftingService } from './lesson-shifting.service';
 
 export interface SpecialDayData {
   date: Date;
-  periods: number[];                 // UPDATED: Multiple periods array
+  periods: number[];
   specialCode: string;
   title: string;
   description?: string;
@@ -27,141 +29,62 @@ export interface SpecialDayValidationResult {
   providedIn: 'root'
 })
 export class SpecialDayManagementService {
-  // Injected services
   private readonly scheduleStateService = inject(ScheduleStateService);
   private readonly calendarService = inject(LessonCalendarService);
   private readonly lessonShiftingService = inject(LessonShiftingService);
 
   constructor() {
-    console.log('[SpecialDayManagementService] Initialized for ScheduleEvent multi-period special days');
+    console.log('[SpecialDayManagementService] Initialized for multi-period special days');
   }
 
-  // Create special day events for multiple periods - UPDATED for multi-period
+  // Create special day events for multiple periods - SIMPLIFIED
   createSpecialDay(data: SpecialDayData): Observable<ScheduleEvent[]> {
+    console.log(`[SpecialDayManagementService] Creating special day for ${data.periods.length} periods`);
+    
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule) {
-      console.error('[SpecialDayManagementService] Cannot create special day: No schedule available');
       throw new Error('No schedule available');
     }
 
     const newScheduleEvents = data.periods.map(period => 
       this.buildScheduleEvent(data, currentSchedule.id, period)
     );
-    
-    return new Observable<ScheduleEvent[]>(observer => {
-      if (this.scheduleStateService.isInMemorySchedule()) {
-        newScheduleEvents.forEach(event => {
-          this.scheduleStateService.addScheduleEvent(event);
-          // Shift lessons for each affected period
-          this.lessonShiftingService.shiftLessonsForward(data.date, event.period);
-        });
-        
-        console.log('[SpecialDayManagementService] Created special day events in memory', {
-          date: format(data.date, 'yyyy-MM-dd'),
-          periods: data.periods,
-          specialCode: data.specialCode
-        });
-        
-        observer.next(newScheduleEvents);
-        observer.complete();
-      } else {
-        // Create all events via API
-        const createPromises = newScheduleEvents.map(event => 
-          this.calendarService.addScheduleEvent(event).toPromise()
-        );
-        
-        Promise.all(createPromises).then((createdEvents: (ScheduleEvent | undefined)[]) => {
-          const validEvents = createdEvents.filter(event => event !== undefined) as ScheduleEvent[];
-          
-          validEvents.forEach(event => {
-            this.scheduleStateService.addScheduleEvent(event);
-            this.lessonShiftingService.shiftLessonsForward(data.date, event.period);
-          });
-          
-          console.log('[SpecialDayManagementService] Created special day events via API', {
-            date: format(data.date, 'yyyy-MM-dd'),
-            periods: data.periods,
-            specialCode: data.specialCode,
-            eventsCreated: validEvents.length
-          });
-          
-          observer.next(validEvents);
-          observer.complete();
-        }).catch(err => {
-          console.error('[SpecialDayManagementService] Failed to create special day:', err.message);
-          observer.error(err);
-        });
-      }
-    });
+
+    if (this.scheduleStateService.isInMemorySchedule()) {
+      return this.createInMemoryEvents(newScheduleEvents, data);
+    } else {
+      return this.createApiEvents(newScheduleEvents, data);
+    }
   }
 
-  // Update an existing special day event - SINGLE PERIOD UPDATE
+  // Update an existing special day event
   updateSpecialDay(data: SpecialDayData, originalScheduleEvent: ScheduleEvent): Observable<ScheduleEvent> {
-    // For update, we only update the single event provided (single period)
-    const targetPeriod = originalScheduleEvent.period;
+    console.log(`[SpecialDayManagementService] Updating special day event ${originalScheduleEvent.id}`);
     
     const updatedScheduleEvent: ScheduleEvent = {
-      id: originalScheduleEvent.id,
-      scheduleId: originalScheduleEvent.scheduleId,
+      ...originalScheduleEvent,
       date: new Date(data.date),
-      period: targetPeriod,
-      lessonId: null,
       specialCode: data.specialCode,
       comment: this.buildComment(data)
     };
 
-    console.log('[SpecialDayManagementService] Updating special day event', {
-      eventId: originalScheduleEvent.id,
-      period: targetPeriod,
-      specialCode: data.specialCode
-    });
-
     return this.performScheduleEventUpdate(updatedScheduleEvent);
   }
 
-  // Delete a special day event - SINGLE PERIOD DELETE
+  // Delete a special day event - SIMPLIFIED
   deleteSpecialDay(scheduleEvent: ScheduleEvent): Observable<void> {
-    return new Observable<void>(observer => {
-      if (this.scheduleStateService.isInMemorySchedule()) {
-        this.scheduleStateService.removeScheduleEvent(scheduleEvent.id);
-        this.lessonShiftingService.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
-        
-        console.log('[SpecialDayManagementService] Deleted special day event from memory', {
-          eventId: scheduleEvent.id,
-          period: scheduleEvent.period,
-          specialCode: scheduleEvent.specialCode
-        });
-        
-        observer.next();
-        observer.complete();
-      } else {
-        this.calendarService.deleteScheduleEvent(scheduleEvent.id).subscribe({
-          next: () => {
-            this.scheduleStateService.removeScheduleEvent(scheduleEvent.id);
-            this.lessonShiftingService.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
-            
-            console.log('[SpecialDayManagementService] Deleted special day event via API', {
-              eventId: scheduleEvent.id,
-              period: scheduleEvent.period,
-              specialCode: scheduleEvent.specialCode
-            });
-            
-            observer.next();
-            observer.complete();
-          },
-          error: (err: any) => {
-            console.error('[SpecialDayManagementService] Failed to delete special day:', err.message);
-            observer.error(err);
-          }
-        });
-      }
-    });
+    console.log(`[SpecialDayManagementService] Deleting special day event ${scheduleEvent.id}`);
+    
+    if (this.scheduleStateService.isInMemorySchedule()) {
+      return this.deleteInMemoryEvent(scheduleEvent);
+    } else {
+      return this.deleteApiEvent(scheduleEvent);
+    }
   }
 
-  // Extract special day data from a ScheduleEvent for editing - SINGLE PERIOD
+  // Extract special day data from a ScheduleEvent for editing
   extractSpecialDayData(scheduleEvent: ScheduleEvent): SpecialDayData | null {
     if (!scheduleEvent.specialCode) {
-      console.error('[SpecialDayManagementService] Cannot extract data: Not a special day event');
       return null;
     }
 
@@ -169,32 +92,25 @@ export class SpecialDayManagementService {
 
     return {
       date: new Date(scheduleEvent.date),
-      periods: [scheduleEvent.period],     // Single period for editing
+      periods: [scheduleEvent.period],
       specialCode: scheduleEvent.specialCode,
       title: title,
-      description: undefined // We don't currently store separate description
+      description: undefined
     };
   }
 
-  // Find special day by schedule event ID - UNCHANGED
+  // Find special day by schedule event ID
   findSpecialDayById(scheduleEventId: number): ScheduleEvent | null {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents) {
-      console.error('[SpecialDayManagementService] Cannot find special day: No schedule available');
       return null;
     }
 
     const scheduleEvent = currentSchedule.scheduleEvents.find(event => event.id === scheduleEventId);
-    
-    if (!scheduleEvent?.specialCode) {
-      console.error('[SpecialDayManagementService] Cannot find special day: Item is not a special day event');
-      return null;
-    }
-
-    return scheduleEvent;
+    return scheduleEvent?.specialCode ? scheduleEvent : null;
   }
 
-  // Find special day for a specific date and period - UNCHANGED
+  // Find special day for a specific date and period
   findSpecialDayForPeriod(date: Date, period: number): ScheduleEvent | null {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents) return null;
@@ -209,7 +125,7 @@ export class SpecialDayManagementService {
     }) || null;
   }
 
-  // Get all special days for a specific date - UNCHANGED
+  // Get all special days for a specific date
   getSpecialDaysForDate(date: Date): ScheduleEvent[] {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents) return [];
@@ -223,7 +139,7 @@ export class SpecialDayManagementService {
     });
   }
 
-  // Validate special day data - ENHANCED for multi-period support
+  // Validate special day data
   validateSpecialDayData(data: SpecialDayData): SpecialDayValidationResult {
     const errors: string[] = [];
 
@@ -234,7 +150,6 @@ export class SpecialDayManagementService {
     if (!data.periods || data.periods.length === 0) {
       errors.push('At least one period must be selected');
     } else {
-      // Validate each period
       for (const period of data.periods) {
         if (period < 1 || period > 10) {
           errors.push(`Period ${period} must be between 1 and 10`);
@@ -242,11 +157,11 @@ export class SpecialDayManagementService {
       }
     }
 
-    if (!data.specialCode || data.specialCode.trim() === '') {
+    if (!data.specialCode?.trim()) {
       errors.push('Special code is required');
     }
 
-    if (!data.title || data.title.trim() === '') {
+    if (!data.title?.trim()) {
       errors.push('Title is required');
     }
 
@@ -258,7 +173,7 @@ export class SpecialDayManagementService {
       errors.push('Description must be 500 characters or less');
     }
 
-    // Check for conflicts with existing events in selected periods
+    // Check for conflicts with existing events
     if (data.date && data.periods) {
       for (const period of data.periods) {
         const existingEvent = this.scheduleStateService.getScheduleEventForPeriod(data.date, period);
@@ -274,7 +189,7 @@ export class SpecialDayManagementService {
     };
   }
 
-  // Helper method to create Error Events - UNCHANGED
+  // Helper method to create Error Events
   createErrorEvent(date: Date, period: number, scheduleId: number, comment?: string): ScheduleEvent {
     const defaultComment = comment || 'No lesson assigned - schedule needs more content';
     
@@ -289,7 +204,7 @@ export class SpecialDayManagementService {
     };
   }
 
-  // Helper method to remove Error Events - UNCHANGED
+  // Helper method to remove Error Events
   removeErrorEventIfExists(date: Date, period: number): boolean {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents) return false;
@@ -304,17 +219,13 @@ export class SpecialDayManagementService {
     
     if (existingErrorEvent) {
       this.scheduleStateService.removeScheduleEvent(existingErrorEvent.id);
-      console.log('[SpecialDayManagementService] Removed error event', {
-        date: format(date, 'yyyy-MM-dd'),
-        period: period
-      });
       return true;
     }
     
     return false;
   }
 
-  // Remove all error events for a specific date - UNCHANGED
+  // Remove all error events for a specific date
   removeAllErrorEventsForDate(date: Date): number {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     if (!currentSchedule?.scheduleEvents) return 0;
@@ -329,14 +240,53 @@ export class SpecialDayManagementService {
       this.scheduleStateService.removeScheduleEvent(event.id);
     });
 
-    if (errorEvents.length > 0) {
-      console.log(`[SpecialDayManagementService] Removed ${errorEvents.length} error events for ${dateStr}`);
-    }
-
     return errorEvents.length;
   }
 
-  // Private helper methods
+  // === PRIVATE HELPER METHODS ===
+
+  // SIMPLIFIED: In-memory creation
+  private createInMemoryEvents(events: ScheduleEvent[], data: SpecialDayData): Observable<ScheduleEvent[]> {
+    events.forEach(event => {
+      this.scheduleStateService.addScheduleEvent(event);
+      this.lessonShiftingService.shiftLessonsForward(data.date, event.period);
+    });
+    
+    return of(events);
+  }
+
+  // FIXED: Modern Observable pattern instead of deprecated toPromise()
+  private createApiEvents(events: ScheduleEvent[], data: SpecialDayData): Observable<ScheduleEvent[]> {
+    const createRequests = events.map(event => 
+      this.calendarService.addScheduleEvent(event)
+    );
+    
+    return forkJoin(createRequests).pipe(
+      map(createdEvents => {
+        createdEvents.forEach(event => {
+          this.scheduleStateService.addScheduleEvent(event);
+          this.lessonShiftingService.shiftLessonsForward(data.date, event.period);
+        });
+        return createdEvents;
+      })
+    );
+  }
+
+  private deleteInMemoryEvent(scheduleEvent: ScheduleEvent): Observable<void> {
+    this.scheduleStateService.removeScheduleEvent(scheduleEvent.id);
+    this.lessonShiftingService.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
+    return of(void 0);
+  }
+
+  private deleteApiEvent(scheduleEvent: ScheduleEvent): Observable<void> {
+    return this.calendarService.deleteScheduleEvent(scheduleEvent.id).pipe(
+      map(() => {
+        this.scheduleStateService.removeScheduleEvent(scheduleEvent.id);
+        this.lessonShiftingService.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
+      })
+    );
+  }
+
   private buildScheduleEvent(data: SpecialDayData, scheduleId: number, period: number): ScheduleEvent {
     return {
       id: this.scheduleStateService.isInMemorySchedule() ? this.generateInMemoryId() : 0,
@@ -360,7 +310,6 @@ export class SpecialDayManagementService {
   private extractTitleFromComment(comment: string | null | undefined, specialCode: string): string {
     if (!comment) return specialCode;
     
-    // Parse title from comment if it contains the special code prefix
     if (comment.startsWith(specialCode + ':')) {
       return comment.substring((specialCode + ':').length).trim();
     }
@@ -373,25 +322,17 @@ export class SpecialDayManagementService {
   }
 
   private performScheduleEventUpdate(scheduleEvent: ScheduleEvent): Observable<ScheduleEvent> {
-    return new Observable<ScheduleEvent>(observer => {
-      if (this.scheduleStateService.isInMemorySchedule()) {
-        this.scheduleStateService.updateScheduleEvent(scheduleEvent);
-        this.scheduleStateService.markAsChanged();
-        observer.next(scheduleEvent);
-        observer.complete();
-      } else {
-        this.calendarService.updateScheduleEvent(scheduleEvent).subscribe({
-          next: (updatedEvent: ScheduleEvent) => {
-            this.scheduleStateService.updateScheduleEvent(updatedEvent);
-            observer.next(updatedEvent);
-            observer.complete();
-          },
-          error: (err: any) => {
-            console.error('[SpecialDayManagementService] Failed to update special day:', err.message);
-            observer.error(err);
-          }
-        });
-      }
-    });
+    if (this.scheduleStateService.isInMemorySchedule()) {
+      this.scheduleStateService.updateScheduleEvent(scheduleEvent);
+      this.scheduleStateService.markAsChanged();
+      return of(scheduleEvent);
+    } else {
+      return this.calendarService.updateScheduleEvent(scheduleEvent).pipe(
+        map(updatedEvent => {
+          this.scheduleStateService.updateScheduleEvent(updatedEvent);
+          return updatedEvent;
+        })
+      );
+    }
   }
 }
