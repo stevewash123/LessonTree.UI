@@ -1,4 +1,170 @@
-<h2>User Configuration</h2>
-<p>Configuration options to be added here.</p>
-<button mat-raised-button color="primary" (click)="save()">Save</button>
-<button mat-button (click)="cancel()">Cancel</button>
+<!-- **COMPLETE FILE** - Can directly replace existing user-config.component.html -->
+<!-- RESPONSIBILITY: Modal template for user configuration with tabbed interface -->
+<!-- DOES NOT: Handle complex layouts (use full page for extensive configs) -->
+<!-- CALLED BY: UserConfigComponent -->
+
+<div class="user-config-dialog">
+    <h2 mat-dialog-title>User Configuration</h2>
+    
+    <mat-dialog-content>
+      <mat-tab-group>
+        <!-- Profile Tab -->
+        <mat-tab label="Profile">
+          <div class="tab-content">
+            <form [formGroup]="profileForm" class="profile-form">
+              <mat-form-field appearance="outline">
+                <mat-label>First Name</mat-label>
+                <input matInput formControlName="firstName" required>
+                <mat-error *ngIf="profileForm.get('firstName')?.hasError('required')">
+                  First name is required
+                </mat-error>
+              </mat-form-field>
+  
+              <mat-form-field appearance="outline">
+                <mat-label>Last Name</mat-label>
+                <input matInput formControlName="lastName" required>
+                <mat-error *ngIf="profileForm.get('lastName')?.hasError('required')">
+                  Last name is required
+                </mat-error>
+              </mat-form-field>
+  
+              <mat-form-field appearance="outline">
+                <mat-label>Email</mat-label>
+                <input matInput type="email" formControlName="email" required>
+                <mat-error *ngIf="profileForm.get('email')?.hasError('required')">
+                  Email is required
+                </mat-error>
+                <mat-error *ngIf="profileForm.get('email')?.hasError('email')">
+                  Please enter a valid email
+                </mat-error>
+              </mat-form-field>
+  
+              <mat-form-field appearance="outline">
+                <mat-label>Phone Number</mat-label>
+                <input matInput formControlName="phoneNumber">
+              </mat-form-field>
+            </form>
+          </div>
+        </mat-tab>
+  
+        <!-- Teaching Schedule Tab -->
+        <mat-tab label="Teaching Schedule">
+          <div class="tab-content">
+            <form [formGroup]="teachingForm" class="teaching-form">
+              <!-- School Year and Periods -->
+              <div class="schedule-header">
+                <mat-form-field appearance="outline">
+                  <mat-label>School Year</mat-label>
+                  <input matInput formControlName="schoolYear" required>
+                </mat-form-field>
+  
+                <mat-form-field appearance="outline">
+                  <mat-label>Periods Per Day</mat-label>
+                  <mat-select formControlName="periodsPerDay" 
+                             (selectionChange)="onPeriodsPerDayChange()">
+                    @for (option of periodOptions; track option.value) {
+                      <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              </div>
+  
+              <!-- Period Assignments -->
+              <div class="periods-section">
+                <div class="section-header">
+                  <h4>Period Assignments</h4>
+                  <div class="period-actions">
+                    <button mat-icon-button 
+                            type="button" 
+                            (click)="addPeriod()" 
+                            matTooltip="Add Period">
+                      <mat-icon>add</mat-icon>
+                    </button>
+                    <button mat-stroked-button
+                            type="button"
+                            (click)="resetToDefaultColors()"
+                            matTooltip="Reset all periods to default colors"
+                            class="reset-colors-btn">
+                      <mat-icon>palette</mat-icon>
+                      <span>Reset Colors</span>
+                    </button>
+                  </div>
+                </div>
+  
+                <div formArrayName="periodAssignments" class="periods-list">
+                  @for (period of periodAssignments.controls; track period; let i = $index) {
+                    <div [formGroupName]="i" class="period-row">
+                      <div class="period-label">
+                        <span>Period {{ period.get('period')?.value }}</span>
+                      </div>
+                      
+                      <mat-form-field appearance="outline" class="course-select">
+                        <mat-label>Course</mat-label>
+                        <mat-select formControlName="courseId">
+                          <mat-option [value]="null">No Course Assigned</mat-option>
+                          @for (course of availableCourses; track course.id) {
+                            <mat-option [value]="course.id">{{ course.title }}</mat-option>
+                          }
+                        </mat-select>
+                      </mat-form-field>
+                      
+                      <mat-form-field appearance="outline">
+                        <mat-label>Room</mat-label>
+                        <input matInput formControlName="room" 
+                               placeholder="e.g., 205, Lab B">
+                      </mat-form-field>
+  
+                      <!-- Style Configuration -->
+                      <div class="style-config">
+                        <div class="color-controls">
+                          <div class="color-field">
+                            <label class="color-label">Background</label>
+                            <input type="color" 
+                                   formControlName="backgroundColor"
+                                   class="color-picker">
+                          </div>
+                          <div class="color-field">
+                            <label class="color-label">Text</label>
+                            <input type="color" 
+                                   formControlName="fontColor"
+                                   class="color-picker">
+                          </div>
+                        </div>
+                        <div class="style-preview" 
+                             [style.backgroundColor]="period.get('backgroundColor')?.value"
+                             [style.color]="period.get('fontColor')?.value">
+                          Preview
+                        </div>
+                      </div>
+  
+                      <button mat-icon-button 
+                              type="button"
+                              (click)="removePeriod(i)"
+                              [disabled]="periodAssignments.length <= 1"
+                              matTooltip="Remove Period"
+                              color="warn">
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+            </form>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-dialog-content>
+  
+    <mat-dialog-actions align="end">
+      <button mat-button (click)="openAdvancedSettings()" color="accent">
+        Advanced Settings
+      </button>
+      <div class="spacer"></div>
+      <button mat-button (click)="cancel()">Cancel</button>
+      <button mat-raised-button 
+              color="primary" 
+              (click)="save()"
+              [disabled]="!profileForm.valid || !teachingForm.valid">
+        Save
+      </button>
+    </mat-dialog-actions>
+  </div>

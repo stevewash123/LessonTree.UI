@@ -1,12 +1,32 @@
+<!-- **COMPLETE FILE** - Can directly replace existing home.component.html -->
+<!-- RESPONSIBILITY: Main toolbar layout with improved button UX -->
+<!-- DOES NOT: Handle complex responsive layouts -->
+<!-- CALLED BY: HomeComponent -->
+
 <mat-toolbar #toolbar color="primary">
-    <button mat-icon-button [matMenuTriggerFor]="navMenu">
+    <button mat-icon-button [matMenuTriggerFor]="navMenu" class="toolbar-button">
       <mat-icon>menu</mat-icon>
     </button>
     <span>LessonTree</span>
     <span class="spacer"></span>
-    <button mat-icon-button [matMenuTriggerFor]="accountMenu">
+    
+    <!-- Disclosure Widget Toggle -->
+    <button mat-icon-button 
+            (click)="toggleControlsVisibility()"
+            class="toolbar-button controls-toggle"
+            [class.active]="controlsVisible()"
+            matTooltip="Show/Hide Controls">
+      <mat-icon>tune</mat-icon>
+    </button>
+    
+    <!-- Account button with better visual feedback -->
+    <button mat-icon-button 
+            [matMenuTriggerFor]="accountMenu"
+            class="toolbar-button account-button"
+            matTooltip="Account & Settings">
       <mat-icon>account_circle</mat-icon>
     </button>
+    
     <mat-menu #navMenu="matMenu">
       <button mat-menu-item routerLink="/home/courses">CoursesXXX</button>
       <button mat-menu-item routerLink="/home/lessons">Lessons</button>
@@ -14,11 +34,83 @@
         <button mat-menu-item routerLink="/home/account">Account</button>
       }
     </mat-menu>
+    
     <mat-menu #accountMenu="matMenu">
-      <button mat-menu-item routerLink="/home/user-config">User Configuration</button>
-      <button mat-menu-item (click)="logout()">Logout</button>
+      <button mat-menu-item (click)="openUserConfig()">
+        <mat-icon>settings</mat-icon>
+        <span>User Configuration</span>
+      </button>
+      <button mat-menu-item (click)="logout()">
+        <mat-icon>logout</mat-icon>
+        <span>Logout</span>
+      </button>
     </mat-menu>
   </mat-toolbar>
+  
+  <!-- Disclosure Controls Panel -->
+  @if (controlsVisible()) {
+    <div class="disclosure-panel">
+      <div class="disclosure-content">
+        
+        <!-- Course Search and Filter -->
+        <div class="control-group">
+            <button mat-stroked-button 
+                    (click)="openCourseFilterDialog()" 
+                    matTooltip="Course Filters" 
+                    class="filter-button">
+              <mat-icon>filter_list</mat-icon>
+              <span class="control-label">Filter Courses</span>
+            </button>
+          </div>
+        <!-- Drag Mode Controls -->
+        <div class="control-group">
+          <span class="control-label">Tree Drag Action:</span>
+          <mat-button-toggle-group 
+            [value]="toolbarControls.dragMode()"
+            (change)="onDragModeChange($event.value)"
+            class="drag-mode-toggle-group">
+            
+            <mat-button-toggle value="move" matTooltip="Move nodes to new locations">
+              <mat-icon>drive_file_move</mat-icon>
+              <span class="toggle-label">Move</span>
+            </mat-button-toggle>
+            
+            <mat-button-toggle value="copy" matTooltip="Copy nodes to new locations">
+              <mat-icon>content_copy</mat-icon>
+              <span class="toggle-label">Copy</span>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+        
+        <!-- Layout Mode Controls -->
+        <div class="control-group">
+          <span class="control-label">Layout:</span>
+          <mat-button-toggle-group 
+            [value]="toolbarControls.layoutMode()"
+            (change)="onLayoutModeChange($event.value)"
+            class="layout-mode-toggle-group">
+            
+            <mat-button-toggle value="tree-details" matTooltip="Tree view with lesson details panel">
+              <mat-icon>account_tree</mat-icon>
+              <span class="toggle-label">Tree + Details</span>
+            </mat-button-toggle>
+            
+            <mat-button-toggle value="tree-calendar" matTooltip="Calendar view with tree panel">
+              <mat-icon>calendar_month</mat-icon>
+              <span class="toggle-label">Tree + Calendar</span>
+            </mat-button-toggle>
+            
+            <mat-button-toggle value="calendar-details" matTooltip="Calendar view with lesson details panel">
+              <mat-icon>view_day</mat-icon>
+              <span class="toggle-label">Calendar + Details</span>
+            </mat-button-toggle>
+          </mat-button-toggle-group>
+        </div>
+        
+      </div>
+    </div>
+  }
+  
   <div [style.paddingTop.px]="toolbarHeight">
     <router-outlet></router-outlet>
   </div>

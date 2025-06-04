@@ -1,7 +1,12 @@
+/* **COMPLETE FILE** - Can directly replace existing home.component.css */
+/* RESPONSIBILITY: Toolbar styling with disclosure widget and improved button UX */
+/* DOES NOT: Handle complex responsive patterns */
+/* CALLED BY: HomeComponent template */
+
 .spacer {
     flex: 1 1 auto;
   }
-
+  
   mat-toolbar {
     position: fixed;
     top: 0;
@@ -10,3 +15,197 @@
     z-index: 1000;
   }
   
+  /* Improved toolbar button styling */
+  .toolbar-button {
+    position: relative;
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
+  }
+  
+  /* Better visual feedback on hover */
+  .toolbar-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Controls toggle button styling */
+  .controls-toggle {
+    margin-right: 16px;
+  }
+  
+  .controls-toggle.active {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  .controls-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  /* More pronounced feedback for account button */
+  .account-button {
+    margin-right: 8px;
+  }
+  
+  .account-button:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+    transition: all 0.2s ease;
+  }
+  
+  /* Disclosure Panel Styling */
+  .disclosure-panel {
+    position: fixed;
+    top: 64px; /* Below toolbar */
+    left: 0;
+    right: 0;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 999;
+    animation: slideDown 0.3s ease;
+  }
+  
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .disclosure-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+    gap: 32px;
+  }
+  
+  /* Control Groups */
+  .control-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .control-label {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  
+  /* Toggle Groups */
+  .drag-mode-toggle-group,
+  .layout-mode-toggle-group {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .toggle-label {
+    margin-left: 8px;
+    font-size: 12px;
+  }
+  
+  /* Search Field */
+  .search-field {
+    min-width: 200px;
+    max-width: 300px;
+  }
+  
+  .search-field .mat-mdc-form-field-wrapper {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+  }
+  
+  .search-field .mat-mdc-text-field-wrapper {
+    background-color: transparent;
+  }
+  
+  .search-field .mdc-text-field--outlined .mdc-notched-outline__leading,
+  .search-field .mdc-text-field--outlined .mdc-notched-outline__notch,
+  .search-field .mdc-text-field--outlined .mdc-notched-outline__trailing {
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+  
+  .search-field .mat-mdc-form-field-label,
+  .search-field .mat-mdc-input-element {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  
+  .search-field .mat-mdc-form-field-icon-suffix {
+    color: rgba(255, 255, 255, 0.7);
+  }
+  
+  /* Filter Button */
+  .filter-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
+    height: 40px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 16px;
+    border-radius: 4px;
+  }
+  
+  .filter-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+  
+  .button-label {
+    font-size: 14px;
+    font-weight: 500;
+  }
+  
+  /* Menu item improvements */
+  .mat-mdc-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .mat-mdc-menu-item mat-icon {
+    margin-right: 0;
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 1200px) {
+    .disclosure-content {
+      flex-direction: column;
+      gap: 16px;
+      padding: 16px;
+    }
+    
+    .control-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    
+    .control-label {
+      text-align: center;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .toggle-label {
+      display: none;
+    }
+    
+    .search-field {
+      min-width: 150px;
+    }
+  }

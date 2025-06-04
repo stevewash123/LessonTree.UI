@@ -11,6 +11,7 @@ import { CalendarConfigurationService } from './calendar-configuration.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
 import { CourseCrudService } from '../../../core/services/course-crud.service';
+import { ScheduleEvent } from '../../../models/schedule';
 
 export interface CalendarRefreshCallbacks {
   getCalendarApi: () => any;
@@ -34,7 +35,7 @@ export class CalendarCoordinationService {
     private courseDataService: CourseDataService,
     private courseCrudService: CourseCrudService
   ) {
-    console.log('[CalendarCoordinationService] Initialized');
+    console.log('[CalendarCoordinationService] Initialized for ScheduleEvent period-based calendars');
   }
 
   // Initialize the coordination service with calendar refresh callbacks
@@ -57,17 +58,17 @@ export class CalendarCoordinationService {
   private setupLessonSelectionHighlightEffect(): void {
     effect(() => {
       if (!this._initialized() || !this._callbacks) return;
-
+  
       const selectedNode = this.nodeSelectionService.selectedNode();
       const selectionSource = this.nodeSelectionService.selectionSource();
       
       // Only highlight for lesson selections from tree (avoid circular highlighting from calendar clicks)
       if (selectedNode?.nodeType === 'Lesson' && selectionSource === 'tree') {
         console.log('[CalendarCoordinationService] Highlighting lesson in calendar');
-        this.calendarConfigService.updateDayCellSelectionHighlighting();
+        this.calendarConfigService.updateEventSelectionHighlighting();
       } else if (!selectedNode || selectedNode.nodeType !== 'Lesson') {
         console.log('[CalendarCoordinationService] Clearing lesson highlighting');
-        this.calendarConfigService.updateDayCellSelectionHighlighting();
+        this.calendarConfigService.updateEventSelectionHighlighting();
       }
     });
   }
@@ -78,13 +79,13 @@ export class CalendarCoordinationService {
       if (!this._initialized() || !this._callbacks) return;
 
       const scheduleVersion = this.scheduleStateService.scheduleVersion();
-      const scheduleDays = this.scheduleStateService.currentScheduleDays();
+      const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
       const courseId = this.getActiveCourseId();
 
       console.log(`[CalendarCoordinationService] Schedule version changed: ${scheduleVersion}`);
 
-      if (courseId && scheduleDays.length > 0) {
-        this.refreshCalendarEventsOnly(courseId, scheduleDays);
+      if (courseId && scheduleEvents.length > 0) {
+        this.refreshCalendarEventsOnly(courseId, scheduleEvents);
       } else {
         this.refreshCalendarEventsOnly(null, []);
       }
@@ -124,13 +125,13 @@ export class CalendarCoordinationService {
     effect(() => {
       if (!this._initialized() || !this._callbacks) return;
   
-      const scheduleDays = this.scheduleStateService.currentScheduleDays();
+      const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
       const selectedNode = this.nodeSelectionService.selectedNode();
       const courseId = selectedNode ? selectedNode.courseId : null;
       
-      if (courseId && scheduleDays.length > 0) {
+      if (courseId && scheduleEvents.length > 0) {
         console.log(`[CalendarCoordinationService] Updating calendar events for course ${courseId}`);
-        this.refreshCalendarEventsOnly(courseId, scheduleDays);
+        this.refreshCalendarEventsOnly(courseId, scheduleEvents);
       } else {
         console.log('[CalendarCoordinationService] Clearing calendar events');
         this.refreshCalendarEventsOnly(null, []);
@@ -195,8 +196,8 @@ export class CalendarCoordinationService {
         
         if (movedInfo.changeSource === 'tree') {
           // Tree move - refresh events only, schedule structure unchanged
-          const scheduleDays = this.scheduleStateService.currentScheduleDays();
-          this.refreshCalendarEventsOnly(currentCourseId, scheduleDays);
+          const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
+          this.refreshCalendarEventsOnly(currentCourseId, scheduleEvents);
         } else if (movedInfo.changeSource === 'calendar') {
           // Calendar-initiated move - full schedule refresh
           this.refreshScheduleAndEvents(currentCourseId);
@@ -213,12 +214,12 @@ export class CalendarCoordinationService {
   }
 
   // Refresh calendar events only - handles both populated and empty states
-  private refreshCalendarEventsOnly(courseId: number | null, scheduleDays: any[]): void {
+  private refreshCalendarEventsOnly(courseId: number | null, scheduleEvents: ScheduleEvent[]): void {
     if (!this._callbacks) return;
 
-    if (courseId && scheduleDays.length > 0) {
+    if (courseId && scheduleEvents.length > 0) {
       console.log('[CalendarCoordinationService] Refreshing calendar events only');
-      const events = this.calendarEventService.mapScheduleDaysToEvents(scheduleDays, courseId);
+      const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents, courseId);
       const currentOptions = this._callbacks.getCalendarOptions();
       this._callbacks.setCalendarOptions({ ...currentOptions, events });
     } else {

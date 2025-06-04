@@ -1,4 +1,4 @@
-/* src/app/lessontree/calendar/services/calendar-configuration.service.ts - COMPLETE FILE */
+/* src/app/lessontree/calendar/services/calendar-configuration.service.ts - PHASE 2 COMPLETE */
 // RESPONSIBILITY: Manages FullCalendar configuration options and calendar-specific settings.
 // DOES NOT: Handle events, state management, or API calls - pure configuration service.
 // CALLED BY: LessonCalendarComponent for calendar setup and configuration updates.
@@ -7,7 +7,6 @@ import { CalendarOptions } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import { format } from 'date-fns';
 
 import { ScheduleStateService } from './schedule-state.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
@@ -20,10 +19,8 @@ export class CalendarConfigurationService {
   private readonly scheduleStateService = inject(ScheduleStateService);
   private readonly nodeSelectionService = inject(NodeSelectionService);
 
-  // Removed hover system - keeping configuration utilities
-
   constructor() {
-    console.log('[CalendarConfigurationService] Initialized');
+    console.log('[CalendarConfigurationService] Initialized - event-based interactions only');
   }
 
   // Computed teaching days for calendar display
@@ -52,202 +49,135 @@ export class CalendarConfigurationService {
     return hiddenDayNumbers;
   });
 
-  // Create base calendar options
+  // Create base calendar options - EVENT-BASED ONLY
   createCalendarOptions(
     eventClickHandler: (arg: any) => void,
-    dateClickHandler: (arg: any) => void,
-    eventDropHandler: (arg: any) => void,
-    dateContextMenuHandler?: (date: Date, jsEvent: MouseEvent) => void
+    eventContextMenuHandler: (event: any, jsEvent: MouseEvent) => void,
+    eventDropHandler: (arg: any) => void
   ): CalendarOptions {
-    console.log('[CalendarConfigurationService] Creating calendar options with right-click system');
-  
+    console.log('[CalendarConfigurationService] Creating calendar options - event-based interactions only');
+
     return {
       plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
       initialView: 'dayGridMonth',
-      dayCellDidMount: (arg) => this.handleDayCellMount(arg, dateContextMenuHandler),
-      eventDidMount: (info) => this.handleEventMount(info, eventClickHandler),
+      dayCellDidMount: (arg) => this.handleDayCellMount(arg),
+      eventDidMount: (info) => this.handleEventMount(info, eventClickHandler, eventContextMenuHandler),
       events: [],
-      eventClick: eventClickHandler,
-      dateClick: dateClickHandler,
+      eventClick: () => {}, // Disabled - we use DOM listeners
       editable: true,
       eventDrop: eventDropHandler,
-      selectable: true,
+      selectable: false, // No date selection
       selectMirror: false,
       hiddenDays: []
     };
   }
 
-  // Handle day cell mounting with right-click listeners
-  private handleDayCellMount(arg: any, dateContextMenuHandler?: (date: Date, jsEvent: MouseEvent) => void): void {
-    if (dateContextMenuHandler) {
-      // Add right-click listener for context menu
-      arg.el.addEventListener('contextmenu', (jsEvent: MouseEvent) => {
-        jsEvent.preventDefault();
-        console.log(`[CalendarConfigurationService] Right-click detected on date: ${format(arg.date, 'yyyy-MM-dd')}`);
-        dateContextMenuHandler(arg.date, jsEvent);
-      });
-    }
+  // Handle day cell mounting - DISPLAY ONLY (no interactions)
+  private handleDayCellMount(arg: any): void {
+    // Only basic styling for day cells - no interaction handlers
+    console.log('[CalendarConfigurationService] Day cell mounted - display only');
   }
 
-  // Handle event mounting with styling only
-  private handleEventMount(info: any, eventClickHandler: (arg: any) => void): void {
-    this.setDayCellBackgroundColor(info);
-    // Note: Event right-click can be added here if needed later
-  }
-
-  // Helper method to get any event for a specific date (replaces getLessonEventOnDate)
-  getEventForDate(date: Date, calendarApi: any): any | null {
-    if (!calendarApi) return null;
+  // Handle event mounting - FULL EVENT INTERACTION
+  private handleEventMount(
+    info: any, 
+    eventClickHandler: (arg: any) => void,
+    eventContextMenuHandler: (event: any, jsEvent: MouseEvent) => void
+  ): void {
+    console.log('[CalendarConfigurationService] Event mounted, attaching DOM listeners');
     
-    // Format the date to match FullCalendar's date format
-    const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
-    
-    // Get all events on this date
-    const eventsOnDate = calendarApi.getEvents().filter((event: any) => {
-      if (!event.start) return false;
-      const eventDateStr = event.start.toISOString().split('T')[0];
-      return eventDateStr === dateStr;
+    // LEFT CLICK: Direct event interaction
+    info.el.addEventListener('click', (jsEvent: MouseEvent) => {
+      jsEvent.stopPropagation();
+      console.log('[CalendarConfigurationService] Event left-clicked via DOM listener');
+      
+      const eventClickArg = this.createEventClickArg(info, jsEvent);
+      eventClickHandler(eventClickArg);
     });
     
-    // Return the first event (should be only one per day in your system)
-    const dayEvent = eventsOnDate[0] || null;
+    // RIGHT CLICK: Context menu
+    info.el.addEventListener('contextmenu', (jsEvent: MouseEvent) => {
+      jsEvent.preventDefault();
+      jsEvent.stopPropagation();
+      console.log('[CalendarConfigurationService] Event right-clicked via DOM listener');
+      
+      eventContextMenuHandler(info, jsEvent);
+    });
     
-    if (dayEvent) {
-      const extendedProps = dayEvent.extendedProps || {};
-      console.log(`[CalendarConfigurationService] Found event for date ${dateStr}:`, {
-        title: dayEvent.title,
-        specialCode: extendedProps.specialCode,
-        hasLesson: !!extendedProps.lesson
-      });
-    }
-    
-    return dayEvent;
+    // Apply distinct event styling
+    this.applyDistinctEventStyling(info);
   }
 
-  // Get day type from event data
-  getDayTypeFromEvent(event: any): 'lesson' | 'ntd' | 'error' | 'unknown' {
-    if (!event) return 'unknown';
-    
-    const extendedProps = event.extendedProps || {};
-    const specialCode = extendedProps.specialCode;
-    const lesson = extendedProps.lesson;
-    
-    if (specialCode === 'Error Day') {
-      return 'error';
-    } else if (specialCode && !lesson) {
-      return 'ntd'; // Non-Teaching Day
-    } else if (lesson && !specialCode) {
-      return 'lesson';
-    }
-    
-    return 'unknown';
+  // Helper: Create FullCalendar-compatible EventClickArg from DOM event
+  private createEventClickArg(info: any, jsEvent: MouseEvent): any {
+    return {
+      event: info.event,
+      jsEvent: jsEvent,
+      el: info.el,
+      view: info.view
+    };
   }
 
-  // Set day cell background color using DOM manipulation
-  private setDayCellBackgroundColor(info: any): void {
+  // Apply distinct event styling - NO DAY CELL BLENDING
+  private applyDistinctEventStyling(info: any): void {
     const event = info.event;
     const extendedProps = event.extendedProps || {};
     const specialCode = extendedProps.specialCode;
     const lesson = extendedProps.lesson;
     
-    const dayCell = info.el.closest('.fc-daygrid-day');
-    if (!dayCell) return;
+    // Clear any default styling
+    info.el.style.backgroundColor = '';
+    info.el.style.border = '';
     
-    // Check for lesson selection
-    const selectedNode = this.nodeSelectionService.selectedNode();
-    const isSelectedLesson = selectedNode?.nodeType === 'Lesson' && 
-                             lesson && 
-                             selectedNode.id === lesson.id;
-    
-    const dayCellElement = dayCell as HTMLElement;
-    
-    if (isSelectedLesson) {
-      dayCellElement.style.backgroundColor = '#bbdefb';
-      dayCellElement.style.border = '2px solid #1976d2';
-      console.log('[CalendarConfigurationService] Applied selection highlighting');
+    // Apply CSS classes for distinct event appearance
+    if (specialCode === 'Error Day') {
+      info.el.classList.add('calendar-event-error');
+    } else if (specialCode && !lesson) {
+      info.el.classList.add('calendar-event-special');
+    } else if (lesson && !specialCode) {
+      info.el.classList.add('calendar-event-lesson');
     } else {
-      dayCellElement.style.border = '';
-      
-      if (specialCode === 'Error Day') {
-        dayCellElement.style.backgroundColor = '#ffebee';
-      } else if (specialCode) {
-        dayCellElement.style.backgroundColor = '#fff8e1';
-      } else {
-        dayCellElement.style.backgroundColor = '#e3f2fd';
-      }
+      info.el.classList.add('calendar-event-default');
     }
     
-    // Style event content to blend with day cell
-    if (specialCode === 'Error Day' || specialCode) {
-      info.el.style.backgroundColor = 'transparent';
-      info.el.style.border = 'none';
-    } else {
-      info.el.style.backgroundColor = isSelectedLesson ? '#bbdefb' : '#e3f2fd';
-      info.el.style.border = 'none';
-    }
+    // Ensure events are clickable and distinct
+    info.el.style.cursor = 'pointer';
+    info.el.style.position = 'relative';
+    info.el.style.zIndex = '1';
+    
+    console.log('[CalendarConfigurationService] Applied distinct styling to event');
   }
 
-  // Update day cell highlighting when selection changes
-  updateDayCellSelectionHighlighting(): void {
+  // Update event selection highlighting - EVENT-LEVEL ONLY
+  updateEventSelectionHighlighting(): void {
+    console.log('[CalendarConfigurationService] Updating event selection highlighting');
+    
     const selectedNode = this.nodeSelectionService.selectedNode();
     const selectedLessonId = selectedNode?.nodeType === 'Lesson' ? selectedNode.id : null;
     
-    console.log('[CalendarConfigurationService] Updating day cell selection highlighting');
+    // Find all calendar events and update their styling
+    const eventElements = document.querySelectorAll('.fc-event');
     
-    const dayCells = document.querySelectorAll('.fc-daygrid-day');
-    
-    dayCells.forEach(dayCell => {
-      const eventsInDay = dayCell.querySelectorAll('.fc-event');
-      let hasSelectedLesson = false;
-      let dayContentType = 'empty';
+    eventElements.forEach(eventEl => {
+      const fcEventEl = eventEl as any;
       
-      eventsInDay.forEach(eventEl => {
-        const fcEventEl = eventEl as any;
-        if (fcEventEl.fcSeg && fcEventEl.fcSeg.eventRange && fcEventEl.fcSeg.eventRange.def) {
-          const event = fcEventEl.fcSeg.eventRange.def;
-          const extendedProps = event.extendedProps || {};
-          const lesson = extendedProps.lesson;
-          const specialCode = extendedProps.specialCode;
-          
-          if (specialCode === 'Error Day') {
-            dayContentType = 'error';
-          } else if (specialCode) {
-            dayContentType = 'special';
-          } else if (lesson) {
-            dayContentType = 'lesson';
-            if (selectedLessonId && lesson.id === selectedLessonId) {
-              hasSelectedLesson = true;
-            }
-          }
-        }
-      });
-      
-      const dayCellElement = dayCell as HTMLElement;
-      
-      if (hasSelectedLesson) {
-        dayCellElement.style.backgroundColor = '#bbdefb';
-        dayCellElement.style.border = '2px solid #1976d2';
-      } else {
-        dayCellElement.style.border = '';
+      // Access the event data through FullCalendar's internal structure
+      if (fcEventEl.fcSeg && fcEventEl.fcSeg.eventRange && fcEventEl.fcSeg.eventRange.def) {
+        const event = fcEventEl.fcSeg.eventRange.def;
+        const extendedProps = event.extendedProps || {};
+        const lesson = extendedProps.lesson;
         
-        switch (dayContentType) {
-          case 'error':
-            dayCellElement.style.backgroundColor = '#ffebee';
-            break;
-          case 'special':
-            dayCellElement.style.backgroundColor = '#fff8e1';
-            break;
-          case 'lesson':
-            dayCellElement.style.backgroundColor = '#e3f2fd';
-            break;
-          default:
-            dayCellElement.style.backgroundColor = '';
-            break;
+        const isSelectedLesson = selectedLessonId && lesson && selectedNode?.id === lesson.id;
+        
+        // Apply selection highlighting to individual events
+        if (isSelectedLesson) {
+          eventEl.classList.add('calendar-event-selected');
+        } else {
+          eventEl.classList.remove('calendar-event-selected');
         }
       }
     });
   }
-
   // Update calendar options with current schedule data
   updateCalendarOptionsForSchedule(options: CalendarOptions, schedule: any): CalendarOptions {
     if (!schedule) return options;

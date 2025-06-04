@@ -121,11 +121,10 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
     // Initialize calendar options using configuration service with right-click handler
     this.calendarOptions = this.calendarConfigService.createCalendarOptions(
-      this.handleEventClick.bind(this),
-      this.handleDateClick.bind(this),
-      this.handleEventDrop.bind(this),
-      this.handleDateContextMenu.bind(this) // Back to right-click
-    );
+        this.handleEventClick.bind(this),
+        this.handleEventContextMenu.bind(this), // NEW: Event-based context menu
+        this.handleEventDrop.bind(this)
+      );
 
     // Initialize coordination service with simplified calendar callbacks
     this.calendarCoordination.initialize({
@@ -157,75 +156,26 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
     this.calendarCoordination.cleanup();
   }
 
-  // Handle date click from calendar - Enhanced to handle lesson selection
-  handleDateClick(info: any): void {
-    console.log('[LessonCalendarComponent] Date left-clicked:', info.date);
-    
-    // Check if this date has any event
-    const dayEvent = this.calendarConfigService.getEventForDate(info.date, this.calendar?.getApi());
-    
-    if (dayEvent) {
-      const dayType = this.calendarConfigService.getDayTypeFromEvent(dayEvent);
-      
-      if (dayType === 'lesson') {
-        console.log('[LessonCalendarComponent] Date has lesson, selecting lesson instead of date');
-        // Create a fake EventClickArg to reuse existing lesson selection logic
-        const fakeEventArg: any = {
-          event: dayEvent,
-          jsEvent: { button: 0, type: 'click' }, // Left click
-          el: null,
-          view: null
-        };
-        
-        // Use existing event click handler for lesson selection
-        this.handleEventClick(fakeEventArg);
-      } else {
-        console.log(`[LessonCalendarComponent] Date has ${dayType} event, setting date context`);
-        this.scheduleContextService.setDateContext(info.date);
-      }
-    } else {
-      console.log('[LessonCalendarComponent] Date has no event, setting date context');
-      this.scheduleContextService.setDateContext(info.date);
-    }
-  }
-
-  handleDateContextMenu(date: Date, jsEvent: MouseEvent): void {
-    console.log('[LessonCalendarComponent] Date right-clicked:', date);
+  handleEventContextMenu(eventInfo: any, jsEvent: MouseEvent): void {
+    console.log('[LessonCalendarComponent] Event right-clicked:', eventInfo.event.title);
     
     // FIRST: Always close any existing context menu
     if (this.contextMenuTrigger?.menuOpen) {
       this.contextMenuTrigger.closeMenu();
     }
     
-    // Get the event for this date to determine context
-    const dayEvent = this.calendarConfigService.getEventForDate(date, this.calendar?.getApi());
+    // Create EventClickArg-compatible object for context service
+    const eventClickArg: any = {
+      event: eventInfo.event,
+      jsEvent: { ...jsEvent, button: 2, which: 3 }, // Right click
+      el: eventInfo.el,
+      view: eventInfo.view
+    };
     
-    if (dayEvent) {
-      const dayType = this.calendarConfigService.getDayTypeFromEvent(dayEvent);
-      
-      console.log(`[LessonCalendarComponent] Day type detected: ${dayType}`);
-      
-      if (dayType === 'lesson' || dayType === 'ntd' || dayType === 'error') {
-        // Create a fake EventClickArg for the context service
-        const fakeEventArg: any = {
-          event: dayEvent,
-          jsEvent: { ...jsEvent, button: 2, which: 3 }, // Right click
-          el: null,
-          view: null
-        };
-        
-        // Set event context for the context service
-        this.scheduleContextService.setEventContext(fakeEventArg);
-      } else {
-        // Fallback to date context for unknown types
-        this.scheduleContextService.setDateContext(date);
-      }
-    } else {
-      console.log('[LessonCalendarComponent] No event found, setting date context');
-      this.scheduleContextService.setDateContext(date);
-    }
+    // Set event context for the context service
+    this.scheduleContextService.setEventContext(eventClickArg);
     
-    // Set context menu position and open (slight delay to ensure previous menu closed)
+    // Set context menu position and open
     this.contextMenuPosition.x = jsEvent.clientX + 'px';
     this.contextMenuPosition.y = jsEvent.clientY + 'px';
     
@@ -236,12 +186,13 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   }
 
   // Handle event click from calendar
-  handleEventClick(arg: EventClickArg): void {
-    // Only handle left-clicks - let date handlers handle right-clicks
-    console.log('[LessonCalendarComponent] Event left-clicked:', arg.event.title);
-    const result = this.calendarEventService.handleEventClick(arg);
-    // Service already handles node selection for left-clicks
-  }
+  handleEventClick(arg: any): void {
+  console.log('[LessonCalendarComponent] Event left-clicked:', arg.event.title);
+  
+  // Delegate to event service for processing
+  const result = this.calendarEventService.handleEventClick(arg);
+  // Service handles node selection automatically
+}
 
   // Handle event drop from calendar
   handleEventDrop(arg: EventDropArg): void {

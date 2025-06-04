@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { SplitPanelDragService } from '../../core/services/split-panel-drag.service';
-import { SplitPanelType } from '../lesson-tree-container/container-view-mode.service';
+import { SplitPanelType } from '../../core/services/layout-mode.service';
 
 @Component({
   selector: 'split-panel-header',

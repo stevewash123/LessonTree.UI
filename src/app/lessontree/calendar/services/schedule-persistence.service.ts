@@ -20,7 +20,9 @@ export class SchedulePersistenceService {
     private scheduleStateService: ScheduleStateService,
     private scheduleGenerationService: ScheduleGenerationService,
     private toastr: ToastrService
-  ) {}
+  ) {
+    console.log('[SchedulePersistenceService] Initialized for ScheduleEvent persistence');
+  }
 
   // Load schedules for a course
   loadSchedulesForCourse(courseId: number): Observable<void> {
@@ -31,7 +33,9 @@ export class SchedulePersistenceService {
           
           if (schedules.length > 0) {
             this.scheduleStateService.setSelectedSchedule(schedules[0], false);
+            console.log(`[SchedulePersistenceService] Loaded ${schedules.length} schedules for course ${courseId}`);
           } else {
+            console.log(`[SchedulePersistenceService] No schedules found for course ${courseId}, creating in-memory schedule`);
             this.scheduleGenerationService.createInMemorySchedule(courseId);
           }
           
@@ -39,7 +43,7 @@ export class SchedulePersistenceService {
           observer.complete();
         },
         error: (err: any) => {
-          console.error('[SchedulePersistence] Failed to load schedules:', err.message);
+          console.error('[SchedulePersistenceService] Failed to load schedules:', err.message);
           this.scheduleGenerationService.createInMemorySchedule(courseId);
           observer.next();
           observer.complete();
@@ -54,11 +58,12 @@ export class SchedulePersistenceService {
       this.calendarService.getSchedule(scheduleId).subscribe({
         next: (schedule: Schedule) => {
           this.scheduleStateService.setSelectedSchedule(schedule, false);
+          console.log(`[SchedulePersistenceService] Selected schedule ${scheduleId}: ${schedule.title}`);
           observer.next();
           observer.complete();
         },
         error: (err: any) => {
-          console.error('[SchedulePersistence] Failed to select schedule:', err.message);
+          console.error('[SchedulePersistenceService] Failed to select schedule:', err.message);
           this.toastr.error('Failed to load selected schedule', 'Error');
           observer.error(err);
         }
@@ -66,30 +71,37 @@ export class SchedulePersistenceService {
     });
   }
 
-  // Save current in-memory schedule
+  // Save current in-memory schedule - UPDATED for ScheduleEvent
   saveCurrentSchedule(): Observable<Schedule> {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     
     if (!currentSchedule || !this.scheduleStateService.isInMemorySchedule()) {
-      console.error('[SchedulePersistence] Cannot save: No in-memory schedule available');
+      console.error('[SchedulePersistenceService] Cannot save: No in-memory schedule available');
       this.toastr.error('No schedule to save', 'Error');
       return of(currentSchedule!);
     }
 
+    console.log('[SchedulePersistenceService] Saving in-memory schedule', {
+      scheduleTitle: currentSchedule.title,
+      eventCount: currentSchedule.scheduleEvents?.length || 0
+    });
+
     return this.calendarService.createSchedule(currentSchedule).pipe(
       tap((savedSchedule: Schedule) => {
-        if (currentSchedule.scheduleDays?.length) {
-          // Save schedule days separately
-          return this.calendarService.updateScheduleDays(savedSchedule.id, currentSchedule.scheduleDays);
+        // Save schedule events separately if they exist
+        if (currentSchedule.scheduleEvents?.length) {
+          console.log(`[SchedulePersistenceService] Saving ${currentSchedule.scheduleEvents.length} schedule events`);
+          return this.calendarService.updateScheduleEvents(savedSchedule.id, currentSchedule.scheduleEvents);
         }
         return of(savedSchedule);
       }),
       tap((completeSchedule: Schedule) => {
         this.updateStateAfterSave(completeSchedule);
         this.toastr.success('Schedule saved successfully', 'Success');
+        console.log(`[SchedulePersistenceService] Schedule saved successfully: ${completeSchedule.title}`);
       }),
       catchError((err: any) => {
-        console.error('[SchedulePersistence] Failed to save schedule:', err.message);
+        console.error('[SchedulePersistenceService] Failed to save schedule:', err.message);
         this.toastr.error('Failed to save schedule', 'Error');
         throw err;
       })
@@ -105,13 +117,16 @@ export class SchedulePersistenceService {
       return of(null);
     }
 
+    const newLockState = !currentSchedule.isLocked;
+    console.log(`[SchedulePersistenceService] Toggling schedule lock to: ${newLockState}`);
+
     const configUpdate: ScheduleConfigUpdateResource = {
       id: currentSchedule.id,
       title: currentSchedule.title,
       startDate: currentSchedule.startDate,
       endDate: currentSchedule.endDate,
       teachingDays: currentSchedule.teachingDays || 'Monday,Tuesday,Wednesday,Thursday,Friday',
-      isLocked: !currentSchedule.isLocked
+      isLocked: newLockState
     };
   
     return this.calendarService.updateScheduleConfig(configUpdate).pipe(
@@ -121,6 +136,7 @@ export class SchedulePersistenceService {
         
         const lockStatus = savedSchedule.isLocked ? 'locked' : 'unlocked';
         this.toastr.success(`Schedule ${lockStatus} successfully`, 'Success');
+        console.log(`[SchedulePersistenceService] Schedule ${lockStatus}: ${savedSchedule.title}`);
       })
     );
   }
@@ -133,10 +149,15 @@ export class SchedulePersistenceService {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
     
     if (!currentSchedule || currentSchedule.id !== scheduleId) {
-      console.error('[SchedulePersistence] Schedule not found or not selected');
+      console.error('[SchedulePersistenceService] Schedule not found or not selected');
       this.toastr.error('Schedule not found', 'Error');
       return of(currentSchedule!);
     }
+
+    console.log('[SchedulePersistenceService] Updating schedule configuration', {
+      scheduleId,
+      configChanges: Object.keys(config)
+    });
 
     const fullConfig: ScheduleConfigUpdateResource = {
       id: scheduleId,
@@ -152,8 +173,65 @@ export class SchedulePersistenceService {
         this.scheduleStateService.setSelectedSchedule(updatedSchedule, false);
         this.scheduleStateService.updateScheduleInCollection(updatedSchedule);
         this.toastr.success('Schedule updated successfully', 'Success');
+        console.log(`[SchedulePersistenceService] Schedule configuration updated: ${updatedSchedule.title}`);
       })
     );
+  }
+
+  // NEW: Save individual schedule event
+  saveScheduleEvent(scheduleEvent: any): Observable<any> {
+    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    
+    if (!currentSchedule) {
+      console.error('[SchedulePersistenceService] Cannot save event: No schedule selected');
+      this.toastr.error('No schedule selected', 'Error');
+      return of(null);
+    }
+
+    if (this.scheduleStateService.isInMemorySchedule()) {
+      // For in-memory schedules, just update state
+      this.scheduleStateService.updateScheduleEvent(scheduleEvent);
+      this.scheduleStateService.markAsChanged();
+      console.log('[SchedulePersistenceService] Updated schedule event in memory');
+      return of(scheduleEvent);
+    } else {
+      // For saved schedules, update via API
+      return this.calendarService.updateScheduleEvent(scheduleEvent).pipe(
+        tap((savedEvent) => {
+          this.scheduleStateService.updateScheduleEvent(savedEvent);
+          console.log(`[SchedulePersistenceService] Saved schedule event: Period ${savedEvent.period}`);
+        }),
+        catchError((err: any) => {
+          console.error('[SchedulePersistenceService] Failed to save schedule event:', err.message);
+          this.toastr.error('Failed to save event', 'Error');
+          throw err;
+        })
+      );
+    }
+  }
+
+  // NEW: Delete individual schedule event
+  deleteScheduleEvent(eventId: number): Observable<void> {
+    if (this.scheduleStateService.isInMemorySchedule()) {
+      // For in-memory schedules, just update state
+      this.scheduleStateService.removeScheduleEvent(eventId);
+      this.scheduleStateService.markAsChanged();
+      console.log('[SchedulePersistenceService] Removed schedule event from memory');
+      return of(void 0);
+    } else {
+      // For saved schedules, delete via API
+      return this.calendarService.deleteScheduleEvent(eventId).pipe(
+        tap(() => {
+          this.scheduleStateService.removeScheduleEvent(eventId);
+          console.log(`[SchedulePersistenceService] Deleted schedule event: ${eventId}`);
+        }),
+        catchError((err: any) => {
+          console.error('[SchedulePersistenceService] Failed to delete schedule event:', err.message);
+          this.toastr.error('Failed to delete event', 'Error');
+          throw err;
+        })
+      );
+    }
   }
 
   // Helper method to update state after successful save
@@ -179,6 +257,21 @@ export class SchedulePersistenceService {
       canLock: !isInMemory && selectedSchedule !== null,
       isLocked: selectedSchedule?.isLocked || false,
       hasUnsavedChanges
+    };
+  }
+
+  // NEW: Get persistence statistics for debugging
+  getDebugInfo(): any {
+    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const status = this.getPersistenceStatus();
+    
+    return {
+      ...status,
+      selectedScheduleId: currentSchedule?.id || null,
+      selectedScheduleTitle: currentSchedule?.title || null,
+      eventCount: currentSchedule?.scheduleEvents?.length || 0,
+      isInMemorySchedule: this.scheduleStateService.isInMemorySchedule(),
+      scheduleVersion: this.scheduleStateService.scheduleVersion()
     };
   }
 }

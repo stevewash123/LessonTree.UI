@@ -3,7 +3,7 @@
 // CALLED BY: SplitPanelHeaderComponent for drag/drop interactions
 
 import { Injectable, signal } from '@angular/core';
-import { SplitPanelType } from '../../lessontree/lesson-tree-container/container-view-mode.service';
+import { SplitPanelType } from './layout-mode.service';
 
 @Injectable({
   providedIn: 'root'

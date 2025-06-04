@@ -1,14 +1,13 @@
-/* src/app/lessontree/lesson-tree-container/lesson-tree-container.component.css */
-/* COMPLETE FILE - CLEANED VERSION */
-/* RESPONSIBILITY: Main layout container with status bar, splitter panels, and basic styling */
-/* DOES NOT: Style child components internally, handle complex animations, duplicate code */
+/* **COMPLETE FILE** - Can directly replace existing lesson-tree-container.component.css */
+/* RESPONSIBILITY: Main layout container styling (status bar removed - moved to HomeComponent) */
+/* DOES NOT: Style toolbar controls (now in HomeComponent disclosure widget) */
 /* CALLED BY: lesson-tree-container.component.html */
 
 /* 
  * ⚠️  NO ::ng-deep IN THIS FILE! ⚠️
  * Material component styling has been moved to styles.scss:
- * - .status-bar-toggle-group for button toggle styling
- * - .status-bar-form-field for form field styling  
+ * - Global toggle group styling
+ * - Global form field styling  
  * - .as-split-gutter for splitter styling
  * 
  * BEFORE adding ::ng-deep, check if global styling already exists in styles.scss and confirm w Steve
@@ -18,135 +17,6 @@
  :host {
     display: block;
     height: calc(100vh - 64px);
-  }
-  
-  /* Status Bar - Simplified */
-  .status-bar-container {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    height: 0;
-  }
-  
-  .hover-trigger-zone {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 12px;
-    z-index: 1000;
-  }
-  
-  .status-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    transform: translateY(-100%);
-    transition: transform 0.3s ease;
-    z-index: 999;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  }
-  
-  .status-bar.visible {
-    transform: translateY(0);
-  }
-  
-  .status-bar-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 32px;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  
-  .control-group {
-    display: flex;
-    align-items: center;
-    margin: 0 20px;
-  }
-  
-  /* Consolidated Toggle Group Styling - applies global class */
-  .drag-mode-toggle-group,
-  .view-mode-toggle-group {
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  }
-  
-  .control-label {
-    font-weight: 600;
-    margin-right: 12px;
-    color: rgba(255, 255, 255, 0.95);
-    font-size: 14px;
-  }
-  
-  .status-info {
-    flex: 1;
-    text-align: center;
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.95);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-  
-  /* View Mode Selector */
-  .view-mode-selector {
-    margin-left: 32px;
-  }
-  
-  /* Course Info */
-  .course-info {
-    margin-left: 32px;
-  }
-  
-  .filter-button {
-    background-color: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.9);
-    width: 32px;
-    height: 32px;
-    transition: all 0.2s ease;
-  }
-  
-  .filter-button:hover {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
-  }
-  
-  /* Schedule Management */
-  .schedule-management {
-    margin-left: 32px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-  
-  .schedule-selector {
-    min-width: 200px;
-  }
-  
-  .save-schedule-button {
-    min-width: 120px !important;
-    font-size: 12px !important;
-    animation: pulse 2s infinite;
-  }
-  
-  @keyframes pulse {
-    0% {
-      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7);
-    }
-    70% {
-      box-shadow: 0 0 0 10px rgba(255, 193, 7, 0);
-    }
-    100% {
-      box-shadow: 0 0 0 0 rgba(255, 193, 7, 0);
-    }
   }
   
   /* Layout */
@@ -210,8 +80,6 @@
     font-size: 16px;
     font-weight: 500;
   }
-  
-  /* Simplified Splitter - styling moved to global styles.scss */
   
   /* Footer */
   .main-container {

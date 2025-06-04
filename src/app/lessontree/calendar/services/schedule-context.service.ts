@@ -1,4 +1,3 @@
-// COMPLETE FILE
 // RESPONSIBILITY: Manages context menu state, event handling, and user interaction coordination for calendar operations.
 // DOES NOT: Handle modal operations, lesson shifting logic, or direct API calls - delegates to specialized services.
 // CALLED BY: LessonCalendarComponent for context menu operations and user interaction coordination.
@@ -9,7 +8,7 @@ import { format } from 'date-fns';
 import { ScheduleStateService } from './schedule-state.service';
 import { SpecialDayModalService } from './special-day-modal.service';
 import { LessonShiftingService } from './lesson-shifting.service';
-import { ScheduleDay } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule';
 
 export interface ContextMenuAction {
   id: string;
@@ -27,16 +26,16 @@ export class ScheduleContextService {
   private readonly lessonShiftingService = inject(LessonShiftingService);
 
   // Context menu state
-  private lastClickedDate: Date | null = null;
   private lastClickedEvent: EventClickArg | null = null;
 
   constructor() {
-    console.log('[ScheduleContextService] Initialized', { timestamp: new Date().toISOString() });
+    console.log('[ScheduleContextService] Initialized for ScheduleEvent period-based operations', { 
+      timestamp: new Date().toISOString() 
+    });
   }
 
   // Set context for operations
   setDateContext(date: Date): void {
-    this.lastClickedDate = date;
     this.lastClickedEvent = null;
     console.log(`[ScheduleContextService] Date context set: ${format(date, 'yyyy-MM-dd')}`, { 
       timestamp: new Date().toISOString() 
@@ -45,8 +44,8 @@ export class ScheduleContextService {
 
   setEventContext(event: EventClickArg): void {
     this.lastClickedEvent = event;
-    this.lastClickedDate = null;
-    console.log(`[ScheduleContextService] Event context set: ${event.event.id}`, { 
+    const period = event.event.extendedProps['period'];
+    console.log(`[ScheduleContextService] Event context set: ${event.event.id} (Period ${period})`, { 
       timestamp: new Date().toISOString() 
     });
   }
@@ -56,106 +55,87 @@ export class ScheduleContextService {
     const actions: ContextMenuAction[] = [];
 
     console.log('[ScheduleContextService] Getting context menu actions:', {
-      hasDateContext: !!this.lastClickedDate,
       hasEventContext: !!this.lastClickedEvent,
-      lastClickedDate: this.lastClickedDate ? format(this.lastClickedDate, 'yyyy-MM-dd') : null,
       lastClickedEventId: this.lastClickedEvent?.event?.id || null,
       timestamp: new Date().toISOString()
     });
-  
-    if (this.lastClickedDate) {
-      console.log('[ScheduleContextService] Processing date context');
-      // Check if this date already has a special day
-      const existingSpecialDay = this.getSpecialDayOnDate(this.lastClickedDate);
-      
-      if (existingSpecialDay) {
-        console.log('[ScheduleContextService] Found existing special day:', existingSpecialDay);
-        // Date has an existing non-teaching day - only allow edit/delete
-        actions.push(
-          {
-            id: 'editSpecialDay',
-            label: 'Edit Non-Teaching Day',
-            handler: () => this.specialDayModalService.editSpecialDayOnDate(existingSpecialDay)
-          },
-          {
-            id: 'deleteSpecialDay',
-            label: 'Delete Non-Teaching Day',
-            handler: () => this.specialDayModalService.deleteSpecialDayOnDate(existingSpecialDay)
-          }
-        );
-      } else {
-        console.log('[ScheduleContextService] No existing special day, adding add option');
-        // Date is empty - allow adding non-teaching day
-        actions.push({
-          id: 'addNonTeaching',
-          label: 'Add Non-Teaching Day',
-          handler: () => this.specialDayModalService.openSpecialDayModal('add', this.lastClickedDate!)
-        });
-      }
-    }
-  
+
     if (this.lastClickedEvent) {
       const event = this.lastClickedEvent.event;
       const extendedProps = event.extendedProps || {};
+      const period = extendedProps['period'];
       
       console.log('[ScheduleContextService] Processing event context:', {
         eventId: event.id,
         eventTitle: event.title,
+        period: period,
+        eventType: extendedProps['eventType'],
         specialCode: extendedProps['specialCode'],
         hasLesson: !!extendedProps['lesson'],
-        isErrorDay: this.isErrorDayEvent(this.lastClickedEvent),
-        isSpecialDay: this.isSpecialDayEvent(this.lastClickedEvent),
-        isLesson: this.isLessonEvent(this.lastClickedEvent)
+        timestamp: new Date().toISOString()
       });
 
       if (this.isErrorDayEvent(this.lastClickedEvent)) {
-        console.log('[ScheduleContextService] Adding error day actions');
-        // Error day event context - can add lesson or add non-teaching day
+        console.log(`[ScheduleContextService] Adding error day actions for Period ${period}`);
         actions.push(
           {
             id: 'addLesson',
-            label: 'Add Lesson',
+            label: `Add Lesson - Period ${period}`,
             handler: () => this.handleAddLesson()
           },
           {
             id: 'addNonTeaching',
-            label: 'Add Non-Teaching Day',
-            handler: () => this.handleAddNonTeachingToErrorDay()
+            label: `Add Non-Teaching Period ${period}`,
+            handler: () => this.handleAddNonTeachingToErrorPeriod()
           }
         );
       } else if (this.isSpecialDayEvent(this.lastClickedEvent)) {
-        console.log('[ScheduleContextService] Adding special day actions');
-        // Special day event context - can edit or delete
+        console.log(`[ScheduleContextService] Adding special day actions for Period ${period}`);
         actions.push(
           {
             id: 'editSpecialDay',
-            label: 'Edit Non-Teaching Day',
+            label: `Edit Non-Teaching Period ${period}`,
             handler: () => this.specialDayModalService.openSpecialDayModal('edit', null, this.lastClickedEvent!)
           },
           {
             id: 'deleteSpecialDay',
-            label: 'Delete Non-Teaching Day',
+            label: `Delete Non-Teaching Period ${period}`,
             handler: () => this.specialDayModalService.deleteSpecialDayFromEvent(this.lastClickedEvent!)
           }
         );
       } else if (this.isLessonEvent(this.lastClickedEvent)) {
-        console.log('[ScheduleContextService] Adding lesson actions');
-        // Lesson event context - can edit or delete lesson
+        console.log(`[ScheduleContextService] Adding lesson actions for Period ${period}`);
         actions.push(
           {
             id: 'editLesson',
-            label: 'Edit Lesson',
+            label: `Edit Lesson - Period ${period}`,
             handler: () => this.handleEditLesson()
           },
           {
             id: 'deleteLesson',
-            label: 'Delete Lesson',
+            label: `Delete Lesson - Period ${period}`,
             handler: () => this.handleDeleteLesson()
+          }
+        );
+      } else if (this.isFreePeriodEvent(this.lastClickedEvent)) {
+        console.log(`[ScheduleContextService] Adding free period actions for Period ${period}`);
+        actions.push(
+          {
+            id: 'addLessonToPeriod',
+            label: `Add Lesson to Period ${period}`,
+            handler: () => this.handleAddLessonToFreePeriod()
+          },
+          {
+            id: 'addSpecialToPeriod',
+            label: `Add Special Event to Period ${period}`,
+            handler: () => this.handleAddSpecialToFreePeriod()
           }
         );
       } else {
         console.log('[ScheduleContextService] Event type not recognized - no actions added');
       }
+    } else {
+      console.log('[ScheduleContextService] No event context available');
     }
 
     console.log('[ScheduleContextService] Final actions array:', {
@@ -163,49 +143,51 @@ export class ScheduleContextService {
       actionIds: actions.map(a => a.id),
       actionLabels: actions.map(a => a.label)
     });
-  
+
     return actions;
   }
 
-  // Helper method to check if a date has a special day
-  private getSpecialDayOnDate(date: Date): ScheduleDay | null {
+  // Helper method to check if a date has special events
+  private getSpecialEventsOnDate(date: Date): ScheduleEvent[] {
     const currentSchedule = this.scheduleStateService.selectedSchedule();
-    if (!currentSchedule?.scheduleDays) {
-      return null;
+    if (!currentSchedule?.scheduleEvents) {
+      return [];
     }
   
     const dateStr = format(date, 'yyyy-MM-dd');
-    const specialDay = currentSchedule.scheduleDays.find(day => {
-      const dayDateStr = format(new Date(day.date), 'yyyy-MM-dd');
-      return dayDateStr === dateStr && 
-             day.specialCode && 
-             day.specialCode !== 'Error Day'; // Exclude error days
+    return currentSchedule.scheduleEvents.filter(event => {
+      const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
+      return eventDateStr === dateStr && 
+             event.specialCode && 
+             event.specialCode !== 'Error Day'; // Exclude error days
     });
-  
-    return specialDay || null;
   }
 
   // Check if event is a lesson (has lesson but no special code)
   private isLessonEvent(event: EventClickArg): boolean {
     const extendedProps = event.event.extendedProps || {};
-    const lesson = extendedProps['lesson'];
-    const specialCode = extendedProps['specialCode'];
-    
-    return !!lesson && !specialCode;
+    return extendedProps['eventType'] === 'lesson';
   }
 
   // Check if event is a special day (but not an error day)
   private isSpecialDayEvent(event: EventClickArg): boolean {
-    const specialCode = event.event.extendedProps['specialCode'];
-    return !!specialCode && specialCode !== 'Error Day';
+    const extendedProps = event.event.extendedProps || {};
+    return extendedProps['eventType'] === 'special';
   }
 
   // Check if event is an error day
   private isErrorDayEvent(event: EventClickArg): boolean {
-    return event.event.extendedProps['specialCode'] === 'Error Day';
+    const extendedProps = event.event.extendedProps || {};
+    return extendedProps['eventType'] === 'error';
   }
 
-  // STUBBED LESSON ACTIONS - To be implemented with proper lesson services
+  // Check if event is a free period
+  private isFreePeriodEvent(event: EventClickArg): boolean {
+    const extendedProps = event.event.extendedProps || {};
+    return extendedProps['eventType'] === 'free';
+  }
+
+  // ENHANCED LESSON ACTIONS - Period-aware
 
   private handleEditLesson(): void {
     if (!this.lastClickedEvent) {
@@ -214,6 +196,9 @@ export class ScheduleContextService {
     }
 
     const lesson = this.lastClickedEvent.event.extendedProps['lesson'];
+    const period = this.lastClickedEvent.event.extendedProps['period'];
+    const scheduleEvent = this.lastClickedEvent.event.extendedProps['scheduleEvent'];
+    
     if (!lesson) {
       console.warn('[ScheduleContextService] No lesson data in event');
       return;
@@ -222,12 +207,14 @@ export class ScheduleContextService {
     console.log('[ScheduleContextService] STUBBED: Edit lesson', {
       lessonId: lesson.id,
       lessonTitle: lesson.title,
+      period: period,
+      scheduleEventId: scheduleEvent?.id,
       eventDate: this.lastClickedEvent.event.start,
       timestamp: new Date().toISOString()
     });
 
     // TODO: Implement with proper lesson service
-    // Example: this.lessonCrudService.openEditLessonModal(lesson);
+    // Example: this.lessonCrudService.openEditLessonModal(lesson, period, scheduleEvent);
   }
 
   private handleDeleteLesson(): void {
@@ -237,20 +224,25 @@ export class ScheduleContextService {
     }
 
     const lesson = this.lastClickedEvent.event.extendedProps['lesson'];
+    const period = this.lastClickedEvent.event.extendedProps['period'];
+    const scheduleEvent = this.lastClickedEvent.event.extendedProps['scheduleEvent'];
+    
     if (!lesson) {
       console.warn('[ScheduleContextService] No lesson data in event');
       return;
     }
 
-    console.log('[ScheduleContextService] STUBBED: Delete lesson', {
+    console.log('[ScheduleContextService] STUBBED: Delete lesson from period', {
       lessonId: lesson.id,
       lessonTitle: lesson.title,
+      period: period,
+      scheduleEventId: scheduleEvent?.id,
       eventDate: this.lastClickedEvent.event.start,
       timestamp: new Date().toISOString()
     });
 
     // TODO: Implement with proper lesson service
-    // Example: this.lessonCrudService.confirmDeleteLesson(lesson);
+    // Example: this.lessonCrudService.confirmDeleteLessonFromPeriod(lesson, period, scheduleEvent);
   }
 
   private handleAddLesson(): void {
@@ -260,45 +252,98 @@ export class ScheduleContextService {
     }
 
     const eventDate = this.lastClickedEvent.event.start;
+    const period = this.lastClickedEvent.event.extendedProps['period'];
+    
     if (!eventDate) {
       console.warn('[ScheduleContextService] No date available for add lesson');
       return;
     }
 
-    console.log('[ScheduleContextService] STUBBED: Add lesson to error day', {
+    console.log('[ScheduleContextService] STUBBED: Add lesson to error period', {
       targetDate: format(eventDate, 'yyyy-MM-dd'),
+      period: period,
       eventTitle: this.lastClickedEvent.event.title,
       timestamp: new Date().toISOString()
     });
 
     // TODO: Implement with proper lesson service
-    // Example: this.lessonCrudService.openAddLessonModal(eventDate);
+    // Example: this.lessonCrudService.openAddLessonModal(eventDate, period);
   }
 
-  private handleAddNonTeachingToErrorDay(): void {
+  private handleAddLessonToFreePeriod(): void {
     if (!this.lastClickedEvent) {
-      console.warn('[ScheduleContextService] No event context for add non-teaching day');
+      console.warn('[ScheduleContextService] No event context for add lesson to free period');
       return;
     }
 
     const eventDate = this.lastClickedEvent.event.start;
+    const period = this.lastClickedEvent.event.extendedProps['period'];
+    
     if (!eventDate) {
-      console.warn('[ScheduleContextService] No date available for add non-teaching day');
+      console.warn('[ScheduleContextService] No date available for add lesson');
       return;
     }
 
-    console.log('[ScheduleContextService] Converting error day to non-teaching day', {
+    console.log('[ScheduleContextService] STUBBED: Add lesson to free period', {
       targetDate: format(eventDate, 'yyyy-MM-dd'),
+      period: period,
       timestamp: new Date().toISOString()
     });
 
-    // Reuse existing special day modal for error day conversion
+    // TODO: Implement with proper lesson service
+    // Example: this.lessonCrudService.openAddLessonModal(eventDate, period);
+  }
+
+  private handleAddSpecialToFreePeriod(): void {
+    if (!this.lastClickedEvent) {
+      console.warn('[ScheduleContextService] No event context for add special to free period');
+      return;
+    }
+
+    const eventDate = this.lastClickedEvent.event.start;
+    const period = this.lastClickedEvent.event.extendedProps['period'];
+    
+    if (!eventDate) {
+      console.warn('[ScheduleContextService] No date available for add special event');
+      return;
+    }
+
+    console.log('[ScheduleContextService] STUBBED: Add special event to free period', {
+      targetDate: format(eventDate, 'yyyy-MM-dd'),
+      period: period,
+      timestamp: new Date().toISOString()
+    });
+
+    // TODO: Implement with special day modal for period-specific events
+    // Example: this.specialDayModalService.openSpecialDayModal('add', eventDate, null, period);
+  }
+
+  private handleAddNonTeachingToErrorPeriod(): void {
+    if (!this.lastClickedEvent) {
+      console.warn('[ScheduleContextService] No event context for add non-teaching period');
+      return;
+    }
+
+    const eventDate = this.lastClickedEvent.event.start;
+    const period = this.lastClickedEvent.event.extendedProps['period'];
+    
+    if (!eventDate) {
+      console.warn('[ScheduleContextService] No date available for add non-teaching period');
+      return;
+    }
+
+    console.log('[ScheduleContextService] Converting error period to non-teaching period', {
+      targetDate: format(eventDate, 'yyyy-MM-dd'),
+      period: period,
+      timestamp: new Date().toISOString()
+    });
+
+    // Reuse existing special day modal for error period conversion
     this.specialDayModalService.openSpecialDayModal('add', eventDate);
   }
 
   // Clear context (useful for cleanup)
   clearContext(): void {
-    this.lastClickedDate = null;
     this.lastClickedEvent = null;
     console.log('[ScheduleContextService] Context cleared', { timestamp: new Date().toISOString() });
   }

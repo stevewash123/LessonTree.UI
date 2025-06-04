@@ -174,7 +174,7 @@ export class CalendarConfigModalComponent implements OnInit {
       endDate: formValue.endDate,
       teachingDays: teachingDays.join(','),
       isLocked: formValue.isLocked || false,
-      scheduleDays: this.data.existingSchedule?.scheduleDays || []
+      scheduleEvents: this.data.existingSchedule?.scheduleEvents || []
     };
     
     console.log(`[CalendarConfigModal] Saving schedule configuration`, {
@@ -184,6 +184,7 @@ export class CalendarConfigModalComponent implements OnInit {
       endDate: schedule.endDate,
       teachingDays: schedule.teachingDays,
       isUpdate: !!this.data.existingSchedule,
+      eventCount: schedule.scheduleEvents?.length || 0,
       timestamp: new Date().toISOString()
     });
     
@@ -193,6 +194,7 @@ export class CalendarConfigModalComponent implements OnInit {
         const actionType = this.data.existingSchedule ? 'updated' : 'created';
         console.log(`[CalendarConfigModal] Schedule ${actionType} successfully`, {
           scheduleId: savedSchedule.id,
+          eventCount: savedSchedule.scheduleEvents?.length || 0,
           timestamp: new Date().toISOString()
         });
         

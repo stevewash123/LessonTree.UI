@@ -1,194 +1,78 @@
-<!-- src/app/lessontree/lesson-tree-container/lesson-tree-container.component.html -->
-<!-- COMPLETE FILE - UNIFIED TEMPLATE THAT PRESERVES TREE STATE -->
-<!-- Hover-reveal status bar -->
-<div class="status-bar-container" 
-     (mouseenter)="onStatusBarHover(true)"
-     (mouseleave)="onStatusBarHover(false)">
-  
-  <!-- Invisible hover trigger zone at top -->
-  <div class="hover-trigger-zone"></div>
-  
-  <!-- The actual status bar that slides down -->
-  <div class="status-bar" 
-       [class.visible]="statusBarVisible()">
-    
-    <div class="status-bar-content">
-      <!-- Drag Mode Button Group -->
-      <div class="control-group">
-        <span class="drag-mode-label">Tree Drag Action:</span>
-        <mat-button-toggle-group 
-          [value]="nodeOperationsService.dragMode()"
-          (change)="onDragModeChange($event.value)"
-          class="drag-mode-toggle-group"
-          matTooltip="Select drag behavior for tree operations">
-          
-          <mat-button-toggle value="move" matTooltip="Move nodes to new locations">
-            <mat-icon>drive_file_move</mat-icon>
-            <span class="toggle-label">Move</span>
-          </mat-button-toggle>
-          
-          <mat-button-toggle value="copy" matTooltip="Copy nodes to new locations">
-            <mat-icon>content_copy</mat-icon>
-            <span class="toggle-label">Copy</span>
-          </mat-button-toggle>
-        </mat-button-toggle-group>
-      </div>
-      
-      <!-- View Mode Button Group -->
-      <div class="control-group view-mode-selector">
-        <span class="view-mode-label">Layout:</span>
-        <mat-button-toggle-group 
-          [value]="viewModeService.viewMode()"
-          (change)="onViewModeChange($event.value)"
-          class="view-mode-toggle-group"
-          matTooltip="Select the application layout">
-          
-          <mat-button-toggle value="tree-details" matTooltip="Tree view with lesson details panel">
-            <mat-icon>account_tree</mat-icon>
-            <span class="toggle-label">Tree + Details</span>
-          </mat-button-toggle>
-          
-          <mat-button-toggle value="tree-calendar" matTooltip="Calendar view with tree panel">
-            <mat-icon>calendar_month</mat-icon>
-            <span class="toggle-label">Tree + Calendar</span>
-          </mat-button-toggle>
-          
-          <mat-button-toggle value="calendar-details" matTooltip="Calendar view with lesson details panel">
-            <mat-icon>view_day</mat-icon>
-            <span class="toggle-label">Calendar + Details</span>
-          </mat-button-toggle>
-        </mat-button-toggle-group>
-      </div>
-      
-      <!-- Course Information and Filter -->
-      <div class="control-group course-info">
-        <span class="course-label">Courses ({{courseDataService.coursesCount()}})</span>
-        <button mat-icon-button (click)="openCourseFilterDialog()" 
-                matTooltip="Filter Courses" 
-                class="filter-button">
-          <mat-icon>filter_list</mat-icon>
-        </button>
-      </div>
-
-      <!-- Schedule Management (only show when calendar is visible) -->
-      @if (isCalendarVisible()) {
-        <div class="control-group schedule-management">
-          <!-- Schedule Selector (only when multiple schedules exist) -->
-          @if (scheduleStateService.schedules().length > 1) {
-            <mat-form-field class="schedule-selector">
-              <mat-label>Schedule</mat-label>
-              <mat-select 
-                [value]="scheduleStateService.selectedSchedule()?.id" 
-                (selectionChange)="onScheduleSelectionChange($event.value)">
-                @for (schedule of scheduleStateService.schedules(); track schedule.id) {
-                  <mat-option [value]="schedule.id">{{ schedule.title }}</mat-option>
-                }
-              </mat-select>
-            </mat-form-field>
-          }
-          
-          <!-- Save Schedule Button (only when unsaved changes exist) -->
-          @if (scheduleStateService.canSaveSchedule() && scheduleStateService.hasUnsavedChanges()) {
-            <button 
-              mat-raised-button 
-              color="accent" 
-              (click)="saveSchedule()" 
-              class="save-schedule-button"
-              matTooltip="Save schedule changes">
-              Save Schedule
-            </button>
-          }
-          
-          <!-- Settings Gear -->
-          <button mat-icon-button 
-                  (click)="openCalendarConfigModal()" 
-                  matTooltip="Configure Schedule Settings" 
-                  class="filter-button">
-            <mat-icon>settings</mat-icon>
-          </button>
-        </div>
-      }
-
-      <!-- Status Information -->
-      <div class="status-info">
-        <span class="app-status">
-          LessonTree
-        </span>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- **COMPLETE FILE** - Can directly replace existing lesson-tree-container.component.html -->
+<!-- RESPONSIBILITY: Main layout container without status bar (moved to HomeComponent disclosure widget) -->
+<!-- DOES NOT: Handle toolbar controls (now in HomeComponent) -->
+<!-- CALLED BY: LessonTreeContainer component -->
 
 <!-- Main container with unified splitter layout -->
 <div class="main-container">
   
-  <!-- ✅ UNIFIED LAYOUT - Single splitter that preserves component state -->
-  <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
-    
-    <!-- Left Panel - Dynamic Content Based on View Mode -->
-    <as-split-area [size]="defaultSizes[0]" class="split-panel">
-      <split-panel-header 
-        [splitPanelType]="viewModeService.getLeftSplitPanel()"
-        [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
-        (splitPanelSwap)="onSplitPanelSwap()">
-      </split-panel-header>
+    <!-- ✅ UNIFIED LAYOUT - Single splitter that preserves component state -->
+    <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
       
-      <div class="panel-content">
-        <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
-        @if (viewModeService.getLeftSplitPanel() === 'tree') {
-          <course-list></course-list>
-        }
+      <!-- Left Panel - Dynamic Content Based on View Mode -->
+      <as-split-area [size]="defaultSizes[0]" class="split-panel">
+        <split-panel-header 
+          [splitPanelType]="viewModeService.getLeftSplitPanel()"
+          [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
+          (splitPanelSwap)="onSplitPanelSwap()">
+        </split-panel-header>
         
-        <!-- Calendar Panel -->
-        @if (viewModeService.getLeftSplitPanel() === 'calendar') {
-          <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
-        }
-        
-        <!-- Details Panel -->
-        @if (viewModeService.getLeftSplitPanel() === 'details') {
-          <info-panel #infoPanel></info-panel>
-        }
-        
-        <!-- Overlay (only show if this panel is NOT the details panel) -->
-        @if (isOverlayActive && viewModeService.getLeftSplitPanel() !== 'details') {
-          <div class="overlay"></div>
-        }
-      </div>
-    </as-split-area>
-    
-    <!-- Right Panel - Dynamic Content Based on View Mode -->
-    <as-split-area [size]="defaultSizes[1]" class="split-panel">
-      <split-panel-header 
-        [splitPanelType]="viewModeService.getRightSplitPanel()"
-        [title]="getPanelTitle(viewModeService.getRightSplitPanel())"
-        (splitPanelSwap)="onSplitPanelSwap()">
-      </split-panel-header>
+        <div class="panel-content">
+          <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
+          @if (viewModeService.getLeftSplitPanel() === 'tree') {
+            <course-list></course-list>
+          }
+          
+          <!-- Calendar Panel -->
+          @if (viewModeService.getLeftSplitPanel() === 'calendar') {
+            <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
+          }
+          
+          <!-- Details Panel -->
+          @if (viewModeService.getLeftSplitPanel() === 'details') {
+            <info-panel #infoPanel></info-panel>
+          }
+          
+          <!-- Overlay (only show if this panel is NOT the details panel) -->
+          @if (isOverlayActive && viewModeService.getLeftSplitPanel() !== 'details') {
+            <div class="overlay"></div>
+          }
+        </div>
+      </as-split-area>
       
-      <div class="panel-content">
-        <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
-        @if (viewModeService.getRightSplitPanel() === 'tree') {
-          <course-list></course-list>
-        }
+      <!-- Right Panel - Dynamic Content Based on View Mode -->
+      <as-split-area [size]="defaultSizes[1]" class="split-panel">
+        <split-panel-header 
+          [splitPanelType]="viewModeService.getRightSplitPanel()"
+          [title]="getPanelTitle(viewModeService.getRightSplitPanel())"
+          (splitPanelSwap)="onSplitPanelSwap()">
+        </split-panel-header>
         
-        <!-- Calendar Panel -->
-        @if (viewModeService.getRightSplitPanel() === 'calendar') {
-          <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
-        }
-        
-        <!-- Details Panel -->
-        @if (viewModeService.getRightSplitPanel() === 'details') {
-          <info-panel #infoPanel></info-panel>
-        }
-        
-        <!-- Overlay (only show if this panel is NOT the details panel) -->
-        @if (isOverlayActive && viewModeService.getRightSplitPanel() !== 'details') {
-          <div class="overlay"></div>
-        }
-      </div>
-    </as-split-area>
-  </as-split>
-  
-  <footer class="footer">
-    <a href="#">Contact Info</a>
-  </footer>
-</div>
+        <div class="panel-content">
+          <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
+          @if (viewModeService.getRightSplitPanel() === 'tree') {
+            <course-list></course-list>
+          }
+          
+          <!-- Calendar Panel -->
+          @if (viewModeService.getRightSplitPanel() === 'calendar') {
+            <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
+          }
+          
+          <!-- Details Panel -->
+          @if (viewModeService.getRightSplitPanel() === 'details') {
+            <info-panel #infoPanel></info-panel>
+          }
+          
+          <!-- Overlay (only show if this panel is NOT the details panel) -->
+          @if (isOverlayActive && viewModeService.getRightSplitPanel() !== 'details') {
+            <div class="overlay"></div>
+          }
+        </div>
+      </as-split-area>
+    </as-split>
+    
+    <footer class="footer">
+      <a href="#">Contact Info</a>
+    </footer>
+  </div>
