@@ -1,20 +1,22 @@
-/* src/app/lessontree/calendar/services/calendar-event.service.ts - FIXED SRP VIOLATIONS */
-// RESPONSIBILITY: Transforms schedule event data into calendar events with period-based multiple events per day.
+// RESPONSIBILITY: Transforms master schedule events into calendar events with period-based colors and multi-course support.
 // DOES NOT: Store state, manage schedules, show toasts, or handle persistence - pure transformation and event handling service.
-// CALLED BY: CalendarInteractionService for event mapping and CalendarCoordinationService for transformations.
+// CALLED BY: CalendarCoordinationService for event mapping and CalendarInteractionService for event handling.
 import { Injectable } from '@angular/core';
 import { EventInput, EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { format } from 'date-fns';
 
 import { CourseDataService } from '../../../core/services/course-data.service';
 import { UserService } from '../../../core/services/user.service';
-import { PeriodAssignment, ScheduleEvent } from '../../../models/schedule';
+import { ScheduleEvent, isLessonEvent, isSpecialDayEvent, isSpecialPeriodEvent, isErrorEvent } from '../../../models/schedule';
 import { Lesson } from '../../../models/lesson';
+import { getUserTeachingSchedule } from '../../../models/user';
+import { getPeriodAssignment, TeachingSchedule } from '../../../models/period-assignment';
 
 export interface EventClickResult {
-  eventType: 'lesson' | 'special' | 'error' | 'free';
+  eventType: 'lesson' | 'special_day' | 'special_period' | 'error' | 'unassigned';
   lesson?: Lesson;
   period: number;
+  courseId?: number;
   shouldOpenContextMenu: boolean;
   message?: string;
 }
@@ -34,49 +36,60 @@ export class CalendarEventService {
     private courseDataService: CourseDataService,
     private userService: UserService
   ) {
-    console.log('[CalendarEventService] Initialized with ScheduleEvent period-based support');
+    console.log('[CalendarEventService] Initialized for master schedule with period colors');
   }
 
-  // Map schedule events to calendar events - GENERATES MULTIPLE EVENTS PER DAY
-  mapScheduleEventsToCalendarEvents(events: ScheduleEvent[], courseId: number): EventInput[] {
-    console.log('[CalendarEventService] mapScheduleEventsToCalendarEvents');
+  // Map master schedule events to calendar events - PERIOD-FIRST WITH COLORS
+  mapScheduleEventsToCalendarEvents(events: ScheduleEvent[]): EventInput[] {
+    console.log('[CalendarEventService] mapScheduleEventsToCalendarEvents for master schedule');
     
-    const course = this.courseDataService.getCourseById(courseId);
-    if (!course) {
-      console.warn(`[CalendarEventService] Course not found for ID ${courseId}`);
+    const currentUser = this.userService.getCurrentUser();
+    if (!currentUser) {
+      console.warn('[CalendarEventService] No current user available');
       return [];
     }
 
-    const teachingConfig = this.userService.getTeachingConfig();
-    if (!teachingConfig) {
-      console.warn('[CalendarEventService] No teaching config available, cannot generate period-based events');
+    const teachingSchedule = getUserTeachingSchedule(currentUser);
+    if (!teachingSchedule.periodAssignments) {
+      console.warn('[CalendarEventService] No period assignments available');
       return [];
     }
     
-    // Collect all lessons from the course
-    const lessonsMap = this.buildLessonsMap(course);
+    // Build lessons map from all assigned courses
+    const lessonsMap = this.buildMasterLessonsMap(teachingSchedule);
     const calendarEvents: EventInput[] = [];
     
     // Group events by date to handle multiple periods per day
     const eventsByDate = this.groupEventsByDate(events);
     
-    // For each date, generate all period events (both scheduled and free periods)
+    // Generate calendar events for each date
     for (const [dateStr, dayEvents] of eventsByDate.entries()) {
-      const periodEvents = this.generatePeriodEventsForDate(dateStr, dayEvents, lessonsMap, teachingConfig);
+      const periodEvents = this.generateCalendarEventsForDate(dateStr, dayEvents, lessonsMap, teachingSchedule);
       calendarEvents.push(...periodEvents);
     }
     
+    console.log(`[CalendarEventService] Generated ${calendarEvents.length} calendar events from ${events.length} schedule events`);
     return calendarEvents;
   }
 
-  // Handle event click - RETURNS DATA FOR CALLER TO PROCESS
+  // Handle event click - ENHANCED for master schedule
   handleEventClick(arg: EventClickArg): EventClickResult {
-    console.log('[CalendarEventService] handleEventClick');
+    console.log('[CalendarEventService] handleEventClick for master schedule event');
     
-    const eventType = arg.event.extendedProps['eventType'];
-    const period = arg.event.extendedProps['period'];
+    const scheduleEvent = arg.event.extendedProps['scheduleEvent'] as ScheduleEvent;
+    const period = scheduleEvent?.period || arg.event.extendedProps['period'];
     
-    if (eventType === 'lesson') {
+    if (!scheduleEvent) {
+      return {
+        eventType: 'unassigned',
+        period,
+        shouldOpenContextMenu: true,
+        message: 'Invalid event data'
+      };
+    }
+
+    // Handle lesson events
+    if (isLessonEvent(scheduleEvent)) {
       const lesson = arg.event.extendedProps['lesson'];
       
       if (lesson) {
@@ -84,23 +97,54 @@ export class CalendarEventService {
           eventType: 'lesson',
           lesson,
           period,
+          courseId: scheduleEvent.courseId || undefined,
           shouldOpenContextMenu: false,
           message: `Selected lesson: ${lesson.title} (Period ${period})`
         };
       }
     }
-    
-    // All non-lesson events should open context menu
+
+    // Handle special period events (recurring)
+    if (isSpecialPeriodEvent(scheduleEvent)) {
+      return {
+        eventType: 'special_period',
+        period,
+        shouldOpenContextMenu: true,
+        message: `Period ${period}: ${scheduleEvent.eventType}`
+      };
+    }
+
+    // Handle special day events (one-time overrides)
+    if (isSpecialDayEvent(scheduleEvent)) {
+      return {
+        eventType: 'special_day',
+        period,
+        shouldOpenContextMenu: true,
+        message: `Period ${period}: ${scheduleEvent.eventType}`
+      };
+    }
+
+    // Handle error events
+    if (isErrorEvent(scheduleEvent)) {
+      return {
+        eventType: 'error',
+        period,
+        shouldOpenContextMenu: true,
+        message: `Period ${period}: Configuration needed`
+      };
+    }
+
+    // Default to context menu for unknown events
     return {
-      eventType: eventType || 'unknown',
+      eventType: 'unassigned',
       period,
       shouldOpenContextMenu: true
     };
   }
 
-  // Handle event drop - RETURNS DATA FOR CALLER TO PROCESS
+  // Handle event drop - ENHANCED for master schedule
   handleEventDrop(arg: EventDropArg): EventDropResult {
-    console.log('[CalendarEventService] handleEventDrop');
+    console.log('[CalendarEventService] handleEventDrop for master schedule');
     
     if (!arg.event.start) {
       return {
@@ -109,252 +153,50 @@ export class CalendarEventService {
       };
     }
 
-    // Extract original schedule event ID from period event ID
-    const eventId = arg.event.id;
-    const scheduleEventId = eventId.includes('-period-') 
-      ? parseInt(eventId.split('-period-')[0], 10)
-      : parseInt(eventId, 10);
-
-    if (isNaN(scheduleEventId)) {
+    // Extract schedule event ID from calendar event
+    const scheduleEvent = arg.event.extendedProps['scheduleEvent'] as ScheduleEvent;
+    if (!scheduleEvent) {
       return {
         success: false,
-        errorMessage: 'Invalid event ID'
+        errorMessage: 'Cannot identify schedule event'
       };
     }
 
     return {
       success: true,
-      scheduleEventId,
+      scheduleEventId: scheduleEvent.id,
       newDate: new Date(arg.event.start)
     };
   }
 
   // === PRIVATE HELPER METHODS ===
 
-  // Group schedule events by date
-  private groupEventsByDate(events: ScheduleEvent[]): Map<string, ScheduleEvent[]> {
-    const eventsByDate = new Map<string, ScheduleEvent[]>();
-    
-    for (const event of events) {
-      const dateStr = format(new Date(event.date), 'yyyy-MM-dd');
-      if (!eventsByDate.has(dateStr)) {
-        eventsByDate.set(dateStr, []);
-      }
-      eventsByDate.get(dateStr)!.push(event);
-    }
-    
-    return eventsByDate;
-  }
-
-  // Generate all period events for a specific date
-  private generatePeriodEventsForDate(
-    dateStr: string,
-    dayEvents: ScheduleEvent[],
-    lessonsMap: Map<number, Lesson>,
-    teachingConfig: any
-  ): EventInput[] {
-    const calendarEvents: EventInput[] = [];
-    
-    // Create event map by period for quick lookup
-    const eventsByPeriod = new Map<number, ScheduleEvent>();
-    for (const event of dayEvents) {
-      eventsByPeriod.set(event.period, event);
-    }
-    
-    // Generate events for all periods (1 to periodsPerDay)
-    for (let period = 1; period <= teachingConfig.periodsPerDay; period++) {
-      const scheduleEvent = eventsByPeriod.get(period);
-      const periodAssignment = this.getPeriodAssignment(teachingConfig, period);
-      
-      const calendarEvent = this.createCalendarEventForPeriod(
-        dateStr, 
-        period, 
-        scheduleEvent, 
-        lessonsMap, 
-        periodAssignment
-      );
-      
-      if (calendarEvent) {
-        calendarEvents.push(calendarEvent);
-      }
-    }
-    
-    return calendarEvents;
-  }
-
-  // Create calendar event for a specific period
-  private createCalendarEventForPeriod(
-    dateStr: string,
-    period: number,
-    scheduleEvent: ScheduleEvent | undefined,
-    lessonsMap: Map<number, Lesson>,
-    periodAssignment: PeriodAssignment | null
-  ): EventInput | null {
-    // Create unique event ID
-    const eventId = scheduleEvent 
-      ? `${scheduleEvent.id}-period-${period}`
-      : `free-${dateStr}-period-${period}`;
-    
-    if (scheduleEvent) {
-      // Have a scheduled event for this period
-      return this.createScheduledEventForPeriod(eventId, dateStr, period, scheduleEvent, lessonsMap, periodAssignment);
-    } else {
-      // No scheduled event - show as free period
-      return this.createFreePeriodEvent(eventId, dateStr, period, periodAssignment);
-    }
-  }
-
-  // Create calendar event for scheduled event (lesson/special day)
-  private createScheduledEventForPeriod(
-    eventId: string,
-    dateStr: string,
-    period: number,
-    scheduleEvent: ScheduleEvent,
-    lessonsMap: Map<number, Lesson>,
-    periodAssignment: PeriodAssignment | null
-  ): EventInput {
-    const lesson = scheduleEvent.lessonId ? lessonsMap.get(scheduleEvent.lessonId) : null;
-    
-    if (scheduleEvent.specialCode === 'Error Day') {
-      return this.createErrorPeriodEvent(eventId, period, dateStr, scheduleEvent);
-    }
-    
-    if (scheduleEvent.specialCode && !lesson) {
-      return this.createSpecialPeriodEvent(eventId, period, scheduleEvent, dateStr);
-    }
-    
-    if (lesson) {
-      return this.createLessonPeriodEvent(eventId, period, lesson, scheduleEvent, periodAssignment, dateStr);
-    }
-    
-    // Fallback to free period
-    return this.createFreePeriodEvent(eventId, dateStr, period, periodAssignment);
-  }
-
-  // Create error period event
-  private createErrorPeriodEvent(eventId: string, period: number, dateStr: string, scheduleEvent: ScheduleEvent): EventInput {
-    return {
-      id: eventId,
-      title: `${period}: No Lesson Available`,
-      start: dateStr,
-      className: 'calendar-event-error period-event',
-      extendedProps: {
-        period,
-        eventType: 'error',
-        scheduleEvent
-      }
-    };
-  }
-
-  // Create special day period event
-  private createSpecialPeriodEvent(eventId: string, period: number, scheduleEvent: ScheduleEvent, dateStr: string): EventInput {
-    const title = scheduleEvent.comment 
-      ? `${period}: ${scheduleEvent.specialCode} - ${scheduleEvent.comment}`
-      : `${period}: ${scheduleEvent.specialCode}`;
-      
-    return {
-      id: eventId,
-      title,
-      start: dateStr,
-      className: 'calendar-event-special period-event',
-      extendedProps: {
-        period,
-        eventType: 'special',
-        specialCode: scheduleEvent.specialCode,
-        comment: scheduleEvent.comment,
-        scheduleEvent
-      }
-    };
-  }
-
-  // Create lesson period event with smart period detection
-  private createLessonPeriodEvent(
-    eventId: string, 
-    period: number, 
-    lesson: Lesson, 
-    scheduleEvent: ScheduleEvent,
-    periodAssignment: PeriodAssignment | null,
-    dateStr: string
-  ): EventInput {
-    const roomInfo = periodAssignment?.room ? ` (${periodAssignment.room})` : '';
-    
-    return {
-      id: eventId,
-      title: `${period}: ${lesson.title || 'Untitled Lesson'}${roomInfo}`,
-      start: dateStr,
-      description: lesson.objective || '',
-      className: this.getLessonPeriodCssClass(period, periodAssignment),
-      extendedProps: {
-        period,
-        eventType: 'lesson',
-        lesson,
-        scheduleEvent,
-        periodAssignment
-      }
-    };
-  }
-
-  // Create free period event
-  private createFreePeriodEvent(
-    eventId: string, 
-    dateStr: string,
-    period: number, 
-    periodAssignment: PeriodAssignment | null
-  ): EventInput {
-    const title = periodAssignment?.room 
-      ? `${period}: Free (${periodAssignment.room})`
-      : `${period}: Free Period`;
-      
-    return {
-      id: eventId,
-      title,
-      start: dateStr,
-      className: this.getFreePeriodCssClass(period, periodAssignment),
-      extendedProps: {
-        period,
-        eventType: 'free',
-        periodAssignment
-      }
-    };
-  }
-
-  // Get period assignment for given period number
-  private getPeriodAssignment(teachingConfig: any, period: number): PeriodAssignment | null {
-    return teachingConfig.periodAssignments.find((assignment: PeriodAssignment) => 
-      assignment.period === period
-    ) || null;
-  }
-
-  // Get CSS class for lesson period events
-  private getLessonPeriodCssClass(period: number, periodAssignment: PeriodAssignment | null): string {
-    let classes = 'calendar-event-lesson period-event';
-    
-    if (periodAssignment) {
-      classes += ` period-${period}-assigned`;
-    } else {
-      classes += ` period-${period}-default`;
-    }
-    
-    return classes;
-  }
-
-  // Get CSS class for free period events
-  private getFreePeriodCssClass(period: number, periodAssignment: PeriodAssignment | null): string {
-    let classes = 'calendar-event-free period-event';
-    
-    if (periodAssignment) {
-      classes += ` period-${period}-assigned`;
-    } else {
-      classes += ` period-${period}-unassigned`;
-    }
-    
-    return classes;
-  }
-
-  // Build lessons map from course
-  private buildLessonsMap(course: any): Map<number, Lesson> {
+  // Build comprehensive lessons map from all courses in period assignments
+  private buildMasterLessonsMap(teachingSchedule: TeachingSchedule): Map<number, Lesson> {
     const lessonsMap = new Map<number, Lesson>();
     
+    // Get all unique course IDs from period assignments
+    const courseIds = new Set<number>();
+    teachingSchedule.periodAssignments?.forEach(assignment => {
+      if (assignment.courseId) {
+        courseIds.add(assignment.courseId);
+      }
+    });
+
+    // Load lessons from all assigned courses
+    for (const courseId of courseIds) {
+      const course = this.courseDataService.getCourseById(courseId);
+      if (course) {
+        this.addCourseLessonsToMap(course, lessonsMap);
+      }
+    }
+    
+    console.log(`[CalendarEventService] Built lessons map with ${lessonsMap.size} lessons from ${courseIds.size} courses`);
+    return lessonsMap;
+  }
+
+  // Add all lessons from a course to the lessons map
+  private addCourseLessonsToMap(course: any, lessonsMap: Map<number, Lesson>): void {
     if (course.topics) {
       for (const topic of course.topics) {
         if (topic.lessons) {
@@ -374,7 +216,168 @@ export class CalendarEventService {
         }
       }
     }
+  }
+
+  // Group schedule events by date string
+  private groupEventsByDate(events: ScheduleEvent[]): Map<string, ScheduleEvent[]> {
+    const eventsByDate = new Map<string, ScheduleEvent[]>();
     
-    return lessonsMap;
+    for (const event of events) {
+      const dateStr = format(new Date(event.date), 'yyyy-MM-dd');
+      if (!eventsByDate.has(dateStr)) {
+        eventsByDate.set(dateStr, []);
+      }
+      eventsByDate.get(dateStr)!.push(event);
+    }
+    
+    return eventsByDate;
+  }
+
+  // Generate calendar events for a specific date with period colors
+  private generateCalendarEventsForDate(
+    dateStr: string,
+    dayEvents: ScheduleEvent[],
+    lessonsMap: Map<number, Lesson>,
+    teachingSchedule: TeachingSchedule
+  ): EventInput[] {
+    const calendarEvents: EventInput[] = [];
+    
+    // Sort events by period for consistent display
+    const sortedEvents = dayEvents.sort((a, b) => a.period - b.period);
+    
+    for (const scheduleEvent of sortedEvents) {
+      const calendarEvent = this.createCalendarEventForScheduleEvent(
+        dateStr,
+        scheduleEvent,
+        lessonsMap,
+        teachingSchedule
+      );
+      
+      if (calendarEvent) {
+        calendarEvents.push(calendarEvent);
+      }
+    }
+    
+    return calendarEvents;
+  }
+
+  // Create calendar event for a schedule event with period colors
+  private createCalendarEventForScheduleEvent(
+    dateStr: string,
+    scheduleEvent: ScheduleEvent,
+    lessonsMap: Map<number, Lesson>,
+    teachingSchedule: TeachingSchedule
+  ): EventInput | null {
+    const periodAssignment = getPeriodAssignment(teachingSchedule, scheduleEvent.period);
+    if (!periodAssignment) {
+      console.warn(`[CalendarEventService] No period assignment found for period ${scheduleEvent.period}`);
+      return null;
+    }
+
+    // Create base event with period colors
+    const baseEvent = {
+        id: `event-${scheduleEvent.id}-period-${scheduleEvent.period}`,
+        start: dateStr,
+        backgroundColor: periodAssignment.backgroundColor || '#2196F3',  // Default blue if null
+        borderColor: periodAssignment.fontColor || '#FFFFFF',           // Default white if null
+        textColor: periodAssignment.fontColor || '#FFFFFF',             // Default white if null
+        extendedProps: {
+          period: scheduleEvent.period,
+          scheduleEvent: scheduleEvent,
+          periodAssignment: periodAssignment
+        }
+    };
+
+    // Generate event based on type
+    if (isLessonEvent(scheduleEvent)) {
+      return this.createLessonCalendarEvent(baseEvent, scheduleEvent, lessonsMap, periodAssignment);
+    } else if (isSpecialPeriodEvent(scheduleEvent)) {
+      return this.createSpecialPeriodCalendarEvent(baseEvent, scheduleEvent, periodAssignment);
+    } else if (isSpecialDayEvent(scheduleEvent)) {
+      return this.createSpecialDayCalendarEvent(baseEvent, scheduleEvent, periodAssignment);
+    } else if (isErrorEvent(scheduleEvent)) {
+      return this.createErrorCalendarEvent(baseEvent, scheduleEvent, periodAssignment);
+    }
+
+    // Default fallback
+    return {
+      ...baseEvent,
+      title: `${scheduleEvent.period}: Unknown Event`,
+      className: 'calendar-event-unknown'
+    };
+  }
+
+  // Create lesson calendar event
+  private createLessonCalendarEvent(
+    baseEvent: any,
+    scheduleEvent: ScheduleEvent,
+    lessonsMap: Map<number, Lesson>,
+    periodAssignment: any
+  ): EventInput {
+    const lesson = scheduleEvent.lessonId ? lessonsMap.get(scheduleEvent.lessonId) : null;
+    const roomInfo = periodAssignment.room ? ` (${periodAssignment.room})` : '';
+    
+    return {
+      ...baseEvent,
+      title: `${scheduleEvent.period}: ${lesson?.title || 'Unknown Lesson'}${roomInfo}`,
+      description: lesson?.objective || '',
+      className: 'calendar-event-lesson',
+      extendedProps: {
+        ...baseEvent.extendedProps,
+        lesson: lesson,
+        courseId: scheduleEvent.courseId
+      }
+    };
+  }
+
+  // Create special period calendar event (recurring)
+  private createSpecialPeriodCalendarEvent(
+    baseEvent: any,
+    scheduleEvent: ScheduleEvent,
+    periodAssignment: any
+  ): EventInput {
+    const roomInfo = periodAssignment.room ? ` (${periodAssignment.room})` : '';
+    
+    return {
+      ...baseEvent,
+      title: `${scheduleEvent.period}: ${scheduleEvent.eventType}${roomInfo}`,
+      description: scheduleEvent.comment || '',
+      className: 'calendar-event-special-period'
+    };
+  }
+
+  // Create special day calendar event (one-time override)
+  private createSpecialDayCalendarEvent(
+    baseEvent: any,
+    scheduleEvent: ScheduleEvent,
+    periodAssignment: any
+  ): EventInput {
+    const title = scheduleEvent.comment 
+      ? `${scheduleEvent.period}: ${scheduleEvent.eventType} - ${scheduleEvent.comment}`
+      : `${scheduleEvent.period}: ${scheduleEvent.eventType}`;
+      
+    return {
+      ...baseEvent,
+      title: title,
+      className: 'calendar-event-special-day'
+    };
+  }
+
+  // Create error calendar event
+  private createErrorCalendarEvent(
+    baseEvent: any,
+    scheduleEvent: ScheduleEvent,
+    periodAssignment: any
+  ): EventInput {
+    return {
+      ...baseEvent,
+      title: `${scheduleEvent.period}: ${scheduleEvent.eventType}`,
+      description: scheduleEvent.comment || 'Period needs configuration',
+      className: 'calendar-event-error',
+      // Override colors for error events to be more prominent
+      backgroundColor: '#ffebee',
+      borderColor: '#f44336',
+      textColor: '#d32f2f'
+    };
   }
 }

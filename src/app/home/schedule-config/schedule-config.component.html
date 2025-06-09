@@ -1,0 +1,168 @@
+<!-- **COMPLETE FILE** - Replace schedule-config.component.html -->
+<!-- RESPONSIBILITY: Schedule configuration UI template -->
+<!-- DOES NOT: Handle business logic -->
+<!-- CALLED BY: ScheduleConfigComponent -->
+
+<h2 mat-dialog-title>Schedule Configuration</h2>
+
+<mat-dialog-content class="dialog-content">
+  <form [formGroup]="scheduleForm" class="schedule-form">
+    
+    <!-- Basic Schedule Settings -->
+    <div class="schedule-settings">
+      <div class="top-form-fields">
+        <!-- School Year -->
+        <mat-form-field appearance="outline">
+          <mat-label>School Year *</mat-label>
+          <input matInput formControlName="schoolYear" placeholder="2024-2025">
+          <mat-error *ngIf="scheduleForm.get('schoolYear')?.invalid && scheduleForm.get('schoolYear')?.touched">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Periods Per Day -->
+        <mat-form-field appearance="outline">
+          <mat-label>Periods *</mat-label>
+          <mat-select formControlName="periodsPerDay" (selectionChange)="onPeriodsPerDayChange()">
+            <mat-option *ngFor="let option of periodMgmt.periodOptions" [value]="option.value">
+              {{option.label}}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="scheduleForm.get('periodsPerDay')?.invalid && scheduleForm.get('periodsPerDay')?.touched">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Start Date -->
+        <mat-form-field appearance="outline">
+          <mat-label>Start Date *</mat-label>
+          <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+          <mat-hint>First day of school year</mat-hint>
+          <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+          <mat-datepicker #startPicker></mat-datepicker>
+          <mat-error *ngIf="scheduleForm.get('startDate')?.invalid && scheduleForm.get('startDate')?.touched">
+            Required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- End Date -->
+        <mat-form-field appearance="outline">
+          <mat-label>End Date *</mat-label>
+          <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+          <mat-hint>Last day of school year</mat-hint>
+          <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+          <mat-datepicker #endPicker></mat-datepicker>
+          <mat-error *ngIf="scheduleForm.get('endDate')?.invalid && scheduleForm.get('endDate')?.touched">
+            Required
+          </mat-error>
+        </mat-form-field>
+      </div>
+    </div>
+
+    <!-- Period Assignments -->
+    <div class="period-assignments-section">
+      <h3>Period Assignments</h3>
+      <div formArrayName="periodAssignments" class="period-list">
+        
+        <div *ngFor="let periodControl of periodAssignments.controls; let i = index" 
+             [formGroupName]="i"
+             class="period-card">
+          
+          <!-- Period Header -->
+          <div class="period-header">
+            <mat-icon [color]="getValidationIconColor(periodControl)" class="period-icon">
+              {{getValidationIcon(periodControl)}}
+            </mat-icon>
+            <span class="period-title">Period {{periodControl.get('period')?.value}}</span>
+            
+            <!-- Add Assignment Button -->
+            <button type="button" 
+                    mat-icon-button 
+                    (click)="addAssignment(periodControl)"
+                    matTooltip="Add Assignment"
+                    class="add-assignment-btn">
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+
+          <!-- Assignments within this period -->
+          <div formArrayName="assignments" class="assignments-container">
+            <div *ngFor="let assignmentControl of getAssignments(periodControl).controls; let j = index"
+                 [formGroupName]="j"
+                 class="assignment-row">
+              
+              <!-- Assignment Fields -->
+              <div class="assignment-fields">
+                <!-- Course/Duty Selection -->
+                <mat-form-field appearance="outline" class="assignment-field">
+                  <mat-label>Assignment {{j + 1}}</mat-label>
+                  <mat-select [value]="getCombinedAssignmentValue(assignmentControl)" 
+                              (selectionChange)="onAssignmentChange(assignmentControl, $event.value)">
+                    <mat-option [value]="null">-- Select Assignment --</mat-option>
+                    <mat-optgroup label="Courses">
+                      <mat-option *ngFor="let course of availableCourses" [value]="'course:' + course.id">
+                        {{course.title}}
+                      </mat-option>
+                    </mat-optgroup>
+                    <mat-optgroup label="Duties">
+                      <mat-option *ngFor="let option of scheduleConfigService.specialPeriodOptions" [value]="'duty:' + option.value">
+                        {{option.label}}
+                      </mat-option>
+                    </mat-optgroup>
+                  </mat-select>
+                </mat-form-field>
+
+                <!-- Room -->
+                <mat-form-field appearance="outline" class="room-field">
+                  <mat-label>Room</mat-label>
+                  <input matInput formControlName="room" placeholder="Room">
+                </mat-form-field>
+
+                <!-- Remove Assignment Button (if multiple assignments) -->
+                <button type="button" 
+                        *ngIf="getAssignments(periodControl).length > 1"
+                        mat-icon-button 
+                        (click)="removeAssignment(periodControl, j)"
+                        matTooltip="Remove Assignment"
+                        class="remove-assignment-btn">
+                  <mat-icon>remove</mat-icon>
+                </button>
+              </div>
+
+              <!-- Teaching Days for this assignment -->
+              <div class="teaching-days-container">
+                <span class="days-label">Days:</span>
+                <mat-checkbox *ngFor="let day of periodMgmt.teachingDays; let k = index"
+                              [checked]="isTeachingDaySelected(assignmentControl, day)"
+                              (change)="toggleTeachingDay(assignmentControl, day)"
+                              class="day-checkbox">
+                  {{periodMgmt.teachingDayAbbreviations[k]}}
+                </mat-checkbox>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Validation Summary -->
+    <div class="validation-summary" 
+         [class.error]="!isFormValid"
+         [class.success]="isFormValid">
+      <mat-icon>{{isFormValid ? 'check_circle' : 'error'}}</mat-icon>
+      <span>{{getValidationSummary()}}</span>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button 
+          color="primary" 
+          (click)="save()"
+          [disabled]="!isFormValid"
+          [matTooltip]="getSaveTooltip()">
+    <mat-icon>save</mat-icon>
+    Save Schedule Configuration
+  </button>
+</mat-dialog-actions>

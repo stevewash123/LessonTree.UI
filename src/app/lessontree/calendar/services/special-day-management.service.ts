@@ -1,4 +1,3 @@
-/* COMPLETE FILE - src/app/lessontree/calendar/services/special-day-management.service.ts */
 // RESPONSIBILITY: Handles special day business logic and CRUD operations with multi-period support.
 // DOES NOT: Handle UI notifications, API persistence details, or modal coordination - focused on business logic.
 // CALLED BY: SpecialDayModalService for special day data operations.
@@ -15,7 +14,7 @@ import { LessonShiftingService } from './lesson-shifting.service';
 export interface SpecialDayData {
   date: Date;
   periods: number[];
-  specialCode: string;
+  eventType: string;           // UPDATED: was specialCode
   title: string;
   description?: string;
 }
@@ -41,7 +40,7 @@ export class SpecialDayManagementService {
   createSpecialDay(data: SpecialDayData): Observable<ScheduleEvent[]> {
     console.log(`[SpecialDayManagementService] Creating special day for ${data.periods.length} periods`);
     
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule) {
       throw new Error('No schedule available');
     }
@@ -64,7 +63,7 @@ export class SpecialDayManagementService {
     const updatedScheduleEvent: ScheduleEvent = {
       ...originalScheduleEvent,
       date: new Date(data.date),
-      specialCode: data.specialCode,
+      eventType: data.eventType,        // UPDATED: was specialCode
       comment: this.buildComment(data)
     };
 
@@ -84,16 +83,16 @@ export class SpecialDayManagementService {
 
   // Extract special day data from a ScheduleEvent for editing
   extractSpecialDayData(scheduleEvent: ScheduleEvent): SpecialDayData | null {
-    if (!scheduleEvent.specialCode) {
+    if (!scheduleEvent.eventType) {
       return null;
     }
 
-    const title = this.extractTitleFromComment(scheduleEvent.comment, scheduleEvent.specialCode);
+    const title = this.extractTitleFromComment(scheduleEvent.comment, scheduleEvent.eventType);
 
     return {
       date: new Date(scheduleEvent.date),
       periods: [scheduleEvent.period],
-      specialCode: scheduleEvent.specialCode,
+      eventType: scheduleEvent.eventType,    // UPDATED: was specialCode
       title: title,
       description: undefined
     };
@@ -101,18 +100,18 @@ export class SpecialDayManagementService {
 
   // Find special day by schedule event ID
   findSpecialDayById(scheduleEventId: number): ScheduleEvent | null {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents) {
       return null;
     }
 
     const scheduleEvent = currentSchedule.scheduleEvents.find(event => event.id === scheduleEventId);
-    return scheduleEvent?.specialCode ? scheduleEvent : null;
+    return scheduleEvent?.eventType ? scheduleEvent : null;  // UPDATED: was specialCode
   }
 
   // Find special day for a specific date and period
   findSpecialDayForPeriod(date: Date, period: number): ScheduleEvent | null {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents) return null;
 
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -120,22 +119,22 @@ export class SpecialDayManagementService {
       const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
       return eventDateStr === dateStr && 
              event.period === period && 
-             event.specialCode && 
-             event.specialCode !== 'Error Day';
+             event.eventType && 
+             event.eventType !== 'Error';    // UPDATED: was specialCode !== 'Error Day'
     }) || null;
   }
 
   // Get all special days for a specific date
   getSpecialDaysForDate(date: Date): ScheduleEvent[] {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents) return [];
 
     const dateStr = format(date, 'yyyy-MM-dd');
     return currentSchedule.scheduleEvents.filter(event => {
       const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
       return eventDateStr === dateStr && 
-             event.specialCode && 
-             event.specialCode !== 'Error Day';
+             event.eventType && 
+             event.eventType !== 'Error';    // UPDATED: was specialCode !== 'Error Day'
     });
   }
 
@@ -157,8 +156,8 @@ export class SpecialDayManagementService {
       }
     }
 
-    if (!data.specialCode?.trim()) {
-      errors.push('Special code is required');
+    if (!data.eventType?.trim()) {               // UPDATED: was specialCode
+      errors.push('Event type is required');
     }
 
     if (!data.title?.trim()) {
@@ -196,17 +195,19 @@ export class SpecialDayManagementService {
     return {
       id: this.scheduleStateService.isInMemorySchedule() ? this.generateInMemoryId() : 0,
       scheduleId: scheduleId,
+      courseId: null,
       date: new Date(date),
       period: period,
       lessonId: null,
-      specialCode: 'Error Day',
+      eventType: 'Error',                      // UPDATED: was specialCode: 'Error Day'
+      eventCategory: null,                     // NEW: Error events have null category
       comment: defaultComment
     };
   }
 
   // Helper method to remove Error Events
   removeErrorEventIfExists(date: Date, period: number): boolean {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents) return false;
 
     const existingErrorEvent = currentSchedule.scheduleEvents.find(event => {
@@ -214,7 +215,7 @@ export class SpecialDayManagementService {
       const targetDateStr = format(date, 'yyyy-MM-dd');
       return eventDateStr === targetDateStr && 
              event.period === period && 
-             event.specialCode === 'Error Day';
+             event.eventType === 'Error';      // UPDATED: was specialCode === 'Error Day'
     });
     
     if (existingErrorEvent) {
@@ -227,13 +228,13 @@ export class SpecialDayManagementService {
 
   // Remove all error events for a specific date
   removeAllErrorEventsForDate(date: Date): number {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents) return 0;
 
     const dateStr = format(date, 'yyyy-MM-dd');
     const errorEvents = currentSchedule.scheduleEvents.filter(event => {
       const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
-      return eventDateStr === dateStr && event.specialCode === 'Error Day';
+      return eventDateStr === dateStr && event.eventType === 'Error';  // UPDATED: was specialCode === 'Error Day'
     });
 
     errorEvents.forEach(event => {
@@ -291,10 +292,12 @@ export class SpecialDayManagementService {
     return {
       id: this.scheduleStateService.isInMemorySchedule() ? this.generateInMemoryId() : 0,
       scheduleId: scheduleId,
+      courseId: null,
       date: new Date(data.date),
       period: period,
       lessonId: null,
-      specialCode: data.specialCode,
+      eventType: data.eventType,              // UPDATED: was specialCode
+      eventCategory: 'SpecialDay',            // NEW: Special day events have SpecialDay category
       comment: this.buildComment(data)
     };
   }
@@ -307,11 +310,11 @@ export class SpecialDayManagementService {
     return comment;
   }
 
-  private extractTitleFromComment(comment: string | null | undefined, specialCode: string): string {
-    if (!comment) return specialCode;
+  private extractTitleFromComment(comment: string | null | undefined, eventType: string): string {  // UPDATED: was specialCode
+    if (!comment) return eventType;
     
-    if (comment.startsWith(specialCode + ':')) {
-      return comment.substring((specialCode + ':').length).trim();
+    if (comment.startsWith(eventType + ':')) {
+      return comment.substring((eventType + ':').length).trim();
     }
     
     return comment;

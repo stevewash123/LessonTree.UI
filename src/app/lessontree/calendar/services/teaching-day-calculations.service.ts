@@ -1,4 +1,3 @@
-// COMPLETE FILE
 // RESPONSIBILITY: Handles pure date calculations and teaching day logic (stateless mathematical operations).
 // DOES NOT: Manage schedule state, handle API calls, or orchestrate complex operations - pure calculation functions.
 // CALLED BY: LessonShiftingService and other services that need teaching day calculations.
@@ -35,11 +34,11 @@ export class TeachingDayCalculationService {
   /**
    * Parse teaching days from CSV string format
    */
-  parseTeachingDaysFromString(teachingDaysString: string): string[] {
-    if (!teachingDaysString || teachingDaysString.trim() === '') {
+  parseTeachingDays(teachingDays: string[]): string[] {
+    if (!teachingDays || teachingDays.length === 0) {
       return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']; // Default
     }
-    return teachingDaysString.split(',').map(day => day.trim());
+    return teachingDays.filter(day => day && day.trim().length > 0);
   }
 
   /**
@@ -101,14 +100,14 @@ export class TeachingDayCalculationService {
     return scheduleEvents.some(event => {
       const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
       return eventDateStr === dateStr && 
-             event.specialCode && 
-             event.specialCode !== 'Error Day';
+             event.eventType && 
+             event.eventType !== 'Error';      // UPDATED: was specialCode !== 'Error Day'
     });
   }
 
   /**
    * Check if a specific period on a date is occupied by a non-teaching event
-   * NEW: Period-specific version for ScheduleEvent
+   * UPDATED: Uses eventType instead of specialCode
    */
   isPeriodOccupiedByNonTeachingEvent(date: Date, period: number, scheduleEvents: ScheduleEvent[]): boolean {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -116,8 +115,8 @@ export class TeachingDayCalculationService {
       const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
       return eventDateStr === dateStr && 
              event.period === period &&
-             event.specialCode && 
-             event.specialCode !== 'Error Day';
+             event.eventType && 
+             event.eventType !== 'Error';      // UPDATED: was specialCode !== 'Error Day'
     });
   }
 
@@ -149,7 +148,7 @@ export class TeachingDayCalculationService {
 
   /**
    * Find the next available teaching day that's not occupied by non-teaching events
-   * UPDATED: Works with ScheduleEvent
+   * UPDATED: Works with ScheduleEvent and eventType
    */
   findNextAvailableTeachingDay(fromDate: Date, teachingDayNumbers: number[], scheduleEvents: ScheduleEvent[]): Date {
     let candidate = this.getNextTeachingDay(fromDate, teachingDayNumbers);
@@ -173,7 +172,7 @@ export class TeachingDayCalculationService {
 
   /**
    * Find the previous available teaching day that's not occupied by non-teaching events
-   * UPDATED: Works with ScheduleEvent
+   * UPDATED: Works with ScheduleEvent and eventType
    */
   findPreviousAvailableTeachingDay(fromDate: Date, teachingDayNumbers: number[], scheduleEvents: ScheduleEvent[]): Date {
     let candidate = this.getPreviousTeachingDay(fromDate, teachingDayNumbers);
@@ -196,7 +195,7 @@ export class TeachingDayCalculationService {
   }
 
   /**
-   * NEW: Find next available period on a specific date
+   * Find next available period on a specific date
    * Returns null if no periods are available on that date
    */
   findNextAvailablePeriodOnDate(date: Date, maxPeriods: number, scheduleEvents: ScheduleEvent[]): number | null {
@@ -217,7 +216,7 @@ export class TeachingDayCalculationService {
   }
 
   /**
-   * NEW: Get all occupied periods for a specific date
+   * Get all occupied periods for a specific date
    */
   getOccupiedPeriodsForDate(date: Date, scheduleEvents: ScheduleEvent[]): number[] {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -228,7 +227,7 @@ export class TeachingDayCalculationService {
   }
 
   /**
-   * NEW: Get all available periods for a specific date
+   * Get all available periods for a specific date
    */
   getAvailablePeriodsForDate(date: Date, maxPeriods: number, scheduleEvents: ScheduleEvent[]): number[] {
     const occupiedPeriods = new Set(this.getOccupiedPeriodsForDate(date, scheduleEvents));
@@ -251,7 +250,7 @@ export class TeachingDayCalculationService {
   }
 
   /**
-   * NEW: Count total available lesson slots between dates (teaching days × periods)
+   * Count total available lesson slots between dates (teaching days × periods)
    */
   countAvailableLessonSlotsBetween(
     startDate: Date, 
@@ -308,17 +307,17 @@ export class TeachingDayCalculationService {
 
   /**
    * Get debug info for teaching day configuration
-   * ENHANCED: Now includes period-based information
+   * ENHANCED: Now includes period-based information with eventType
    */
   getTeachingDayDebugInfo(
-    teachingDaysString: string, 
+    teachingDays: string[], 
     periodsPerDay: number = 6,
     scheduleEvents: ScheduleEvent[] = []
   ): any {
-    const teachingDayNames = this.parseTeachingDaysFromString(teachingDaysString);
+    const teachingDayNames = this.parseTeachingDays(teachingDays);
     const teachingDayNumbers = this.getTeachingDayNumbers(teachingDayNames);
     const validation = this.validateTeachingDays(teachingDayNames);
-
+  
     // Calculate period statistics for the next 7 days
     const today = new Date();
     const nextWeek = addDays(today, 7);
@@ -330,9 +329,9 @@ export class TeachingDayCalculationService {
       occupiedPeriods: this.getOccupiedPeriodsForDate(date, scheduleEvents),
       availablePeriods: this.getAvailablePeriodsForDate(date, periodsPerDay, scheduleEvents)
     }));
-
+  
     return {
-      teachingDaysString,
+      teachingDays,
       teachingDayNames,
       teachingDayNumbers,
       validation,

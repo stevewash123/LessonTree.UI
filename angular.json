@@ -54,6 +54,9 @@
           },
           "serve": {
             "builder": "@angular-devkit/build-angular:dev-server",
+            "options": {
+                "ssl": true
+            },
             "configurations": {
               "production": { "buildTarget": "lesson-tree-ui:build:production" },
               "development": { "buildTarget": "lesson-tree-ui:build:development" }

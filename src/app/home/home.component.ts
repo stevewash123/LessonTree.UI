@@ -23,6 +23,7 @@ import { ToolbarControlsService } from '../core/services/toolbar-controls.servic
 import { CourseFilterDialogComponent } from '../lessontree/course-list/course-filter/course-filter-dialog.component';
 import { DragMode } from '../core/services/node-operations.service';
 import { LayoutMode } from '../core/services/layout-mode.service';
+import { ScheduleConfigComponent } from './schedule-config/schedule-config.component';
 
 @Component({
     selector: 'app-home',
@@ -139,6 +140,23 @@ export class HomeComponent implements AfterViewInit {
         dialogRef.afterClosed().subscribe(result => {
             if (result) {
                 console.log('User configuration saved:', result);
+                // Could add success notification here
+            }
+        });
+    }
+
+    openScheduleConfig() {
+        const dialogRef = this.dialog.open(ScheduleConfigComponent, {
+            width: '800px',
+            maxWidth: '95vw',
+            maxHeight: '90vh',
+            disableClose: false,
+            autoFocus: true
+        });
+
+        dialogRef.afterClosed().subscribe(result => {
+            if (result) {
+                console.log('Schedule configuration saved:', result);
                 // Could add success notification here
             }
         });

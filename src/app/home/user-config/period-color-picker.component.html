@@ -1,0 +1,85 @@
+<!-- **NEW FILE** - Create as period-color-picker.component.html -->
+<!-- RESPONSIBILITY: Color picker modal UI with presets and live preview -->
+
+<h2 mat-dialog-title>Period {{data.periodNumber}} Colors</h2>
+
+<mat-dialog-content class="color-picker-content">
+  <form [formGroup]="colorForm" class="color-form">
+    
+    <!-- Color Input Fields -->
+    <div class="color-inputs">
+      <!-- Background Color -->
+      <mat-form-field appearance="outline" class="color-field">
+        <mat-label>Background Color</mat-label>
+        <input matInput 
+               formControlName="backgroundColor" 
+               type="color" 
+               class="color-input">
+        <mat-error *ngIf="colorForm.get('backgroundColor')?.invalid">
+          Background color is required
+        </mat-error>
+      </mat-form-field>
+      
+      <!-- Font Color -->
+      <mat-form-field appearance="outline" class="color-field">
+        <mat-label>Text Color</mat-label>
+        <input matInput 
+               formControlName="fontColor" 
+               type="color" 
+               class="color-input">
+        <mat-error *ngIf="colorForm.get('fontColor')?.invalid">
+          Text color is required
+        </mat-error>
+      </mat-form-field>
+    </div>
+    
+    <!-- Live Preview -->
+    <div class="preview-section">
+      <h4 class="section-title">Preview</h4>
+      <div class="period-preview" 
+           [style.background-color]="previewBackground"
+           [style.color]="previewFontColor">
+        Period {{data.periodNumber}} Sample Text
+      </div>
+    </div>
+    
+    <!-- Preset Colors Section -->
+    <div class="presets-section">
+      <div class="section-header">
+        <h4 class="section-title">Quick Presets</h4>
+        <button type="button" 
+                mat-stroked-button 
+                class="reset-button"
+                (click)="resetToDefault()">
+          <mat-icon>refresh</mat-icon>
+          Default
+        </button>
+      </div>
+      
+      <div class="preset-grid">
+        <button type="button" 
+                *ngFor="let preset of colorPresets"
+                mat-mini-fab
+                class="preset-button"
+                [style.background-color]="preset.backgroundColor"
+                [style.color]="preset.fontColor"
+                [class.selected]="previewBackground === preset.backgroundColor && previewFontColor === preset.fontColor"
+                (click)="applyPreset(preset)"
+                [title]="'Preset ' + preset.label">
+          {{preset.label}}
+        </button>
+      </div>
+    </div>
+  </form>
+</mat-dialog-content>
+
+<mat-dialog-actions class="dialog-actions">
+  <button mat-button (click)="cancel()">Cancel</button>
+  <button mat-raised-button 
+          color="primary" 
+          (click)="save()"
+          [disabled]="!colorForm.valid">
+    <mat-icon>check</mat-icon>
+    Apply Colors
+  </button>
+</mat-dialog-actions>

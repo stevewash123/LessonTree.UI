@@ -44,7 +44,7 @@ export class ScheduleContextService {
 
   // Get available context menu actions based on current context
   getContextMenuActions(): ContextMenuAction[] {
-    console.log('[ScheduleContextService] getContextMenuActions');
+    //console.log('[ScheduleContextService] getContextMenuActions');
     
     const actions: ContextMenuAction[] = [];
 

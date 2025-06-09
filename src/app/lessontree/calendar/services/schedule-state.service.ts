@@ -1,4 +1,4 @@
-// RESPONSIBILITY: Core schedule state management with signals and reactive properties.
+// RESPONSIBILITY: Core master schedule state management with signals and reactive properties.
 // DOES NOT: Generate schedules, save/load data, handle API calls, or manage user state - pure schedule state management.
 // CALLED BY: Calendar components, ScheduleGenerationService, SchedulePersistenceService for state coordination.
 import { Injectable, signal, computed } from '@angular/core';
@@ -10,8 +10,7 @@ import { Schedule, ScheduleEvent } from '../../../models/schedule';
 })
 export class ScheduleStateService {
   // Private state signals
-  private readonly _schedules = signal<Schedule[]>([]);
-  private readonly _selectedSchedule = signal<Schedule | null>(null);
+  private readonly _masterSchedule = signal<Schedule | null>(null);
   private readonly _isInMemorySchedule = signal<boolean>(false);
   private readonly _hasUnsavedChanges = signal<boolean>(false);
   private readonly _scheduleVersion = signal<number>(0);
@@ -20,39 +19,41 @@ export class ScheduleStateService {
   private _inMemoryEventIdCounter = -1;
 
   // Public readonly signals
-  readonly schedules = this._schedules.asReadonly();
-  readonly selectedSchedule = this._selectedSchedule.asReadonly();
+  readonly masterSchedule = this._masterSchedule.asReadonly();
   readonly isInMemorySchedule = this._isInMemorySchedule.asReadonly();
   readonly hasUnsavedChanges = this._hasUnsavedChanges.asReadonly();
   readonly scheduleVersion = this._scheduleVersion.asReadonly();
 
-  // Computed signals
+  // Computed signals for master schedule
   readonly canSaveSchedule = computed(() => 
-    this._isInMemorySchedule() && this._selectedSchedule() !== null
+    this._isInMemorySchedule() && this._masterSchedule() !== null
   );
 
   readonly currentScheduleEvents = computed(() => 
-    this._selectedSchedule()?.scheduleEvents || []
+    this._masterSchedule()?.scheduleEvents || []
+  );
+
+  readonly hasActiveSchedule = computed(() => 
+    this._masterSchedule() !== null
+  );
+
+  readonly scheduleTitle = computed(() => 
+    this._masterSchedule()?.title || 'No Schedule'
   );
 
   constructor() {
-    console.log('[ScheduleStateService] Initialized for ScheduleEvent period-based management');
+    console.log('[ScheduleStateService] Initialized for master schedule state management');
   }
 
-  // === SCHEDULE MANAGEMENT ===
+  // === MASTER SCHEDULE MANAGEMENT ===
 
-  setSchedules(schedules: Schedule[]): void {
-    this._schedules.set(schedules);
-    console.log(`[ScheduleStateService] Set ${schedules.length} schedules`);
-  }
-
-  setSelectedSchedule(schedule: Schedule | null, isInMemory: boolean = false): void {
-    this._selectedSchedule.set(schedule);
+  setMasterSchedule(schedule: Schedule | null, isInMemory: boolean = false): void {
+    this._masterSchedule.set(schedule);
     this._isInMemorySchedule.set(isInMemory);
     this._hasUnsavedChanges.set(false);
     this.incrementScheduleVersion();
     
-    console.log('[ScheduleStateService] Selected schedule changed', {
+    console.log('[ScheduleStateService] Master schedule changed', {
       scheduleId: schedule?.id || null,
       scheduleTitle: schedule?.title || null,
       isInMemory,
@@ -60,38 +61,38 @@ export class ScheduleStateService {
     });
   }
 
-  addSchedule(schedule: Schedule): void {
-    const currentSchedules = this._schedules();
-    this._schedules.set([...currentSchedules, schedule]);
-    console.log(`[ScheduleStateService] Added schedule: ${schedule.title}`);
+  getMasterSchedule(): Schedule | null {
+    return this._masterSchedule();
   }
 
-  updateScheduleInCollection(updatedSchedule: Schedule): void {
-    const currentSchedules = this._schedules();
-    const updatedSchedules = currentSchedules.map(s => 
-      s.id === updatedSchedule.id ? updatedSchedule : s
-    );
-    this._schedules.set(updatedSchedules);
-    
-    // Update selected schedule if it matches
-    const selectedSchedule = this._selectedSchedule();
-    if (selectedSchedule && selectedSchedule.id === updatedSchedule.id) {
-      this._selectedSchedule.set(updatedSchedule);
+  clearMasterSchedule(): void {
+    this._masterSchedule.set(null);
+    this._isInMemorySchedule.set(false);
+    this._hasUnsavedChanges.set(false);
+    console.log('[ScheduleStateService] Master schedule cleared');
+  }
+
+  updateMasterSchedule(updatedSchedule: Schedule): void {
+    const currentSchedule = this._masterSchedule();
+    if (currentSchedule && currentSchedule.id === updatedSchedule.id) {
+      this._masterSchedule.set(updatedSchedule);
+      this.incrementScheduleVersion();
+      console.log(`[ScheduleStateService] Updated master schedule: ${updatedSchedule.title}`);
+    } else {
+      console.warn('[ScheduleStateService] Cannot update master schedule - ID mismatch or no current schedule');
     }
-    
-    console.log(`[ScheduleStateService] Updated schedule in collection: ${updatedSchedule.title}`);
   }
 
   // === SCHEDULE EVENT MANAGEMENT ===
 
   updateScheduleEvent(updatedEvent: ScheduleEvent): void {
-    const currentSchedule = this._selectedSchedule();
+    const currentSchedule = this._masterSchedule();
     if (!currentSchedule?.scheduleEvents) {
-      console.warn('[ScheduleStateService] Cannot update event: No schedule or events array');
+      console.warn('[ScheduleStateService] Cannot update event: No master schedule or events array');
       return;
     }
 
-    // OPTIMIZED: Use more efficient update pattern
+    // Find and update the event
     const events = currentSchedule.scheduleEvents;
     const eventIndex = events.findIndex(event => event.id === updatedEvent.id);
     
@@ -100,20 +101,21 @@ export class ScheduleStateService {
       const newEvents = [...events];
       newEvents[eventIndex] = updatedEvent;
       
-      // Update schedule with new events array
+      // Update master schedule with new events array
       const updatedSchedule = { 
         ...currentSchedule, 
         scheduleEvents: newEvents 
       };
       
-      this._selectedSchedule.set(updatedSchedule);
+      this._masterSchedule.set(updatedSchedule);
       this.incrementScheduleVersion();
       this.markAsChangedIfInMemory();
       
       console.log('[ScheduleStateService] Updated schedule event', {
         eventId: updatedEvent.id,
         period: updatedEvent.period,
-        date: format(new Date(updatedEvent.date), 'yyyy-MM-dd')
+        date: format(new Date(updatedEvent.date), 'yyyy-MM-dd'),
+        eventType: updatedEvent.eventType
       });
     } else {
       console.warn(`[ScheduleStateService] Event with ID ${updatedEvent.id} not found for update`);
@@ -121,19 +123,19 @@ export class ScheduleStateService {
   }
 
   addScheduleEvent(newEvent: ScheduleEvent): void {
-    const currentSchedule = this._selectedSchedule();
+    const currentSchedule = this._masterSchedule();
     if (!currentSchedule) {
-      console.warn('[ScheduleStateService] Cannot add event: No schedule selected');
+      console.warn('[ScheduleStateService] Cannot add event: No master schedule selected');
       return;
     }
 
-    // OPTIMIZED: Direct array creation
+    // Add event to master schedule
     const updatedSchedule = { 
       ...currentSchedule,
       scheduleEvents: [...(currentSchedule.scheduleEvents || []), newEvent]
     };
     
-    this._selectedSchedule.set(updatedSchedule);
+    this._masterSchedule.set(updatedSchedule);
     this.incrementScheduleVersion();
     this.markAsChangedIfInMemory();
     
@@ -142,18 +144,18 @@ export class ScheduleStateService {
       period: newEvent.period,
       date: format(new Date(newEvent.date), 'yyyy-MM-dd'),
       lessonId: newEvent.lessonId,
-      specialCode: newEvent.specialCode
+      eventType: newEvent.eventType
     });
   }
 
   removeScheduleEvent(eventId: number): void {
-    const currentSchedule = this._selectedSchedule();
+    const currentSchedule = this._masterSchedule();
     if (!currentSchedule?.scheduleEvents) {
-      console.warn('[ScheduleStateService] Cannot remove event: No schedule or events array');
+      console.warn('[ScheduleStateService] Cannot remove event: No master schedule or events array');
       return;
     }
 
-    // OPTIMIZED: Direct filter operation
+    // Filter out the event
     const newEvents = currentSchedule.scheduleEvents.filter(event => event.id !== eventId);
     
     if (newEvents.length < currentSchedule.scheduleEvents.length) {
@@ -162,7 +164,7 @@ export class ScheduleStateService {
         scheduleEvents: newEvents 
       };
       
-      this._selectedSchedule.set(updatedSchedule);
+      this._masterSchedule.set(updatedSchedule);
       this.incrementScheduleVersion();
       this.markAsChangedIfInMemory();
       
@@ -175,7 +177,7 @@ export class ScheduleStateService {
   // === PERIOD-SPECIFIC EVENT MANAGEMENT ===
 
   getScheduleEventsForDate(date: Date): ScheduleEvent[] {
-    const currentSchedule = this._selectedSchedule();
+    const currentSchedule = this._masterSchedule();
     if (!currentSchedule?.scheduleEvents) return [];
 
     const targetDateStr = format(date, 'yyyy-MM-dd');
@@ -196,7 +198,7 @@ export class ScheduleStateService {
       console.log(`[ScheduleStateService] Found event for ${format(date, 'yyyy-MM-dd')} Period ${period}:`, {
         eventId: event.id,
         lessonId: event.lessonId,
-        specialCode: event.specialCode
+        eventType: event.eventType
       });
     }
     
@@ -212,19 +214,21 @@ export class ScheduleStateService {
       this.updateScheduleEvent(updatedEvent);
     } else {
       // Create new event for this period
-      const currentSchedule = this._selectedSchedule();
+      const currentSchedule = this._masterSchedule();
       if (!currentSchedule) {
-        console.warn('[ScheduleStateService] Cannot create event: No schedule selected');
+        console.warn('[ScheduleStateService] Cannot create event: No master schedule available');
         return;
       }
 
       const newEvent: ScheduleEvent = {
         id: this.generateInMemoryEventId(),
         scheduleId: currentSchedule.id,
+        courseId: null,
         date: new Date(date),
         period,
         lessonId: null,
-        specialCode: null,
+        eventType: 'Error',
+        eventCategory: null,
         comment: null,
         ...updates
       };
@@ -250,6 +254,20 @@ export class ScheduleStateService {
     
     console.log(`[ScheduleStateService] Periods with events for ${format(date, 'yyyy-MM-dd')}: ${periods.join(', ')}`);
     return periods;
+  }
+
+  // === COURSE-SPECIFIC QUERIES (for period iteration) ===
+
+  getScheduleEventsForCourse(courseId: number): ScheduleEvent[] {
+    const currentSchedule = this._masterSchedule();
+    if (!currentSchedule?.scheduleEvents) return [];
+
+    return currentSchedule.scheduleEvents.filter(event => event.courseId === courseId);
+  }
+
+  getScheduleEventsForCourseAndPeriod(courseId: number, period: number): ScheduleEvent[] {
+    const courseEvents = this.getScheduleEventsForCourse(courseId);
+    return courseEvents.filter(event => event.period === period);
   }
 
   // === CHANGE TRACKING ===
@@ -281,19 +299,15 @@ export class ScheduleStateService {
     }
   }
 
-  // === GETTERS ===
+  // === SCHEDULE STATISTICS ===
 
-  getScheduleById(scheduleId: number): Schedule | null {
-    return this._schedules().find(s => s.id === scheduleId) || null;
-  }
-
-  // Get total number of events in current schedule
+  // Get total number of events in master schedule
   getCurrentScheduleEventCount(): number {
     const events = this.currentScheduleEvents();
     return events.length;
   }
 
-  // Get event count by period for current schedule
+  // Get event count by period for master schedule
   getEventCountByPeriod(): { [period: number]: number } {
     const events = this.currentScheduleEvents();
     const countByPeriod: { [period: number]: number } = {};
@@ -305,11 +319,46 @@ export class ScheduleStateService {
     return countByPeriod;
   }
 
+  // Get event count by course for master schedule
+  getEventCountByCourse(): { [courseId: number]: number } {
+    const events = this.currentScheduleEvents();
+    const countByCourse: { [courseId: number]: number } = {};
+    
+    events.forEach(event => {
+      if (event.courseId) {
+        countByCourse[event.courseId] = (countByCourse[event.courseId] || 0) + 1;
+      }
+    });
+    
+    return countByCourse;
+  }
+
+  // Get event count by event type
+  getEventCountByType(): { [eventType: string]: number } {
+    const events = this.currentScheduleEvents();
+    const countByType: { [eventType: string]: number } = {};
+    
+    events.forEach(event => {
+      const eventType = event.eventType || 'Unknown';
+      countByType[eventType] = (countByType[eventType] || 0) + 1;
+    });
+    
+    return countByType;
+  }
+
+  get selectedSchedule() {
+    return this.masterSchedule; // Alias to the existing masterSchedule signal
+  }
+  
+  // Add this method for value access (used by services)
+  selectedScheduleValue(): Schedule | null {
+    return this._masterSchedule();
+  }
+
   // === STATE MANAGEMENT ===
 
   reset(): void {
-    this._schedules.set([]);
-    this._selectedSchedule.set(null);
+    this._masterSchedule.set(null);
     this._isInMemorySchedule.set(false);
     this._hasUnsavedChanges.set(false);
     this._scheduleVersion.set(0);
@@ -320,18 +369,20 @@ export class ScheduleStateService {
   // === DEBUG METHODS ===
 
   getDebugInfo() {
-    const currentSchedule = this._selectedSchedule();
+    const currentSchedule = this._masterSchedule();
     const events = this.currentScheduleEvents();
     
     return {
-      scheduleCount: this._schedules().length,
-      selectedScheduleId: currentSchedule?.id || null,
-      selectedScheduleTitle: currentSchedule?.title || null,
+      hasMasterSchedule: currentSchedule !== null,
+      masterScheduleId: currentSchedule?.id || null,
+      masterScheduleTitle: currentSchedule?.title || null,
       isInMemorySchedule: this._isInMemorySchedule(),
       hasUnsavedChanges: this._hasUnsavedChanges(),
       scheduleVersion: this._scheduleVersion(),
       eventCount: events.length,
       eventCountByPeriod: this.getEventCountByPeriod(),
+      eventCountByCourse: this.getEventCountByCourse(),
+      eventCountByType: this.getEventCountByType(),
       inMemoryEventIdCounter: this._inMemoryEventIdCounter
     };
   }

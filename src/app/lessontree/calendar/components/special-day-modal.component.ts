@@ -19,12 +19,12 @@ import { UserService } from '../../../core/services/user.service';
 
 export interface SpecialDayModalData {
   date: Date;
-  periods?: number[];                    // Optional initial periods
+  periods?: number[];                    
   mode: 'add' | 'edit';
   existingSpecialDay?: {
     id: number;
-    periods: number[];                   // Updated to support multiple periods
-    specialCode: string;
+    periods: number[];                   
+    eventType: string;
     title: string;
     description?: string;
     date: Date;
@@ -35,7 +35,7 @@ export interface SpecialDayResult {
   action: 'save' | 'delete';
   data?: {
     date: Date;
-    periods: number[];                   // Updated to array
+    periods: number[];                   
     specialCode: string;
     title: string;
     description?: string;
@@ -276,12 +276,14 @@ export class SpecialDayModalComponent implements OnInit {
     private userService: UserService
   ) {
     // Initialize available periods from user config
-    const teachingConfig = this.userService.getTeachingConfig();
-    if (teachingConfig) {
-      this.availablePeriods = Array.from({ length: teachingConfig.periodsPerDay }, (_, i) => i + 1);
+    
+    const userConfig = this.userService.getUserConfiguration();
+    if (userConfig) {
+        this.availablePeriods = Array.from({ length: userConfig.periodsPerDay }, (_, i) => i + 1);
     } else {
-      this.availablePeriods = [1, 2, 3, 4, 5]; // Default fallback
+        this.availablePeriods = [1, 2, 3, 4, 5]; // Default fallback
     }
+
 
     // Build form with dynamic period checkboxes
     const formConfig: any = {
@@ -340,10 +342,10 @@ export class SpecialDayModalComponent implements OnInit {
       title: existing.title
     });
   }
-
+  
   getPeriodAssignment(period: number): any {
-    const teachingConfig = this.userService.getTeachingConfig();
-    return teachingConfig?.periodAssignments.find(assignment => assignment.period === period) || null;
+        const userConfig = this.userService.getUserConfiguration();
+        return userConfig?.periodAssignments?.find(assignment => assignment.period === period) || null;
   }
 
   formatDate(date: Date): string {

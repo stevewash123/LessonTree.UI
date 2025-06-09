@@ -1,0 +1,212 @@
+/* **COMPLETE FILE** - New schedule-config.component.css */
+/* RESPONSIBILITY: Schedule configuration component styling */
+/* DOES NOT: Override library defaults unnecessarily */
+/* CALLED BY: ScheduleConfigComponent */
+
+.dialog-content {
+    height: 600px;
+    padding: 16px;
+    overflow: hidden;
+  }
+  
+  .schedule-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+  }
+  
+  .schedule-settings {
+    flex-shrink: 0;
+  }
+  
+  .top-form-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 12px;
+    align-items: end;
+  }
+  
+  .period-assignments-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  
+  .period-assignments-section h3 {
+    margin-bottom: 12px;
+    color: #1976d2;
+    font-weight: 500;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  
+  .period-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fefefe;
+  }
+  
+  .period-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 12px;
+    background: #fafafa;
+    flex-shrink: 0;
+  }
+  
+  .period-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .period-icon {
+    font-size: 18px !important;
+    width: 18px !important;
+    height: 18px !important;
+  }
+  
+  .period-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+    flex: 1;
+  }
+  
+  .add-assignment-btn {
+    width: 24px;
+    height: 24px;
+    line-height: 24px;
+  }
+  
+  .assignments-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .assignment-row {
+    border-left: 3px solid #2196f3;
+    padding-left: 8px;
+  }
+  
+  .assignment-fields {
+    display: grid;
+    grid-template-columns: 2fr 1fr auto;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 8px;
+  }
+  
+  .assignment-field {
+    min-width: 200px;
+  }
+  
+  .room-field {
+    min-width: 100px;
+  }
+  
+  .remove-assignment-btn {
+    width: 32px;
+    height: 32px;
+    margin-top: 4px;
+  }
+  
+  .teaching-days-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e9ecef;
+    flex-wrap: wrap;
+  }
+  
+  .days-label {
+    font-size: 12px;
+    color: #495057;
+    font-weight: 500;
+    min-width: 35px;
+  }
+  
+  .day-checkbox {
+    margin: 0 2px;
+  }
+  
+  .validation-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  
+  .validation-summary.error {
+    background-color: #ffebee;
+    border: 1px solid #f44336;
+    color: #c62828;
+  }
+  
+  .validation-summary.success {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    color: #2e7d32;
+  }
+  
+  /* Scrollbar styling */
+  .period-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .period-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  
+  .period-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  
+  .period-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+  
+  /* Responsive Design */
+  @media (max-width: 1024px) {
+    .dialog-content {
+      height: 80vh;
+    }
+    
+    .top-form-fields {
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    
+    .assignment-fields {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .dialog-content {
+      height: 70vh;
+    }
+    
+    .top-form-fields {
+      grid-template-columns: 1fr;
+    }
+  }

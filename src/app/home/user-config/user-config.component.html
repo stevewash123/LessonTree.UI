@@ -1,170 +1,275 @@
-<!-- **COMPLETE FILE** - Can directly replace existing user-config.component.html -->
-<!-- RESPONSIBILITY: Modal template for user configuration with tabbed interface -->
-<!-- DOES NOT: Handle complex layouts (use full page for extensive configs) -->
-<!-- CALLED BY: UserConfigComponent -->
+<!-- **COMPLETE FILE** - Replace user-config.component.html -->
+<!-- RESPONSIBILITY: Simple flat period assignments like original design -->
+<!-- DOES NOT: Handle complex multi-assignment UI -->
+<!-- CALLED BY: Dialog service with wider modal -->
 
-<div class="user-config-dialog">
-    <h2 mat-dialog-title>User Configuration</h2>
-    
-    <mat-dialog-content>
-      <mat-tab-group>
-        <!-- Profile Tab -->
-        <mat-tab label="Profile">
-          <div class="tab-content">
-            <form [formGroup]="profileForm" class="profile-form">
-              <mat-form-field appearance="outline">
-                <mat-label>First Name</mat-label>
-                <input matInput formControlName="firstName" required>
-                <mat-error *ngIf="profileForm.get('firstName')?.hasError('required')">
-                  First name is required
-                </mat-error>
-              </mat-form-field>
-  
-              <mat-form-field appearance="outline">
-                <mat-label>Last Name</mat-label>
-                <input matInput formControlName="lastName" required>
-                <mat-error *ngIf="profileForm.get('lastName')?.hasError('required')">
-                  Last name is required
-                </mat-error>
-              </mat-form-field>
-  
-              <mat-form-field appearance="outline">
-                <mat-label>Email</mat-label>
-                <input matInput type="email" formControlName="email" required>
-                <mat-error *ngIf="profileForm.get('email')?.hasError('required')">
-                  Email is required
-                </mat-error>
-                <mat-error *ngIf="profileForm.get('email')?.hasError('email')">
-                  Please enter a valid email
-                </mat-error>
-              </mat-form-field>
-  
-              <mat-form-field appearance="outline">
-                <mat-label>Phone Number</mat-label>
-                <input matInput formControlName="phoneNumber">
-              </mat-form-field>
-            </form>
-          </div>
-        </mat-tab>
-  
-        <!-- Teaching Schedule Tab -->
-        <mat-tab label="Teaching Schedule">
-          <div class="tab-content">
-            <form [formGroup]="teachingForm" class="teaching-form">
-              <!-- School Year and Periods -->
-              <div class="schedule-header">
-                <mat-form-field appearance="outline">
-                  <mat-label>School Year</mat-label>
-                  <input matInput formControlName="schoolYear" required>
-                </mat-form-field>
-  
-                <mat-form-field appearance="outline">
-                  <mat-label>Periods Per Day</mat-label>
-                  <mat-select formControlName="periodsPerDay" 
-                             (selectionChange)="onPeriodsPerDayChange()">
-                    @for (option of periodOptions; track option.value) {
-                      <mat-option [value]="option.value">{{ option.label }}</mat-option>
-                    }
+<h2 mat-dialog-title>User Configuration</h2>
+
+<mat-dialog-content class="dialog-content">
+  <mat-tab-group>
+    <!-- Teaching Configuration Tab -->
+    <mat-tab label="Teaching Schedule">
+      <form [formGroup]="teachingForm" class="config-form">
+        
+        <!-- School Year, Periods, and Dates in One Row -->
+        <div class="top-form-fields">
+          <!-- School Year -->
+          <mat-form-field appearance="outline" class="compact-field">
+            <mat-label>School Year *</mat-label>
+            <input matInput formControlName="schoolYear" placeholder="2024-2025">
+            <mat-error *ngIf="teachingForm.get('schoolYear')?.invalid && teachingForm.get('schoolYear')?.touched">
+              Required
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Periods Per Day -->
+          <mat-form-field appearance="outline" class="compact-field">
+            <mat-label>Periods *</mat-label>
+            <mat-select formControlName="periodsPerDay" (selectionChange)="onPeriodsPerDayChange()">
+              <mat-option *ngFor="let option of periodOptions" [value]="option.value">
+                {{option.label}}
+              </mat-option>
+            </mat-select>
+            <mat-error *ngIf="teachingForm.get('periodsPerDay')?.invalid && teachingForm.get('periodsPerDay')?.touched">
+              Required
+            </mat-error>
+          </mat-form-field>
+
+          <!-- Start Date -->
+          <mat-form-field appearance="outline">
+            <mat-label>Start Date *</mat-label>
+            <input matInput [matDatepicker]="startPicker" formControlName="startDate">
+            <mat-hint>First day of school year</mat-hint>
+            <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
+            <mat-datepicker #startPicker></mat-datepicker>
+            <mat-error *ngIf="teachingForm.get('startDate')?.invalid && teachingForm.get('startDate')?.touched">
+              Required
+            </mat-error>
+          </mat-form-field>
+
+          <!-- End Date -->
+          <mat-form-field appearance="outline">
+            <mat-label>End Date *</mat-label>
+            <input matInput [matDatepicker]="endPicker" formControlName="endDate">
+            <mat-hint>Last day of school year</mat-hint>
+            <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
+            <mat-datepicker #endPicker></mat-datepicker>
+            <mat-error *ngIf="teachingForm.get('endDate')?.invalid && teachingForm.get('endDate')?.touched">
+              Required
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <!-- Period Assignments - Compact Cards -->
+        <div class="period-assignments-section">
+          <h3>Period Assignments</h3>
+          <div formArrayName="periodAssignments" class="period-list">
+            
+            <!-- Compact Period Card -->
+            <div *ngFor="let periodControl of periodAssignments.controls; let i = index" 
+                 [formGroupName]="i"
+                 class="period-card">
+              
+              <!-- Period Header - Just Period Number and Icon -->
+              <div class="period-header">
+                <mat-icon [color]="getPeriodValidationIcon($any(periodControl)) === 'check_circle' ? 'primary' : 'warn'" class="period-icon">
+                  {{getPeriodValidationIcon($any(periodControl))}}
+                </mat-icon>
+                <span class="period-title">Period {{periodControl.get('period')?.value}}</span>
+              </div>
+
+              <!-- Period Assignment Fields - Compact Horizontal Layout -->
+              <div class="period-fields">
+                
+                <!-- Course/Duty Combined Selection -->
+                <mat-form-field appearance="outline" class="assignment-field">
+                  <mat-label>Assignment</mat-label>
+                  <mat-select [value]="getCombinedAssignmentValue($any(periodControl))" 
+                              (selectionChange)="onCombinedAssignmentChange($any(periodControl), $event.value)">
+                    <mat-option [value]="null">-- Select Assignment --</mat-option>
+                    <mat-optgroup label="Courses">
+                      <mat-option *ngFor="let course of availableCourses" [value]="'course:' + course.id">
+                        {{course.title}}
+                      </mat-option>
+                    </mat-optgroup>
+                    <mat-optgroup label="Duties">
+                      <mat-option *ngFor="let option of specialPeriodOptions" [value]="'duty:' + option.value">
+                        {{option.label}}
+                      </mat-option>
+                    </mat-optgroup>
                   </mat-select>
                 </mat-form-field>
+
+                <!-- Room -->
+                <mat-form-field appearance="outline" class="room-field">
+                  <mat-label>Room</mat-label>
+                  <input matInput formControlName="room" placeholder="Room">
+                </mat-form-field>
+
+                <!-- Color Button -->
+                <button type="button" 
+                        mat-stroked-button 
+                        (click)="openColorPicker(i)"
+                        class="color-button">
+                  <mat-icon>palette</mat-icon>
+                  Colors
+                </button>
               </div>
-  
-              <!-- Period Assignments -->
-              <div class="periods-section">
-                <div class="section-header">
-                  <h4>Period Assignments</h4>
-                  <div class="period-actions">
-                    <button mat-icon-button 
-                            type="button" 
-                            (click)="addPeriod()" 
-                            matTooltip="Add Period">
-                      <mat-icon>add</mat-icon>
-                    </button>
-                    <button mat-stroked-button
-                            type="button"
-                            (click)="resetToDefaultColors()"
-                            matTooltip="Reset all periods to default colors"
-                            class="reset-colors-btn">
+
+              <!-- Teaching Days Checkboxes with Split Assignment -->
+              <div class="teaching-days-container">
+                <div class="teaching-days-checkboxes">
+                  <span class="days-label">Days:</span>
+                  <mat-checkbox *ngFor="let day of teachingDays; let k = index"
+                                [checked]="isTeachingDaySelected($any(periodControl), day)"
+                                [disabled]="isTeachingDayDisabled($any(periodControl), day)"
+                                (change)="toggleTeachingDay($any(periodControl), day)"
+                                class="day-checkbox">
+                    {{teachingDayAbbreviations[k]}}
+                  </mat-checkbox>
+                  
+                  <button type="button" 
+                          mat-stroked-button
+                          [disabled]="hasSecondAssignment($any(periodControl))"
+                          (click)="addSecondAssignment($any(periodControl))"
+                          class="split-assignment-button">
+                    <mat-icon style="font-size: 14px;">add</mat-icon>
+                    Split Assignment
+                  </button>
+
+                  <!-- Remove Button next to Split Assignment -->
+                  <button type="button" 
+                          *ngIf="hasSecondAssignment($any(periodControl))"
+                          mat-stroked-button 
+                          (click)="removeSecondAssignment($any(periodControl))"
+                          class="remove-assignment-button">
+                    <mat-icon style="font-size: 14px;">remove</mat-icon>
+                    Remove
+                  </button>
+                </div>
+
+                <!-- Second Assignment (if exists) -->
+                <div *ngIf="hasSecondAssignment($any(periodControl))" 
+                     class="second-assignment"
+                     [formGroupName]="'secondAssignment'">
+                  
+                  <div class="period-fields">
+                    <!-- Second Assignment Dropdown -->
+                    <mat-form-field appearance="outline" class="assignment-field">
+                      <mat-label>Second Assignment</mat-label>
+                      <mat-select [value]="getCombinedAssignmentValue(getSecondAssignmentForm($any(periodControl)))" 
+                                  (selectionChange)="onCombinedAssignmentChange(getSecondAssignmentForm($any(periodControl)), $event.value)">
+                        <mat-option [value]="null">-- Select Assignment --</mat-option>
+                        <mat-optgroup label="Courses">
+                          <mat-option *ngFor="let course of availableCourses" [value]="'course:' + course.id">
+                            {{course.title}}
+                          </mat-option>
+                        </mat-optgroup>
+                        <mat-optgroup label="Duties">
+                          <mat-option *ngFor="let option of specialPeriodOptions" [value]="'duty:' + option.value">
+                            {{option.label}}
+                          </mat-option>
+                        </mat-optgroup>
+                      </mat-select>
+                    </mat-form-field>
+
+                    <!-- Second Room -->
+                    <mat-form-field appearance="outline" class="room-field">
+                      <mat-label>Room</mat-label>
+                      <input matInput formControlName="room" placeholder="Room">
+                    </mat-form-field>
+
+                    <!-- Colors Button for Second Assignment -->
+                    <button type="button" 
+                            mat-stroked-button 
+                            class="color-button">
                       <mat-icon>palette</mat-icon>
-                      <span>Reset Colors</span>
+                      Colors
                     </button>
                   </div>
-                </div>
-  
-                <div formArrayName="periodAssignments" class="periods-list">
-                  @for (period of periodAssignments.controls; track period; let i = $index) {
-                    <div [formGroupName]="i" class="period-row">
-                      <div class="period-label">
-                        <span>Period {{ period.get('period')?.value }}</span>
-                      </div>
-                      
-                      <mat-form-field appearance="outline" class="course-select">
-                        <mat-label>Course</mat-label>
-                        <mat-select formControlName="courseId">
-                          <mat-option [value]="null">No Course Assigned</mat-option>
-                          @for (course of availableCourses; track course.id) {
-                            <mat-option [value]="course.id">{{ course.title }}</mat-option>
-                          }
-                        </mat-select>
-                      </mat-form-field>
-                      
-                      <mat-form-field appearance="outline">
-                        <mat-label>Room</mat-label>
-                        <input matInput formControlName="room" 
-                               placeholder="e.g., 205, Lab B">
-                      </mat-form-field>
-  
-                      <!-- Style Configuration -->
-                      <div class="style-config">
-                        <div class="color-controls">
-                          <div class="color-field">
-                            <label class="color-label">Background</label>
-                            <input type="color" 
-                                   formControlName="backgroundColor"
-                                   class="color-picker">
-                          </div>
-                          <div class="color-field">
-                            <label class="color-label">Text</label>
-                            <input type="color" 
-                                   formControlName="fontColor"
-                                   class="color-picker">
-                          </div>
-                        </div>
-                        <div class="style-preview" 
-                             [style.backgroundColor]="period.get('backgroundColor')?.value"
-                             [style.color]="period.get('fontColor')?.value">
-                          Preview
-                        </div>
-                      </div>
-  
-                      <button mat-icon-button 
-                              type="button"
-                              (click)="removePeriod(i)"
-                              [disabled]="periodAssignments.length <= 1"
-                              matTooltip="Remove Period"
-                              color="warn">
-                      </button>
-                    </div>
-                  }
+
+                  <!-- Second Assignment Days -->
+                  <div class="teaching-days-checkboxes">
+                    <span class="days-label">Days:</span>
+                    <mat-checkbox *ngFor="let day of teachingDays; let k = index"
+                                  [checked]="isTeachingDaySelected(getSecondAssignmentForm($any(periodControl)), day)"
+                                  [disabled]="isTeachingDayDisabled(getSecondAssignmentForm($any(periodControl)), day, $any(periodControl))"
+                                  (change)="toggleTeachingDay(getSecondAssignmentForm($any(periodControl)), day)"
+                                  class="day-checkbox">
+                      {{teachingDayAbbreviations[k]}}
+                    </mat-checkbox>
+                  </div>
                 </div>
               </div>
-            </form>
+            </div>
           </div>
-        </mat-tab>
-      </mat-tab-group>
-    </mat-dialog-content>
+        </div>
+
+        <!-- Validation Summary -->
+        <div class="validation-summary" 
+             [class.error]="!isFormValid"
+             [class.success]="isFormValid">
+          <mat-icon>{{isFormValid ? 'check_circle' : 'error'}}</mat-icon>
+          <span>{{getValidationSummaryTruncated()}}</span>
+        </div>
+      </form>
+    </mat-tab>
+
+    <!-- User Profile Tab -->
+    <mat-tab label="Profile">
+      <form [formGroup]="profileForm" class="config-form">
+        
+        <!-- First Name -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>First Name *</mat-label>
+          <input matInput formControlName="firstName" placeholder="John">
+          <mat-error *ngIf="profileForm.get('firstName')?.invalid && profileForm.get('firstName')?.touched">
+            First name is required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Last Name -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Last Name *</mat-label>
+          <input matInput formControlName="lastName" placeholder="Doe">
+          <mat-error *ngIf="profileForm.get('lastName')?.invalid && profileForm.get('lastName')?.touched">
+            Last name is required
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Email -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Email *</mat-label>
+          <input matInput formControlName="email" type="email" placeholder="john.doe@example.com">
+          <mat-error *ngIf="profileForm.get('email')?.hasError('required') && profileForm.get('email')?.touched">
+            Email is required
+          </mat-error>
+          <mat-error *ngIf="profileForm.get('email')?.hasError('email') && profileForm.get('email')?.touched">
+            Please enter a valid email address
+          </mat-error>
+        </mat-form-field>
+
+        <!-- Phone Number -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Phone Number</mat-label>
+          <input matInput formControlName="phoneNumber" placeholder="(555) 123-4567">
+        </mat-form-field>
+      </form>
+    </mat-tab>
+  </mat-tab-group>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()">Cancel</button>
   
-    <mat-dialog-actions align="end">
-      <button mat-button (click)="openAdvancedSettings()" color="accent">
-        Advanced Settings
-      </button>
-      <div class="spacer"></div>
-      <button mat-button (click)="cancel()">Cancel</button>
-      <button mat-raised-button 
-              color="primary" 
-              (click)="save()"
-              [disabled]="!profileForm.valid || !teachingForm.valid">
-        Save
-      </button>
-    </mat-dialog-actions>
-  </div>
+  <!-- Save Button -->
+  <button mat-raised-button 
+          color="primary" 
+          (click)="save()"
+          [disabled]="!isFormValid"
+          [matTooltip]="getSaveButtonTooltip()">
+    <mat-icon *ngIf="isFormValid">save</mat-icon>
+    <mat-icon *ngIf="!isFormValid">error</mat-icon>
+    Save Configuration
+  </button>
+</mat-dialog-actions>

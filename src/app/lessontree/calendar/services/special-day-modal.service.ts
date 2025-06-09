@@ -47,7 +47,7 @@ export class SpecialDayModalService {
       this.toastr.error('Could not extract special day data', 'Error');
       return;
     }
-
+  
     const modalData: SpecialDayModalData = {
       date: specialDayData.date,
       periods: specialDayData.periods,
@@ -55,13 +55,13 @@ export class SpecialDayModalService {
       existingSpecialDay: {
         id: scheduleEvent.id,
         periods: specialDayData.periods,
-        specialCode: specialDayData.specialCode,
+        eventType: specialDayData.eventType, // FIXED: was specialCode
         title: specialDayData.title,
         description: specialDayData.description,
         date: specialDayData.date
       }
     };
-
+  
     this.openModalWithData(modalData, 'edit', scheduleEvent);
   }
 
@@ -164,35 +164,35 @@ export class SpecialDayModalService {
     });
   }
 
-  private prepareExistingDataFromEvent(event: EventClickArg): { id: number; periods: number[]; specialCode: string; title: string; description?: string; date: Date } | null {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+  private prepareExistingDataFromEvent(event: EventClickArg): { id: number; periods: number[]; eventType: string; title: string; description?: string; date: Date } | null {
+    const currentSchedule = this.scheduleStateService.selectedScheduleValue(); // FIXED: signal access
     if (!currentSchedule?.scheduleEvents) {
       this.toastr.error('No schedule available', 'Error');
       return null;
     }
-
+  
     const eventId = this.extractEventIdFromCalendarEvent(event);
     if (!eventId) {
       this.toastr.error('Cannot identify event', 'Error');
       return null;
     }
-
+  
     const scheduleEvent = this.specialDayManagement.findSpecialDayById(eventId);
     if (!scheduleEvent) {
       this.toastr.error('Selected item is not a special day', 'Error');
       return null;
     }
-
+  
     const specialDayData = this.specialDayManagement.extractSpecialDayData(scheduleEvent);
     if (!specialDayData) {
       this.toastr.error('Could not extract special day data', 'Error');
       return null;
     }
-
+  
     return {
       id: scheduleEvent.id,
       periods: specialDayData.periods,
-      specialCode: specialDayData.specialCode,
+      eventType: specialDayData.eventType, // FIXED: was specialCode
       title: specialDayData.title,
       description: specialDayData.description,
       date: specialDayData.date
@@ -215,7 +215,12 @@ export class SpecialDayModalService {
 
   private handleModalResult(result: SpecialDayResult, originalMode: 'add' | 'edit', originalScheduleEvent?: ScheduleEvent): void {
     if (result.action === 'save' && result.data) {
-      this.handleSaveAction(result.data, originalMode, originalScheduleEvent);
+      // Map specialCode to eventType for compatibility
+      const mappedData: SpecialDayData = {
+        ...result.data,
+        eventType: (result.data as any).specialCode || (result.data as any).eventType
+      };
+      this.handleSaveAction(mappedData, originalMode, originalScheduleEvent); // CHANGED: use mappedData
     } else if (result.action === 'delete' && originalScheduleEvent) {
       this.handleDeleteAction(originalScheduleEvent);
     }
@@ -227,7 +232,13 @@ export class SpecialDayModalService {
       this.toastr.error(`Invalid data: ${validation.errors.join(', ')}`, 'Validation Error');
       return;
     }
-
+  
+    // Ensure data has eventType property (the interface should already enforce this)
+    if (!data.eventType) {
+      this.toastr.error('Event type is required', 'Validation Error');
+      return;
+    }
+  
     if (originalMode === 'add') {
       this.specialDayManagement.createSpecialDay(data).subscribe({
         next: (createdEvents) => {

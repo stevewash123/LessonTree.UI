@@ -558,6 +558,69 @@ export class ApiService {
         return this.get<Standard[]>(`standard/course/${courseId}`, options);
     }
 
+    // **PARTIAL FILE** - Add these methods to your existing api.service.ts
+    // Add after the existing Standard methods, before the private transformKeysToCamelCaseAndEnsureArrays method
+
+    // User Configuration API Methods
+    /** Fetch user configuration by user ID */
+    getUserConfiguration(userId: number): Observable<any> {
+    console.log('ApiService: GET getUserConfiguration', {
+        url: `${this.baseUrl}/user/${userId}/configuration`,
+        userId,
+        timestamp: new Date().toISOString()
+    });
+    return this.get<any>(`user/${userId}/configuration`);
+    }
+
+    /** Update user configuration */
+    updateUserConfiguration(userId: number, configuration: any): Observable<any> {
+    const body = {
+        id: configuration.id || 0,
+        userId: userId,
+        schoolYear: configuration.schoolYear,
+        periodsPerDay: configuration.periodsPerDay,
+        periodAssignments: configuration.periodAssignments
+    };
+
+    console.log('ApiService: PUT updateUserConfiguration', {
+        url: `${this.baseUrl}/user/${userId}/configuration`,
+        body,
+        timestamp: new Date().toISOString()
+    });
+
+    return this.put<any>(`user/${userId}/configuration`, body);
+    }
+
+    /** Fetch user by ID */
+    getUser(userId: number): Observable<any> {
+    console.log('ApiService: GET getUser', {
+        url: `${this.baseUrl}/user/${userId}`,
+        userId,
+        timestamp: new Date().toISOString()
+    });
+    return this.get<any>(`user/${userId}`);
+    }
+
+    /** Update user profile */
+    updateUser(userId: number, user: any): Observable<any> {
+    const body = {
+        id: userId,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName,
+        district: user.district
+    };
+
+    console.log('ApiService: PUT updateUser', {
+        url: `${this.baseUrl}/user/${userId}`,
+        body,
+        timestamp: new Date().toISOString()
+    });
+
+    return this.put<any>(`user/${userId}`, body);
+    }  
+
     /** Transform keys to camelCase and ensure specific fields are arrays */
     private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {
         if (Array.isArray(obj)) {

@@ -20,20 +20,35 @@ export class AuthService {
     private jwtHelper: JwtHelperService,
     private userService: UserService,
     private router: Router
-) {
+  ) {
     const token = localStorage.getItem('token');
     if (token && !this.jwtHelper.isTokenExpired(token)) {
-      const username = this.jwtHelper.decodeToken(token).unique_name;
-      this.currentUserSubject.next(username);
-      // Load user data if token is valid
-      this.userService.loadUserData(username).subscribe({
-        next: () => {
-          console.log('[AuthService] User data loaded on initialization');
-        },
-        error: (error) => {
-          console.error('[AuthService] Error loading user data on initialization:', error);
-        }
-      });
+      // DEBUG: Show what's actually in the token
+      const decoded = this.jwtHelper.decodeToken(token);
+      console.log('[AuthService] JWT token contents:', decoded);
+      console.log('[AuthService] Available claims:', Object.keys(decoded));
+      
+      const username = decoded.unique_name;
+      console.log('[AuthService] Extracted username:', username);
+      
+      if (username) {
+        this.currentUserSubject.next(username);
+        // Load user data if token is valid
+        console.log('[AuthService] Loading user data for:', username);
+        this.userService.loadUserData(username).subscribe({
+          next: (user) => {
+            console.log('[AuthService] User data loaded on initialization:', user);
+          },
+          error: (error) => {
+            console.error('[AuthService] Error loading user data on initialization:', error);
+          }
+        });
+      } else {
+        console.error('[AuthService] No username found in token - clearing auth state');
+        this.logout();
+      }
+    } else {
+      console.log('[AuthService] No valid token found during initialization');
     }
   }
 
@@ -41,12 +56,21 @@ export class AuthService {
     const payload = { id: 0, username, password }; // Match UserResource
     return this.http.post<any>(`${this.baseUrl}/login`, payload).pipe(
       tap(response => {
+        console.log('[AuthService] Login response received');
         localStorage.setItem('token', response.token);
+        
+        // DEBUG: Show what's in the new token
+        const decoded = this.jwtHelper.decodeToken(response.token);
+        console.log('[AuthService] New JWT token contents:', decoded);
+        console.log('[AuthService] Available claims:', Object.keys(decoded));
+        
         this.currentUserSubject.next(username);
+        
         // Load user data after successful login
+        console.log('[AuthService] Loading user data after login for:', username);
         this.userService.loadUserData(username).subscribe({
-          next: () => {
-            console.log('[AuthService] User data loaded successfully after login');
+          next: (user) => {
+            console.log('[AuthService] User data loaded successfully after login:', user);
           },
           error: (error) => {
             console.error('[AuthService] Error loading user data after login:', error);

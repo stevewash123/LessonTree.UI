@@ -1,4 +1,4 @@
-// RESPONSIBILITY: Orchestrates lesson shifting operations and conflict resolution.
+// RESPONSIBILITY: Orchestrates lesson shifting operations and conflict resolution for period-based events.
 // DOES NOT: Handle Error Day creation, UI notifications, or direct API calls - delegates to appropriate services.
 // CALLED BY: SpecialDayManagementService and other services that need lesson scheduling operations.
 import { Injectable } from '@angular/core';
@@ -8,6 +8,7 @@ import { ScheduleEvent } from '../../../models/schedule';
 import { ScheduleStateService } from './schedule-state.service';
 import { LessonCalendarService } from './lesson-calendar.service';
 import { TeachingDayCalculationService } from './teaching-day-calculations.service';
+import { parseTeachingDaysToArray } from '../../../models/schedule-model-utils';
 
 @Injectable({
   providedIn: 'root'
@@ -28,7 +29,7 @@ export class LessonShiftingService {
   shiftLessonsForward(insertionDate: Date, period: number): void {
     console.log(`[LessonShiftingService] shiftLessonsForward - Period ${period} from ${format(insertionDate, 'yyyy-MM-dd')}`);
     
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents || !currentSchedule?.teachingDays) {
       console.error('[LessonShiftingService] Cannot shift: No schedule or teaching days available');
       return;
@@ -59,7 +60,7 @@ export class LessonShiftingService {
   shiftLessonsBackward(deletedDate: Date, period: number): void {
     console.log(`[LessonShiftingService] shiftLessonsBackward - Period ${period} from ${format(deletedDate, 'yyyy-MM-dd')}`);
     
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     if (!currentSchedule?.scheduleEvents || !currentSchedule?.teachingDays) {
       console.error('[LessonShiftingService] Cannot shift backward: No schedule or teaching days available');
       return;
@@ -78,9 +79,9 @@ export class LessonShiftingService {
 
   // === PRIVATE HELPER METHODS ===
 
-  // Helper method to get teaching day numbers
+  // Helper method to get teaching day numbers using utility function
   private getTeachingDayNumbers(teachingDaysString: string): number[] {
-    const teachingDayNames = this.teachingDayCalculation.parseTeachingDaysFromString(teachingDaysString);
+    const teachingDayNames = parseTeachingDaysToArray(teachingDaysString);
     return this.teachingDayCalculation.getTeachingDayNumbers(teachingDayNames);
   }
 
@@ -135,7 +136,8 @@ export class LessonShiftingService {
       if (currentSchedule.endDate && isAfter(currentShiftDate, new Date(currentSchedule.endDate))) {
         // Convert to error event
         shiftedLesson.lessonId = null;
-        shiftedLesson.specialCode = 'Error Day';
+        shiftedLesson.eventType = 'Error';
+        shiftedLesson.eventCategory = null;
         shiftedLesson.comment = `ERROR: Lesson pushed past schedule end (Period ${period})`;
       }
 
@@ -254,14 +256,16 @@ export class LessonShiftingService {
   // === DEBUG AND UTILITY METHODS ===
 
   getShiftingDebugInfo(): any {
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    const currentSchedule = this.scheduleStateService.getMasterSchedule();
     
     if (!currentSchedule) {
       return { error: 'No schedule selected' };
     }
 
     const lessonEvents = currentSchedule.scheduleEvents?.filter(event => event.lessonId) || [];
-    const specialEvents = currentSchedule.scheduleEvents?.filter(event => event.specialCode) || [];
+    const specialEvents = currentSchedule.scheduleEvents?.filter(event => 
+      event.eventType && event.eventType !== 'Lesson'
+    ) || [];
 
     return {
       scheduleId: currentSchedule.id,

@@ -7,6 +7,7 @@ import { CommonModule } from '@angular/common';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, EventDropArg } from '@fullcalendar/core';
+import { UserConfigComponent } from '../../../home/user-config/user-config.component';
 
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,8 +15,6 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription } from 'rxjs';
-
-import { CalendarConfigModalComponent } from './calendar-config-modal.component';
 
 import { ScheduleStateService } from '../services/schedule-state.service';
 import { SchedulePersistenceService } from '../services/schedule-persistence.service';
@@ -247,47 +246,23 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Handle create schedule from controls
   openConfigModal(): void {
-    console.log('[LessonCalendarComponent] openConfigModal');
+    console.log('[LessonCalendarComponent] openConfigModal - redirecting to user configuration');
     
-    const selectedCourse = this.selectedCourse();
-    
-    if (!selectedCourse) {
-      console.error('[LessonCalendarComponent] Cannot open modal - no course selected');
-      return;
-    }
-
-    const courseId = parseId(selectedCourse.id);
-    const courseData = this.selectedCourseData();
-    
-    if (!courseData) {
-      console.error('[LessonCalendarComponent] Cannot open modal - course data not found');
-      return;
-    }
-    
-    const currentUser = this.userService.getCurrentUser();
-    if (!currentUser?.id) {
-      console.error('[LessonCalendarComponent] User ID not available');
-      return;
-    }
-    
-    const dialogRef = this.dialog.open(CalendarConfigModalComponent, {
-      data: {
-        courseId,
-        userId: currentUser.id,
-        courseTitle: courseData.title,
-        existingSchedule: this.isInMemorySchedule() 
-          ? this.selectedSchedule() 
-          : null,
-        mode: 'create'
-      },
-      width: '600px',
-      panelClass: 'custom-dialog-container'
+    // Open user configuration instead of calendar config modal
+    const dialogRef = this.dialog.open(UserConfigComponent, {
+      width: '900px',
+      maxWidth: '95vw',
+      height: '80vh',
+      maxHeight: '700px',
+      panelClass: 'custom-dialog-container',
+      disableClose: false
     });
-
+  
     dialogRef.afterClosed().subscribe(result => {
-      if (result) {
-        console.log(`[LessonCalendarComponent] Schedule created: ${result.id}`);
-        this.schedulePersistenceService.loadSchedulesForCourse(courseId).subscribe();
+      if (result?.saved) {
+        console.log('[LessonCalendarComponent] User configuration updated');
+        // Optionally refresh calendar data if needed
+        // this.calendarCoordination.refreshCalendarData();
       }
     });
   }
