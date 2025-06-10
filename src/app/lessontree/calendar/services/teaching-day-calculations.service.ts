@@ -3,7 +3,7 @@
 // CALLED BY: LessonShiftingService and other services that need teaching day calculations.
 import { Injectable } from '@angular/core';
 import { addDays, format } from 'date-fns';
-import { ScheduleEvent } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 
 @Injectable({
   providedIn: 'root'

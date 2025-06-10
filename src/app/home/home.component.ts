@@ -147,17 +147,16 @@ export class HomeComponent implements AfterViewInit {
 
     openScheduleConfig() {
         const dialogRef = this.dialog.open(ScheduleConfigComponent, {
-            width: '800px',
+            width: '1000px',  // Changed from '800px'
             maxWidth: '95vw',
             maxHeight: '90vh',
             disableClose: false,
             autoFocus: true
         });
-
+    
         dialogRef.afterClosed().subscribe(result => {
             if (result) {
                 console.log('Schedule configuration saved:', result);
-                // Could add success notification here
             }
         });
     }

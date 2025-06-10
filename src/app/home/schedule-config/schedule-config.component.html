@@ -75,24 +75,13 @@
             
             <!-- Period Controls -->
             <div class="period-controls">
-              <!-- Add Assignment Button (only show if single assignment) -->
+              <!-- Add Assignment Button -->
               <button type="button" 
-                      *ngIf="getAssignments(periodControl).length === 1"
                       mat-icon-button 
                       (click)="addAssignment(periodControl)"
                       matTooltip="Add Assignment"
                       class="add-assignment-btn">
                 <mat-icon>add_circle_outline</mat-icon>
-              </button>
-              
-              <!-- Remove Assignment Button (only show if multiple assignments) -->
-              <button type="button" 
-                      *ngIf="getAssignments(periodControl).length > 1"
-                      mat-icon-button 
-                      (click)="removeAssignment(periodControl, getAssignments(periodControl).length - 1)"
-                      matTooltip="Remove Assignment"
-                      class="action-btn">
-                <mat-icon>remove_circle_outline</mat-icon>
               </button>
             </div>
           </div>
@@ -150,7 +139,7 @@
                   <button type="button" 
                           *ngIf="getAssignments(periodControl).length > 1"
                           mat-icon-button 
-                          (click)="removeAssignment(periodControl, getAssignments(periodControl).length - 1)"
+                          (click)="removeAssignment(periodControl, j)"
                           matTooltip="Remove Assignment"
                           class="action-btn">
                     <mat-icon>remove_circle_outline</mat-icon>

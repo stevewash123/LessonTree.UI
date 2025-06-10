@@ -8,13 +8,10 @@ import { catchError, map, tap } from 'rxjs/operators';
 import { 
     Schedule, 
     ScheduleCreateResource,  
-    ScheduleConfigUpdateResource, 
-    ScheduleEvent, 
-    ScheduleEventsUpdateResource,
-    ScheduleEventCreateResource,
-    ScheduleEventUpdateResource
+    ScheduleConfigUpdateResource
 } from '../../../models/schedule';
 import { environment } from '../../../../environments/environment';
+import { ScheduleEventCreateResource, ScheduleEvent, ScheduleEventUpdateResource, ScheduleEventsUpdateResource } from '../../../models/schedule-event.model';
 
 @Injectable({
   providedIn: 'root'

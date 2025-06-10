@@ -10,7 +10,7 @@ import { LessonCalendarService } from './lesson-calendar.service';
 import { ScheduleStateService } from './schedule-state.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
-import { ScheduleEvent } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 
 @Injectable({
   providedIn: 'root'

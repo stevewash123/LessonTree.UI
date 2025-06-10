@@ -3,7 +3,8 @@
 // CALLED BY: Calendar components, ScheduleGenerationService, SchedulePersistenceService for state coordination.
 import { Injectable, signal, computed } from '@angular/core';
 import { format } from 'date-fns';
-import { Schedule, ScheduleEvent } from '../../../models/schedule';
+import { Schedule } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 
 @Injectable({
   providedIn: 'root'

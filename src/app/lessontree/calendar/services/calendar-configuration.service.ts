@@ -9,7 +9,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 
 import { ScheduleStateService } from './schedule-state.service';
 import { UserService } from '../../../core/services/user.service';
-import { parseTeachingDaysToArray } from '../../../models/schedule-model-utils';
+import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 
 @Injectable({
   providedIn: 'root'

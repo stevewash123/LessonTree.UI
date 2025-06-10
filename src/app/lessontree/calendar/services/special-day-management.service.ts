@@ -6,7 +6,7 @@ import { Observable, forkJoin, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { format } from 'date-fns';
 
-import { ScheduleEvent } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { ScheduleStateService } from './schedule-state.service';
 import { LessonCalendarService } from './lesson-calendar.service';
 import { LessonShiftingService } from './lesson-shifting.service';

@@ -4,11 +4,11 @@
 import { Injectable } from '@angular/core';
 import { addDays, format, isAfter, isSameDay } from 'date-fns';
 
-import { ScheduleEvent } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { ScheduleStateService } from './schedule-state.service';
 import { LessonCalendarService } from './lesson-calendar.service';
 import { TeachingDayCalculationService } from './teaching-day-calculations.service';
-import { parseTeachingDaysToArray } from '../../../models/schedule-model-utils';
+import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 
 @Injectable({
   providedIn: 'root'
@@ -80,9 +80,8 @@ export class LessonShiftingService {
   // === PRIVATE HELPER METHODS ===
 
   // Helper method to get teaching day numbers using utility function
-  private getTeachingDayNumbers(teachingDaysString: string): number[] {
-    const teachingDayNames = parseTeachingDaysToArray(teachingDaysString);
-    return this.teachingDayCalculation.getTeachingDayNumbers(teachingDayNames);
+  private getTeachingDayNumbers(teachingDaysArray: string[]): number[] {
+    return this.teachingDayCalculation.getTeachingDayNumbers(teachingDaysArray);
   }
 
   // Find lessons in a specific period on or after a date

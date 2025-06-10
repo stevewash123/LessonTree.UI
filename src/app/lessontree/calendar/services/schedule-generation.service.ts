@@ -5,20 +5,18 @@ import { Injectable } from '@angular/core';
 
 import { CourseDataService } from '../../../core/services/course-data.service';
 import { UserService } from '../../../core/services/user.service';
-import { Schedule, ScheduleEvent, EventTypes, EventCategories } from '../../../models/schedule';
 import { Lesson } from '../../../models/lesson';
 import { Course } from '../../../models/course';
 import { parseId } from '../../../core/utils/type-conversion.utils';
 import { 
-  getPeriodCourseAssignments, 
-  getSpecialPeriodAssignments,
-  getUnassignedPeriods,
   TeachingSchedule,
   PeriodCourseAssignment,
-  PeriodAssignment,
-  SpecialPeriodTypes 
+  PeriodAssignment
 } from '../../../models/period-assignment';
-import { getUserTeachingSchedule } from '../../../models/user';
+import { Schedule } from '../../../models/schedule';
+import { ScheduleEvent, EventCategories, EventTypes } from '../../../models/schedule-event.model';
+import { getUserTeachingSchedule } from '../../../models/user-configuration.model';
+import { getPeriodCourseAssignments, getSpecialPeriodAssignments, getUnassignedPeriods } from '../../../models/utils/period-asignment.utils';
 
 // Constants for default schedule configuration
 const DEFAULT_TEACHING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -87,15 +85,15 @@ export class ScheduleGenerationService {
     }
 
     const masterSchedule: Schedule = {
-      id: 0, // In-memory schedule
-      title: `Master Schedule - ${startDate.getFullYear()}`,
-      userId: userId,
-      startDate,
-      endDate,
-      teachingDays: teachingDaysArray.join(','), // Convert to string for API
-      isLocked: false,
-      scheduleEvents
-    };
+        id: 0, // In-memory schedule
+        title: `Master Schedule - ${startDate.getFullYear()}`,
+        userId: userId,
+        startDate,
+        endDate,
+        teachingDays: teachingDaysArray, // FIXED: Use array directly, not joined string
+        isLocked: false,
+        scheduleEvents
+      };
 
     console.log(`[ScheduleGenerationService] Generated master schedule with ${scheduleEvents.length} events`);
     return {

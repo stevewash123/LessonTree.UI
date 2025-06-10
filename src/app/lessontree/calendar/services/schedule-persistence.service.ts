@@ -11,7 +11,7 @@ import { LessonCalendarService } from './lesson-calendar.service';
 import { UserService } from '../../../core/services/user.service';
 import { Schedule, ScheduleCreateResource, ScheduleConfigUpdateResource } from '../../../models/schedule';
 import { parseId } from '../../../core/utils/type-conversion.utils';
-import { formatTeachingDaysToString } from '../../../models/schedule-model-utils';
+import { formatTeachingDaysToString } from '../../../models/utils/shared.utils';
 
 @Injectable({
   providedIn: 'root'
@@ -135,7 +135,7 @@ export class SchedulePersistenceService {
         title: schedule.title,
         startDate: schedule.startDate,
         endDate: schedule.endDate,
-        teachingDays: formatTeachingDaysToString(schedule.teachingDays)
+        teachingDays: schedule.teachingDays // FIXED: Use array directly
       };
       
       return this.calendarService.createMasterSchedule(createResource);
@@ -195,15 +195,13 @@ export class SchedulePersistenceService {
     }
 
     const configUpdate: ScheduleConfigUpdateResource = {
-      id: currentSchedule.id,
-      title: config.title || currentSchedule.title,
-      startDate: config.startDate || currentSchedule.startDate,
-      endDate: config.endDate || currentSchedule.endDate,
-      teachingDays: config.teachingDays ? 
-        config.teachingDays.join(',') : 
-        formatTeachingDaysToString(currentSchedule.teachingDays),
-      isLocked: config.isLocked !== undefined ? config.isLocked : currentSchedule.isLocked || false
-    };
+        id: currentSchedule.id,
+        title: config.title || currentSchedule.title,
+        startDate: config.startDate || currentSchedule.startDate,
+        endDate: config.endDate || currentSchedule.endDate,
+        teachingDays: config.teachingDays || currentSchedule.teachingDays, // FIXED: Use array directly
+        isLocked: config.isLocked !== undefined ? config.isLocked : currentSchedule.isLocked || false
+      };
 
     return this.calendarService.updateScheduleConfig(configUpdate).pipe(
       tap(updatedSchedule => {
@@ -222,11 +220,11 @@ export class SchedulePersistenceService {
     console.log('[SchedulePersistenceService] Creating new master schedule');
     
     const createResource: ScheduleCreateResource = {
-      title,
-      startDate,
-      endDate,
-      teachingDays: teachingDays.join(',')
-    };
+        title,
+        startDate,
+        endDate,
+        teachingDays: teachingDays // FIXED: Use array directly, not joined
+      };
 
     return this.calendarService.createMasterSchedule(createResource).pipe(
       switchMap(newSchedule => {

@@ -11,8 +11,8 @@ import { CalendarConfigurationService } from './calendar-configuration.service';
 import { UserService } from '../../../core/services/user.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
 import { CourseCrudService } from '../../../core/services/course-crud.service';
-import { ScheduleEvent } from '../../../models/schedule';
-import { parseTeachingDaysToArray } from '../../../models/schedule-model-utils';
+import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 
 export interface CalendarRefreshCallbacks {
   getCalendarApi: () => any;

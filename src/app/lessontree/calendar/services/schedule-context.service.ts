@@ -8,7 +8,6 @@ import { format } from 'date-fns';
 import { ScheduleStateService } from './schedule-state.service';
 import { SpecialDayModalService } from './special-day-modal.service';
 import { LessonShiftingService } from './lesson-shifting.service';
-import { ScheduleEvent } from '../../../models/schedule';
 
 export interface ContextMenuAction {
   id: string;

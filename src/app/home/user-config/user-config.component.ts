@@ -19,12 +19,12 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { CourseDataService } from '../../core/services/course-data.service';
-import { Course } from '../../models/course';
-import { UserConfigurationUpdate } from '../../models/user';
-import { UserService } from '../../core/services/user.service';
 import { PeriodColorPickerComponent, PeriodColorData, PeriodColorResult } from './period-color-picker.component';
 import { forkJoin } from 'rxjs';
+import { CourseDataService } from '../../core/services/course-data.service';
+import { UserService } from '../../core/services/user.service';
+import { Course } from '../../models/course';
+import { UserConfigurationUpdate } from '../../models/user-configuration.model';
 
 @Component({
   selector: 'app-user-config',
@@ -82,7 +82,7 @@ export class UserConfigComponent implements OnInit {
     { value: 'Lunch', label: 'Lunch' },
     { value: 'Hall Duty', label: 'Hall Duty' },
     { value: 'Cafeteria Duty', label: 'Cafeteria Duty' },
-    { value: 'Study Hall', label: 'Study Hall' },
+    { value: 'StudyHall', label: 'Study Hall' },
     { value: 'Prep', label: 'Prep' },
     { value: 'Other Duty', label: 'Other Duty' }
   ];

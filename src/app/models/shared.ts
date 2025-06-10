@@ -1,6 +1,7 @@
-// RESPONSIBILITY: Generic shared models and utilities used across multiple domains
-// DOES NOT: Handle period logic (see period-assignments.ts) or user data (see user.ts)
-// CALLED BY: Multiple services and components for common utilities
+// **COMPLETE FILE** - models/shared.model.ts
+// RESPONSIBILITY: Types and constants used across multiple domains only
+// DOES NOT: Handle domain-specific models or utilities
+// CALLED BY: Multiple services and components for common types
 
 // Archive filter enumeration (matches backend ArchiveFilter)
 export enum ArchiveFilter {
@@ -9,13 +10,13 @@ export enum ArchiveFilter {
     All = 2
 }
 
-// Tree node types for navigation
+// Tree node types for navigation (used in multiple domains)
 export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
 
-// Selection source tracking
+// Selection source tracking (used across calendar and tree)
 export type SelectionSource = 'tree' | 'calendar' | 'api' | 'initial';
 
-// Visibility levels for content
+// Visibility levels for content (used across multiple entities)
 export enum VisibilityLevel {
     Private = 'Private',
     Public = 'Public',
@@ -29,13 +30,3 @@ export interface IdConvertible {
 
 // Generic type utilities
 export type OptionalId<T extends { id: any }> = Omit<T, 'id'> & { id?: T['id'] };
-
-// Common validation patterns
-export function isValidId(id: any): boolean {
-    return id !== null && id !== undefined && (typeof id === 'number' ? id > 0 : id.length > 0);
-}
-
-// Common array utilities
-export function isNonEmptyArray<T>(arr: T[] | null | undefined): arr is T[] {
-    return Array.isArray(arr) && arr.length > 0;
-}

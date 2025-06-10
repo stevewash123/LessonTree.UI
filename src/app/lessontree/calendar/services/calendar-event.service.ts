@@ -7,10 +7,11 @@ import { format } from 'date-fns';
 
 import { CourseDataService } from '../../../core/services/course-data.service';
 import { UserService } from '../../../core/services/user.service';
-import { ScheduleEvent, isLessonEvent, isSpecialDayEvent, isSpecialPeriodEvent, isErrorEvent } from '../../../models/schedule';
 import { Lesson } from '../../../models/lesson';
-import { getUserTeachingSchedule } from '../../../models/user';
-import { getPeriodAssignment, TeachingSchedule } from '../../../models/period-assignment';
+import { TeachingSchedule } from '../../../models/period-assignment';
+import { ScheduleEvent, isLessonEvent, isSpecialPeriodEvent, isSpecialDayEvent, isErrorEvent } from '../../../models/schedule-event.model';
+import { getUserTeachingSchedule } from '../../../models/user-configuration.model';
+import { getPeriodAssignment } from '../../../models/utils/period-asignment.utils';
 
 export interface EventClickResult {
   eventType: 'lesson' | 'special_day' | 'special_period' | 'error' | 'unassigned';

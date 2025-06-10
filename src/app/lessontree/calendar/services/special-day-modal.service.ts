@@ -7,7 +7,7 @@ import { ToastrService } from 'ngx-toastr';
 import { EventClickArg } from '@fullcalendar/core';
 import { MatDialog } from '@angular/material/dialog';
 
-import { ScheduleEvent } from '../../../models/schedule';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { ScheduleStateService } from './schedule-state.service';
 import { SpecialDayManagementService, SpecialDayData } from './special-day-management.service';
 import { SpecialDayModalComponent, SpecialDayModalData, SpecialDayResult } from '../components/special-day-modal.component';

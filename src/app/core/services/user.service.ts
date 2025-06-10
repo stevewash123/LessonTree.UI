@@ -3,8 +3,9 @@ import { Injectable } from '@angular/core';
 import { BehaviorSubject, catchError, forkJoin, map, Observable, throwError } from 'rxjs';
 import { ApiService } from './api.service';
 import { JwtHelperService } from '@auth0/angular-jwt';
-import { User, getFullName, UserConfiguration, UserConfigurationUpdate, UserProfileUpdate } from '../../models/user';
 import { PeriodAssignment } from '../../models/period-assignment';
+import { User, getFullName, UserProfileUpdate } from '../../models/user';
+import { UserConfiguration, UserConfigurationUpdate } from '../../models/user-configuration.model';
 
 @Injectable({
   providedIn: 'root'

@@ -27,7 +27,7 @@ export class ScheduleConfigService {
     { value: 'Lunch', label: 'Lunch' },
     { value: 'Hall Duty', label: 'Hall Duty' },
     { value: 'Cafeteria Duty', label: 'Cafeteria Duty' },
-    { value: 'Study Hall', label: 'Study Hall' },
+    { value: 'StudyHall', label: 'Study Hall' },
     { value: 'Prep', label: 'Prep' },
     { value: 'Other Duty', label: 'Other Duty' }
   ];
