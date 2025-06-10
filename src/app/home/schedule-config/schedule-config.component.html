@@ -37,7 +37,6 @@
         <mat-form-field appearance="outline">
           <mat-label>Start Date *</mat-label>
           <input matInput [matDatepicker]="startPicker" formControlName="startDate">
-          <mat-hint>First day of school year</mat-hint>
           <mat-datepicker-toggle matIconSuffix [for]="startPicker"></mat-datepicker-toggle>
           <mat-datepicker #startPicker></mat-datepicker>
           <mat-error *ngIf="scheduleForm.get('startDate')?.invalid && scheduleForm.get('startDate')?.touched">
@@ -49,7 +48,6 @@
         <mat-form-field appearance="outline">
           <mat-label>End Date *</mat-label>
           <input matInput [matDatepicker]="endPicker" formControlName="endDate">
-          <mat-hint>Last day of school year</mat-hint>
           <mat-datepicker-toggle matIconSuffix [for]="endPicker"></mat-datepicker-toggle>
           <mat-datepicker #endPicker></mat-datepicker>
           <mat-error *ngIf="scheduleForm.get('endDate')?.invalid && scheduleForm.get('endDate')?.touched">
@@ -75,14 +73,28 @@
             </mat-icon>
             <span class="period-title">Period {{periodControl.get('period')?.value}}</span>
             
-            <!-- Add Assignment Button -->
-            <button type="button" 
-                    mat-icon-button 
-                    (click)="addAssignment(periodControl)"
-                    matTooltip="Add Assignment"
-                    class="add-assignment-btn">
-              <mat-icon>add</mat-icon>
-            </button>
+            <!-- Period Controls -->
+            <div class="period-controls">
+              <!-- Add Assignment Button (only show if single assignment) -->
+              <button type="button" 
+                      *ngIf="getAssignments(periodControl).length === 1"
+                      mat-icon-button 
+                      (click)="addAssignment(periodControl)"
+                      matTooltip="Add Assignment"
+                      class="add-assignment-btn">
+                <mat-icon>add_circle_outline</mat-icon>
+              </button>
+              
+              <!-- Remove Assignment Button (only show if multiple assignments) -->
+              <button type="button" 
+                      *ngIf="getAssignments(periodControl).length > 1"
+                      mat-icon-button 
+                      (click)="removeAssignment(periodControl, getAssignments(periodControl).length - 1)"
+                      matTooltip="Remove Assignment"
+                      class="action-btn">
+                <mat-icon>remove_circle_outline</mat-icon>
+              </button>
+            </div>
           </div>
 
           <!-- Assignments within this period -->
@@ -91,53 +103,59 @@
                  [formGroupName]="j"
                  class="assignment-row">
               
-              <!-- Assignment Fields -->
-              <div class="assignment-fields">
-                <!-- Course/Duty Selection -->
-                <mat-form-field appearance="outline" class="assignment-field">
-                  <mat-label>Assignment {{j + 1}}</mat-label>
-                  <mat-select [value]="getCombinedAssignmentValue(assignmentControl)" 
-                              (selectionChange)="onAssignmentChange(assignmentControl, $event.value)">
-                    <mat-option [value]="null">-- Select Assignment --</mat-option>
-                    <mat-optgroup label="Courses">
-                      <mat-option *ngFor="let course of availableCourses" [value]="'course:' + course.id">
-                        {{course.title}}
-                      </mat-option>
-                    </mat-optgroup>
-                    <mat-optgroup label="Duties">
-                      <mat-option *ngFor="let option of scheduleConfigService.specialPeriodOptions" [value]="'duty:' + option.value">
-                        {{option.label}}
-                      </mat-option>
-                    </mat-optgroup>
-                  </mat-select>
-                </mat-form-field>
+              <!-- Assignment Content -->
+              <div class="assignment-content">
+                <!-- Assignment Fields -->
+                <div class="assignment-fields">
+                  <!-- Course/Duty Selection -->
+                  <mat-form-field appearance="outline" class="assignment-field">
+                    <mat-label>Assignment {{j + 1}}</mat-label>
+                    <mat-select [value]="getCombinedAssignmentValue(assignmentControl)" 
+                                (selectionChange)="onAssignmentChange(assignmentControl, $event.value)">
+                      <mat-option [value]="null">-- Select Assignment --</mat-option>
+                      <mat-optgroup label="Courses">
+                        <mat-option *ngFor="let course of availableCourses" [value]="'course:' + course.id">
+                          {{course.title}}
+                        </mat-option>
+                      </mat-optgroup>
+                      <mat-optgroup label="Duties">
+                        <mat-option *ngFor="let option of scheduleConfigService.specialPeriodOptions" [value]="'duty:' + option.value">
+                          {{option.label}}
+                        </mat-option>
+                      </mat-optgroup>
+                    </mat-select>
+                  </mat-form-field>
 
-                <!-- Room -->
-                <mat-form-field appearance="outline" class="room-field">
-                  <mat-label>Room</mat-label>
-                  <input matInput formControlName="room" placeholder="Room">
-                </mat-form-field>
+                  <!-- Room -->
+                  <mat-form-field appearance="outline" class="room-field">
+                    <mat-label>Room</mat-label>
+                    <input matInput formControlName="room" placeholder="Room">
+                  </mat-form-field>
+                </div>
 
-                <!-- Remove Assignment Button (if multiple assignments) -->
-                <button type="button" 
-                        *ngIf="getAssignments(periodControl).length > 1"
-                        mat-icon-button 
-                        (click)="removeAssignment(periodControl, j)"
-                        matTooltip="Remove Assignment"
-                        class="remove-assignment-btn">
-                  <mat-icon>remove</mat-icon>
-                </button>
-              </div>
+                <!-- Teaching Days for this assignment -->
+                <div class="teaching-days-container">
+                  <span class="days-label">Days:</span>
+                  <mat-checkbox *ngFor="let day of periodMgmt.teachingDays; let k = index"
+                                [checked]="isTeachingDaySelected(assignmentControl, day)"
+                                (change)="toggleTeachingDay(assignmentControl, day)"
+                                class="day-checkbox">
+                    {{periodMgmt.teachingDayAbbreviations[k]}}
+                  </mat-checkbox>
+                </div>
 
-              <!-- Teaching Days for this assignment -->
-              <div class="teaching-days-container">
-                <span class="days-label">Days:</span>
-                <mat-checkbox *ngFor="let day of periodMgmt.teachingDays; let k = index"
-                              [checked]="isTeachingDaySelected(assignmentControl, day)"
-                              (change)="toggleTeachingDay(assignmentControl, day)"
-                              class="day-checkbox">
-                  {{periodMgmt.teachingDayAbbreviations[k]}}
-                </mat-checkbox>
+                <!-- Action Buttons -->
+                <div class="assignment-actions">
+                  <!-- Remove Assignment Button (if multiple assignments) -->
+                  <button type="button" 
+                          *ngIf="getAssignments(periodControl).length > 1"
+                          mat-icon-button 
+                          (click)="removeAssignment(periodControl, getAssignments(periodControl).length - 1)"
+                          matTooltip="Remove Assignment"
+                          class="action-btn">
+                    <mat-icon>remove_circle_outline</mat-icon>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
