@@ -8,7 +8,7 @@ import { format } from 'date-fns';
 
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { ScheduleStateService } from './schedule-state.service';
-import { LessonCalendarService } from './lesson-calendar.service';
+import { ScheduleApiService } from './schedule-api.service';
 import { LessonShiftingService } from './lesson-shifting.service';
 
 export interface SpecialDayData {
@@ -29,7 +29,7 @@ export interface SpecialDayValidationResult {
 })
 export class SpecialDayManagementService {
   private readonly scheduleStateService = inject(ScheduleStateService);
-  private readonly calendarService = inject(LessonCalendarService);
+  private readonly calendarService = inject(ScheduleApiService);
   private readonly lessonShiftingService = inject(LessonShiftingService);
 
   constructor() {

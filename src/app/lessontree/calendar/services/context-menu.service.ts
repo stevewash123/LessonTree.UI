@@ -18,7 +18,7 @@ export interface ContextMenuAction {
 @Injectable({
   providedIn: 'root'
 })
-export class ScheduleContextService {
+export class ContextMenuService {
   // Context menu state
   private lastClickedEvent: EventClickArg | null = null;
 

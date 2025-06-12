@@ -483,4 +483,58 @@ export class CourseDataService {
     });
     this.mutateTree(entity, 'remove', source);
   }
+
+  
+  // Collect lessons from course hierarchy in proper order
+  collectLessonsFromCourse(course: Course): Lesson[] {
+    const lessons: Lesson[] = [];
+    if (!course.topics) return lessons;
+
+    const sortedTopics = [...course.topics].sort((a, b) => a.sortOrder - b.sortOrder);
+    
+    for (const topic of sortedTopics) {
+      const topicLessons: Lesson[] = [];
+      
+      if (topic.lessons) {
+        topicLessons.push(...topic.lessons);
+      }
+      
+      if (topic.subTopics) {
+        const sortedSubTopics = [...topic.subTopics].sort((a, b) => a.sortOrder - b.sortOrder);
+        for (const subTopic of sortedSubTopics) {
+          if (subTopic.lessons) {
+            topicLessons.push(...subTopic.lessons);
+          }
+        }
+      }
+      
+      topicLessons.sort((a, b) => a.sortOrder - b.sortOrder);
+      lessons.push(...topicLessons);
+    }
+
+    console.log(`[CourseDataService] Collected ${lessons.length} lessons from course ${course.title}`);
+    return lessons;
+  }
+
+  // Get lesson count for a course (utility method)
+  getLessonCountForCourse(courseId: number): number {
+    const course = this.getCourseById(courseId);
+    if (!course) return 0;
+    
+    return this.collectLessonsFromCourse(course).length;
+  }
+
+  // Validate course has lessons for scheduling
+  validateCourseForScheduling(courseId: number): { hasLessons: boolean; lessonCount: number } {
+    const course = this.getCourseById(courseId);
+    if (!course) {
+      return { hasLessons: false, lessonCount: 0 };
+    }
+    
+    const lessons = this.collectLessonsFromCourse(course);
+    return {
+      hasLessons: lessons.length > 0,
+      lessonCount: lessons.length
+    };
+  }
 }

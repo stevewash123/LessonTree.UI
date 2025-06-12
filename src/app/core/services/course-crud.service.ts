@@ -1,14 +1,13 @@
-// RESPONSIBILITY: Handles CRUD API operations, error handling, user feedback (toasts), course management logic, and schedule loading coordination.
-// DOES NOT: Manage data state or emit signals directly - delegates to CourseDataService.
-// CALLED BY: InfoPanel components for CRUD operations, LessonCalendarComponent for course management
+// RESPONSIBILITY: Pure CRUD API operations, error handling, and user feedback for course entities
+// DOES NOT: Handle course management, selection logic, or business rules - delegates to specialized services
+// CALLED BY: InfoPanel components for CRUD operations
 
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { tap, catchError, map, switchMap } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from './api.service';
 import { CourseDataService } from './course-data.service';
-import { NodeSelectionService } from './node-selection.service';
 import { Course } from '../../models/course';
 import { Topic } from '../../models/topic';
 import { SubTopic } from '../../models/subTopic';
@@ -18,189 +17,18 @@ import { Lesson, LessonDetail } from '../../models/lesson';
   providedIn: 'root'
 })
 export class CourseCrudService {
-  // Injected services
-  private readonly nodeSelectionService = inject(NodeSelectionService);
   
   constructor(
     private apiService: ApiService,
     private courseDataService: CourseDataService,
     private toastr: ToastrService
   ) {
-    console.log('[CourseCrudService] Service initialized', { timestamp: new Date().toISOString() });
-    
-    // Load courses initially when service is created
-    this.loadCourses().subscribe({
-      next: (courses) => {
-        console.log('[CourseCrudService] Initial courses loaded:', courses.length, { timestamp: new Date().toISOString() });
-      },
-      error: (error) => {
-        console.error('[CourseCrudService] Failed to load initial courses:', error, { timestamp: new Date().toISOString() });
-      }
+    console.log('[CourseCrudService] Service initialized for pure CRUD operations', { 
+      timestamp: new Date().toISOString() 
     });
   }
 
-  // === COURSE MANAGEMENT METHODS (NEW) ===
-
-  /**
-   * Get the first available active course for default selection
-   */
-  getFirstAvailableCourse(): Course | null {
-    const activeCourses = this.courseDataService.activeCourses();
-    
-    if (activeCourses.length === 0) {
-      console.warn('[CourseCrudService] No active courses available for default selection', { 
-        timestamp: new Date().toISOString() 
-      });
-      return null;
-    }
-
-    const firstCourse = activeCourses[0];
-    console.log('[CourseCrudService] Found first available course', {
-      courseId: firstCourse.id,
-      courseTitle: firstCourse.title,
-      timestamp: new Date().toISOString()
-    });
-
-    return firstCourse;
-  }
-
-  /**
-   * Select the first available course programmatically
-   */
-  selectFirstAvailableCourse(source: 'calendar' | 'programmatic' = 'programmatic'): boolean {
-    const firstCourse = this.getFirstAvailableCourse();
-    
-    if (!firstCourse) {
-      console.warn('[CourseCrudService] Cannot select first course - no courses available', { 
-        timestamp: new Date().toISOString() 
-      });
-      return false;
-    }
-
-    console.log('[CourseCrudService] Selecting first available course', {
-      courseId: firstCourse.id,
-      courseTitle: firstCourse.title,
-      source,
-      timestamp: new Date().toISOString()
-    });
-
-    this.nodeSelectionService.selectById(firstCourse.id, 'Course', source);
-    return true;
-  }
-
-  /**
-   * Load courses and optionally select first available
-   */
-  loadCoursesAndSelectFirst(
-    courseFilter: 'active' | 'archived' | 'both' = 'active',
-    visibilityFilter: 'private' | 'team' = 'private',
-    autoSelectFirst: boolean = true,
-    selectionSource: 'calendar' | 'programmatic' = 'programmatic'
-  ): Observable<Course[]> {
-    console.log('[CourseCrudService] Loading courses with auto-selection', {
-      courseFilter,
-      visibilityFilter,
-      autoSelectFirst,
-      selectionSource,
-      timestamp: new Date().toISOString()
-    });
-
-    return this.loadCourses(courseFilter, visibilityFilter).pipe(
-        tap(courses => {
-            if (autoSelectFirst && courses.length > 0) {
-              // Only auto-select if nothing is currently selected
-              const hasSelection = this.nodeSelectionService.hasSelection();
-              
-              if (!hasSelection) {
-                console.log('[CourseCrudService] Auto-selecting first course after load', {
-                  coursesLoaded: courses.length,
-                  hasSelection,
-                  timestamp: new Date().toISOString()
-                });
-                
-                this.selectFirstAvailableCourse(selectionSource);
-              } else {
-                console.log('[CourseCrudService] Skipping auto-selection - node already selected', {
-                  selectedNodeType: this.nodeSelectionService.selectedNodeType(),
-                  selectedNodeId: this.nodeSelectionService.selectedNodeId(),
-                  timestamp: new Date().toISOString()
-                });
-              }
-            }
-          })
-    );
-  }
-
-  /**
-   * Check if courses are available for calendar/tree operations
-   */
-  hasCoursesAvailable(): boolean {
-    return this.courseDataService.activeCourses().length > 0;
-  }
-
-  /**
-   * Get course count for display/logging
-   */
-  getActiveCourseCount(): number {
-    return this.courseDataService.activeCourses().length;
-  }
-
-  /**
-   * Get course by ID with error handling
-   */
-  getCourseByIdSafely(courseId: number): Course | null {
-    const course = this.courseDataService.getCourseById(courseId);
-    
-    if (!course) {
-      console.warn('[CourseCrudService] Course not found', {
-        courseId,
-        availableCourses: this.courseDataService.activeCourses().map(c => c.id),
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    return course;
-  }
-
-  /**
-   * Validate course selection context for calendar operations
-   */
-  validateCourseSelection(): { isValid: boolean; courseId?: number; course?: Course; error?: string } {
-    const selectedNode = this.nodeSelectionService.selectedNode();
-    
-    if (!selectedNode) {
-      return { 
-        isValid: false, 
-        error: 'No course selected' 
-      };
-    }
-
-    if (selectedNode.nodeType !== 'Course') {
-      return { 
-        isValid: false, 
-        error: `Selected node is ${selectedNode.nodeType}, not Course` 
-      };
-    }
-
-    const courseId = selectedNode.id;
-    const course = this.getCourseByIdSafely(courseId);
-
-    if (!course) {
-      return { 
-        isValid: false, 
-        courseId, 
-        error: 'Selected course not found in data' 
-      };
-    }
-
-    return { 
-      isValid: true, 
-      courseId, 
-      course 
-    };
-  }
-
-  // === COURSE OPERATIONS (EXISTING) ===
+  // === COURSE CRUD OPERATIONS ===
 
   loadCourses(
     courseFilter: 'active' | 'archived' | 'both' = 'active',
@@ -243,7 +71,6 @@ export class CourseCrudService {
     
     console.log('[CourseCrudService] Course create payload:', courseCreatePayload);
     
-    // Remove type assertion - let TypeScript infer the correct type
     return this.apiService.createCourse(courseCreatePayload).pipe(
       tap(createdCourse => {
         console.log('[CourseCrudService] Course created successfully:', {
@@ -312,7 +139,7 @@ export class CourseCrudService {
     );
   }
 
-  // === TOPIC OPERATIONS ===
+  // === TOPIC CRUD OPERATIONS ===
   
   createTopic(topic: Topic): Observable<Topic> {
     console.log('[CourseCrudService] Creating topic:', { 
@@ -332,7 +159,6 @@ export class CourseCrudService {
     
     console.log('[CourseCrudService] Topic create payload:', topicCreatePayload);
     
-    // Remove type assertion - let TypeScript infer the correct type
     return this.apiService.createTopic(topicCreatePayload).pipe(
       tap(createdTopic => {
         console.log('[CourseCrudService] Topic created successfully:', { 
@@ -401,7 +227,7 @@ export class CourseCrudService {
     );
   }
 
-  // === SUBTOPIC OPERATIONS ===
+  // === SUBTOPIC CRUD OPERATIONS ===
   
   createSubTopic(subtopic: SubTopic): Observable<SubTopic> {
     console.log('[CourseCrudService] Creating subtopic:', { 
@@ -410,7 +236,6 @@ export class CourseCrudService {
       timestamp: new Date().toISOString() 
     });
     
-    // SubTopic API already expects full object with VisibilityType enum - no transformation needed
     return this.apiService.createSubTopic(subtopic).pipe(
       tap(createdSubTopic => {
         console.log('[CourseCrudService] SubTopic created successfully:', { 
@@ -479,7 +304,7 @@ export class CourseCrudService {
     );
   }
 
-  // === LESSON OPERATIONS ===
+  // === LESSON CRUD OPERATIONS ===
   
   createLesson(lesson: LessonDetail): Observable<LessonDetail> {
     console.log('[CourseCrudService] Creating lesson:', { 
@@ -507,7 +332,6 @@ export class CourseCrudService {
     
     console.log('[CourseCrudService] Lesson create payload:', lessonCreatePayload);
     
-    // Remove type assertion - let TypeScript infer the correct type
     return this.apiService.createLesson(lessonCreatePayload).pipe(
       map((createdLesson: LessonDetail): LessonDetail => {
         

@@ -169,17 +169,7 @@ export class SplitPanelDragService {
     const result = this._isDragging() && 
                    this._draggedPanel() !== null && 
                    this._draggedPanel() !== splitPanelType && 
-                   this._dragOverPanel() === splitPanelType;
-    
-    // Only log occasionally to reduce noise
-    if (Math.random() < 0.01) { // 1% of calls
-      console.log(`🎯 [SplitPanelDragService] IS DROP TARGET: ${splitPanelType} = ${result}`, { 
-        isDragging: this._isDragging(),
-        draggedPanel: this._draggedPanel(),
-        dragOverPanel: this._dragOverPanel(),
-        timestamp: new Date().toISOString() 
-      });
-    }
+                   this._dragOverPanel() === splitPanelType;    
     
     return result;
   }

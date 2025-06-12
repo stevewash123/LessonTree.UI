@@ -21,7 +21,7 @@ import { SchedulePersistenceService } from '../services/schedule-persistence.ser
 import { CalendarConfigurationService } from '../services/calendar-configuration.service';
 import { CalendarCoordinationService } from '../services/calendar-coordination.service';
 import { CalendarInteractionService } from '../services/calendar-interaction.service';
-import { ScheduleContextService } from '../services/schedule-context.service';
+import { ContextMenuService } from '../services/context-menu.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { UserService } from '../../../core/services/user.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
@@ -103,7 +103,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
     private calendarConfigService: CalendarConfigurationService,
     private calendarCoordination: CalendarCoordinationService,
     private calendarInteraction: CalendarInteractionService, // NEW: Interaction service
-    private scheduleContextService: ScheduleContextService,
+    private scheduleContextService: ContextMenuService,
     private nodeSelectionService: NodeSelectionService,
     private userService: UserService,
     private courseDataService: CourseDataService,

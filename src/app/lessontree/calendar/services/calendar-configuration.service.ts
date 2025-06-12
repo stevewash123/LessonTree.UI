@@ -11,6 +11,13 @@ import { ScheduleStateService } from './schedule-state.service';
 import { UserService } from '../../../core/services/user.service';
 import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 
+// Constants for default schedule configuration
+const DEFAULT_TEACHING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const SCHOOL_YEAR_START_MONTH = 7; // August (0-indexed)
+const SCHOOL_YEAR_START_DAY = 1;
+const SCHOOL_YEAR_END_MONTH = 5; // June (0-indexed) 
+const SCHOOL_YEAR_END_DAY = 15;
+
 @Injectable({
   providedIn: 'root'
 })
@@ -52,6 +59,39 @@ export class CalendarConfigurationService {
     private userService: UserService
   ) {
     console.log('[CalendarConfigurationService] Initialized for master schedule configuration');
+  }
+
+  
+  // Get default date range for current school year
+  getDefaultDateRange(): { startDate: Date; endDate: Date } {
+    const currentYear = new Date().getFullYear();
+    return {
+      startDate: new Date(currentYear, SCHOOL_YEAR_START_MONTH, SCHOOL_YEAR_START_DAY),
+      endDate: new Date(currentYear + 1, SCHOOL_YEAR_END_MONTH, SCHOOL_YEAR_END_DAY)
+    };
+  }
+
+  // Get default teaching days
+  getDefaultTeachingDays(): string[] {
+    return [...DEFAULT_TEACHING_DAYS];
+  }
+
+  // Get school year for a given date
+  getSchoolYearForDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    
+    // School year runs from August to July
+    if (month >= SCHOOL_YEAR_START_MONTH) {
+      return `${year}-${year + 1}`;
+    } else {
+      return `${year - 1}-${year}`;
+    }
+  }
+
+  // Get current school year
+  getCurrentSchoolYear(): string {
+    return this.getSchoolYearForDate(new Date());
   }
 
   // Create base calendar options - EVENT-BASED ONLY

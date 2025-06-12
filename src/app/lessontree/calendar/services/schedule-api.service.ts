@@ -1,3 +1,4 @@
+// **COMPLETE FILE** - lesson-calendar.service.ts
 // RESPONSIBILITY: Handles HTTP API operations for schedules and schedule events (CRUD operations).
 // DOES NOT: Manage state, transform data, or handle UI logic - pure API service.
 // CALLED BY: ScheduleStateService and ScheduleEventService for persistence operations.
@@ -16,50 +17,38 @@ import { ScheduleEventCreateResource, ScheduleEvent, ScheduleEventUpdateResource
 @Injectable({
   providedIn: 'root'
 })
-export class LessonCalendarService {
+export class ScheduleApiService {
   private apiUrl: string = environment.apiUrl + '/api';
 
   constructor(private http: HttpClient) {
     console.log('[LessonCalendarService] Initialized for ScheduleEvent API operations');
   }
 
-  getMasterScheduleForUser(userId: number): Observable<Schedule | null> {
-    console.log(`[LessonCalendarService] Fetching master schedule for user ID ${userId}`, { timestamp: new Date().toISOString() });
+  // === MASTER SCHEDULE OPERATIONS - UPDATED TO USE EXISTING ENDPOINTS ===
+
+  getMasterScheduleForUser(): Observable<Schedule | null> {
+    console.log('[LessonCalendarService] Fetching master schedule for current user');
     
-    // OPTION 1: If you have master schedule endpoints
-    return this.http.get<Schedule>(`${this.apiUrl}/Schedule/master/user/${userId}`).pipe(
+    return this.http.get<Schedule>(`${this.apiUrl}/User/masterSchedule`).pipe(
       map(response => this.transformResponse<Schedule>(response)),
       catchError((error) => {
         if (error.status === 404) {
-          console.log(`[LessonCalendarService] No master schedule found for user ID ${userId}`);
+          console.log('[LessonCalendarService] No master schedule found for current user');
           return of(null);
         }
-        console.error(`[LessonCalendarService] Failed to fetch master schedule for user ID ${userId}: ${error.message}`);
+        console.error(`[LessonCalendarService] Failed to fetch master schedule: ${error.message}`);
         throw error;
       })
     );
-  
-    // OPTION 2: If no master endpoints, adapt existing endpoint
-    // return this.http.get<Schedule[]>(`${this.apiUrl}/Schedule?userId=${userId}`).pipe(
-    //   map(response => {
-    //     const schedules = this.transformResponse<Schedule[]>(response);
-    //     return schedules.find(s => s.title.includes('Master')) || null;
-    //   }),
-    //   catchError((error) => {
-    //     console.error(`[LessonCalendarService] Failed to fetch schedules for user ID ${userId}: ${error.message}`);
-    //     return of(null);
-    //   })
-    // );
   }
   
   createMasterSchedule(scheduleCreate: ScheduleCreateResource): Observable<Schedule> {
-    console.log(`[LessonCalendarService] Creating master schedule`, { 
+    console.log('[LessonCalendarService] Creating master schedule', { 
       title: scheduleCreate.title,
       timestamp: new Date().toISOString() 
     });
     
-    // OPTION 1: If you have master schedule endpoints
-    return this.http.post<Schedule>(`${this.apiUrl}/Schedule/master`, scheduleCreate).pipe(
+    return this.http.post<Schedule>(`${this.apiUrl}/User/masterSchedule`, scheduleCreate).pipe(
       map(response => this.transformResponse<Schedule>(response)),
       tap((newSchedule) => console.log(`[LessonCalendarService] Created master schedule ID ${newSchedule.id}`)),
       catchError((error) => {
@@ -67,9 +56,34 @@ export class LessonCalendarService {
         throw error;
       })
     );
-  
-    // OPTION 2: If no master endpoints, use regular create
-    // return this.createSchedule(scheduleCreate as Schedule);
+  }
+
+  updateMasterScheduleEvents(scheduleId: number, scheduleEvents: ScheduleEvent[]): Observable<Schedule> {
+    console.log(`[LessonCalendarService] Updating master schedule events for ID ${scheduleId}`, { 
+      eventCount: scheduleEvents.length,
+      timestamp: new Date().toISOString() 
+    });
+    
+    return this.http.put<Schedule>(`${this.apiUrl}/User/masterSchedule/${scheduleId}/events`, scheduleEvents).pipe(
+      map(response => this.transformResponse<Schedule>(response)),
+      tap((updatedSchedule) => console.log(`[LessonCalendarService] Updated master schedule events ID ${updatedSchedule.id}`)),
+      catchError((error) => {
+        console.error(`[LessonCalendarService] Failed to update master schedule events: ${error.message}`);
+        throw error;
+      })
+    );
+  }
+
+  deleteMasterSchedule(scheduleId: number): Observable<void> {
+    console.log(`[LessonCalendarService] Deleting master schedule ID ${scheduleId}`);
+    
+    return this.http.delete<void>(`${this.apiUrl}/User/masterSchedule/${scheduleId}`).pipe(
+      tap(() => console.log(`[LessonCalendarService] Deleted master schedule ID ${scheduleId}`)),
+      catchError((error) => {
+        console.error(`[LessonCalendarService] Failed to delete master schedule: ${error.message}`);
+        throw error;
+      })
+    );
   }
 
   /** Transforms API response data, handling $values and converting keys to camelCase */
@@ -107,7 +121,7 @@ export class LessonCalendarService {
     return obj;
   }
 
-  // === SCHEDULE CRUD OPERATIONS ===
+  // === SCHEDULE CRUD OPERATIONS (for non-master schedules) ===
 
   getSchedule(scheduleId: number): Observable<Schedule> {
     console.log(`[LessonCalendarService] Fetching schedule ID ${scheduleId}`, { timestamp: new Date().toISOString() });
@@ -125,20 +139,8 @@ export class LessonCalendarService {
     );
   }
 
-  getSchedulesByCourse(courseId: number): Observable<Schedule[]> {
-    console.log(`[LessonCalendarService] Fetching schedules for course ID ${courseId}`, { timestamp: new Date().toISOString() });
-    return this.http.get<Schedule[]>(`${this.apiUrl}/Schedule/course/${courseId}`).pipe(
-      map(response => this.transformResponse<Schedule[]>(response)),
-      tap((schedules) => console.log(`[LessonCalendarService] Fetched ${schedules.length} schedules for course ID ${courseId}`, { timestamp: new Date().toISOString() })),
-      catchError((error) => {
-        console.error(`[LessonCalendarService] Failed to fetch schedules for course ID ${courseId}: ${error.message}`, { timestamp: new Date().toISOString() });
-        throw error;
-      })
-    );
-  }
-
   createSchedule(schedule: Schedule): Observable<Schedule> {
-    console.log(`[LessonCalendarService] Creating schedule`, { // REMOVED: courseId reference
+    console.log(`[LessonCalendarService] Creating schedule`, {
       title: schedule.title,
       hasScheduleEvents: (schedule.scheduleEvents?.length || 0) > 0,
       timestamp: new Date().toISOString() 
@@ -181,7 +183,7 @@ export class LessonCalendarService {
       date: scheduleEvent.date,
       period: scheduleEvent.period,
       lessonId: scheduleEvent.lessonId,
-      eventType: scheduleEvent.eventType, // FIXED: was specialCode
+      eventType: scheduleEvent.eventType,
       timestamp: new Date().toISOString() 
     });
     return this.http.post<ScheduleEvent>(`${this.apiUrl}/ScheduleEvent`, scheduleEvent).pipe(
@@ -189,7 +191,7 @@ export class LessonCalendarService {
       tap((newEvent) => console.log(`[LessonCalendarService] Added schedule event ID ${newEvent.id}`, {
         period: newEvent.period,
         lessonId: newEvent.lessonId,
-        eventType: newEvent.eventType, // FIXED: was specialCode
+        eventType: newEvent.eventType,
         timestamp: new Date().toISOString() 
       })),
       catchError((error) => {
@@ -203,7 +205,7 @@ export class LessonCalendarService {
     console.log(`[LessonCalendarService] Updating schedule event ID ${scheduleEvent.id}`, { 
       period: scheduleEvent.period,
       lessonId: scheduleEvent.lessonId,
-      eventType: scheduleEvent.eventType, // FIXED: was specialCode
+      eventType: scheduleEvent.eventType,
       timestamp: new Date().toISOString() 
     });
     return this.http.put<ScheduleEvent>(`${this.apiUrl}/ScheduleEvent/${scheduleEvent.id}`, scheduleEvent).pipe(
@@ -218,6 +220,7 @@ export class LessonCalendarService {
       })
     );
   }
+
   deleteScheduleEvent(scheduleEventId: number): Observable<void> {
     console.log(`[LessonCalendarService] Deleting schedule event ID ${scheduleEventId}`, { timestamp: new Date().toISOString() });
     return this.http.delete<void>(`${this.apiUrl}/ScheduleEvent/${scheduleEventId}`).pipe(
@@ -259,27 +262,18 @@ export class LessonCalendarService {
     return {
       apiUrl: this.apiUrl,
       endpointsAvailable: [
-        'Schedule CRUD',
+        'Master Schedule CRUD (User endpoints)',
+        'Schedule CRUD (General)',
         'ScheduleEvent CRUD', 
         'Schedule Config Updates',
         'Bulk Event Operations'
       ]
     };
   }
+
+  // DEPRECATED - Use updateMasterScheduleEvents instead
   updateMasterSchedule(schedule: Schedule): Observable<Schedule> {
-    console.log(`[LessonCalendarService] Updating master schedule ID ${schedule.id}`, { 
-      title: schedule.title,
-      timestamp: new Date().toISOString() 
-    });
-    
-    
-    return this.http.put<Schedule>(`${this.apiUrl}/Schedule/master/${schedule.id}`, schedule).pipe(
-      map(response => this.transformResponse<Schedule>(response)),
-      tap((updatedSchedule) => console.log(`[LessonCalendarService] Updated master schedule ID ${updatedSchedule.id}`)),
-      catchError((error) => {
-        console.error(`[LessonCalendarService] Failed to update master schedule: ${error.message}`);
-        throw error;
-      })
-    );
+    console.warn('[LessonCalendarService] updateMasterSchedule is deprecated, use updateMasterScheduleEvents');
+    return this.updateMasterScheduleEvents(schedule.id, schedule.scheduleEvents || []);
   }
 }

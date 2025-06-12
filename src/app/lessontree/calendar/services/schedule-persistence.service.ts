@@ -1,17 +1,17 @@
-// RESPONSIBILITY: Handles master schedule persistence operations (load, save, generate) and coordinates with state management.
-// DOES NOT: Generate schedule events, manage UI state, or handle period logic - delegates to specialized services.
-// CALLED BY: CalendarCoordinationService for master schedule persistence operations.
+// RESPONSIBILITY: Pure schedule persistence operations (load, save, create, update)
+// DOES NOT: Handle user configuration, validation, or state queries - delegates to specialized services
+// CALLED BY: CalendarCoordinationService for master schedule persistence operations
+
 import { Injectable } from '@angular/core';
-import { Observable, of, catchError, map, switchMap, tap } from 'rxjs';
+import { Observable, of, catchError, map, switchMap, tap, throwError } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 
 import { ScheduleStateService } from './schedule-state.service';
 import { ScheduleGenerationService } from './schedule-generation.service';
-import { LessonCalendarService } from './lesson-calendar.service';
+import { ScheduleValidationService } from './schedule-validation.service';
+import { ScheduleApiService } from './schedule-api.service';
 import { UserService } from '../../../core/services/user.service';
 import { Schedule, ScheduleCreateResource, ScheduleConfigUpdateResource } from '../../../models/schedule';
-import { parseId } from '../../../core/utils/type-conversion.utils';
-import { formatTeachingDaysToString } from '../../../models/utils/shared.utils';
 
 @Injectable({
   providedIn: 'root'
@@ -21,83 +21,76 @@ export class SchedulePersistenceService {
   constructor(
     private scheduleStateService: ScheduleStateService,
     private scheduleGenerationService: ScheduleGenerationService,
-    private calendarService: LessonCalendarService,
+    private scheduleValidationService: ScheduleValidationService,
+    private calendarService: ScheduleApiService,
     private userService: UserService,
     private toastr: ToastrService
   ) {
-    console.log('[SchedulePersistenceService] Initialized for master schedule persistence');
+    console.log('[SchedulePersistenceService] Initialized for pure schedule persistence');
   }
 
   // === MASTER SCHEDULE LOADING ===
 
-  // Load master schedule for current user
   loadMasterSchedule(): Observable<boolean> {
-    console.log('[SchedulePersistenceService] Loading master schedule');
+    console.log('[SchedulePersistenceService] Loading master schedule for current user');
     
-    const currentUser = this.userService.getCurrentUser();
-    if (!currentUser) {
-      console.warn('[SchedulePersistenceService] No current user available');
-      return of(false);
-    }
-
-    const userId = parseId(currentUser.id);
-    if (!userId) {
-      console.warn('[SchedulePersistenceService] Invalid user ID');
-      return of(false);
-    }
-
-    return this.calendarService.getMasterScheduleForUser(userId).pipe(
-        tap(schedule => {
-          if (schedule) {
-            console.log(`[SchedulePersistenceService] Loaded master schedule: ${schedule.title}`);
-            this.scheduleStateService.setMasterSchedule(schedule, false);
-          } else {
-            console.log('[SchedulePersistenceService] No existing master schedule found');
-          }
-        }),
-        map(schedule => schedule !== null),
-        catchError((error: any) => {
-          console.warn('[SchedulePersistenceService] Failed to load master schedule:', error.message);
-          return of(false);
-        })
-      );
+    return this.calendarService.getMasterScheduleForUser().pipe(
+      tap(schedule => {
+        if (schedule) {
+          console.log(`[SchedulePersistenceService] Loaded master schedule: ${schedule.title}`);
+          this.scheduleStateService.setMasterSchedule(schedule, false);
+        } else {
+          console.log('[SchedulePersistenceService] No existing master schedule found');
+        }
+      }),
+      map(schedule => schedule !== null),
+      catchError((error: any) => {
+        console.warn('[SchedulePersistenceService] Failed to load master schedule:', error.message);
+        return of(false);
+      })
+    );
   }
 
   // === MASTER SCHEDULE GENERATION ===
 
-  // Generate and set master schedule in state
   generateAndSetMasterSchedule(): Observable<void> {
     console.log('[SchedulePersistenceService] Generating master schedule');
     
-    const result = this.scheduleGenerationService.createMasterSchedule();
-    
-    if (result.success && result.schedule) {
-      // Set the generated master schedule in state
-      this.scheduleStateService.setMasterSchedule(result.schedule, true);
+    try {
+      const result = this.scheduleGenerationService.createMasterSchedule();
       
-      // Show notifications for any issues
-      if (result.warnings.length > 0) {
-        result.warnings.forEach((warning: string) => {
-          this.toastr.warning(warning, 'Schedule Warning');
+      if (result.success && result.schedule) {
+        // Set the generated master schedule in state
+        this.scheduleStateService.setMasterSchedule(result.schedule, true);
+        
+        // Show notifications for any issues
+        if (result.warnings.length > 0) {
+          result.warnings.forEach((warning: string) => {
+            this.toastr.warning(warning, 'Schedule Warning');
+          });
+        }
+        
+        console.log(`[SchedulePersistenceService] Generated master schedule with ${result.schedule.scheduleEvents?.length || 0} events`);
+        return of(void 0);
+      } else {
+        // Handle generation errors
+        result.errors.forEach((error: string) => {
+          this.toastr.error(error, 'Schedule Generation Error');
+          console.error('[SchedulePersistenceService] Generation error:', error);
         });
+        
+        console.error('[SchedulePersistenceService] Failed to generate master schedule');
+        return throwError(() => new Error(`Master schedule generation failed: ${result.errors.join(', ')}`));
       }
-      
-      console.log(`[SchedulePersistenceService] Generated master schedule with ${result.schedule.scheduleEvents?.length || 0} events`);
-      return of(void 0);
-    } else {
-      // Handle generation errors
-      result.errors.forEach((error: string) => {
-        this.toastr.error(error, 'Schedule Generation Error');
-      });
-      
-      console.error('[SchedulePersistenceService] Failed to generate master schedule');
-      throw new Error('Master schedule generation failed');
+    } catch (error: any) {
+      console.error('[SchedulePersistenceService] Exception during generation:', error);
+      this.toastr.error('Schedule generation failed', 'Error');
+      return throwError(() => error);
     }
   }
 
   // === MASTER SCHEDULE SAVING ===
 
-  // Save current master schedule
   saveCurrentMasterSchedule(): Observable<void> {
     console.log('[SchedulePersistenceService] Saving current master schedule');
     
@@ -127,20 +120,33 @@ export class SchedulePersistenceService {
   // Save master schedule to API
   private saveMasterSchedule(schedule: Schedule): Observable<Schedule> {
     if (schedule.id && schedule.id > 0) {
-      // Update existing schedule
-      return this.calendarService.updateMasterSchedule(schedule);
+      // Update existing master schedule events
+      return this.calendarService.updateMasterScheduleEvents(schedule.id, schedule.scheduleEvents || []);
     } else {
-      // Create new schedule
+      // Create new master schedule
       const createResource: ScheduleCreateResource = {
         title: schedule.title,
         startDate: schedule.startDate,
         endDate: schedule.endDate,
-        teachingDays: schedule.teachingDays // FIXED: Use array directly
+        teachingDays: schedule.teachingDays
       };
       
-      return this.calendarService.createMasterSchedule(createResource);
+      return this.calendarService.createMasterSchedule(createResource).pipe(
+        switchMap(createdSchedule => {
+          // After creating, update with events if any exist
+          if (schedule.scheduleEvents && schedule.scheduleEvents.length > 0) {
+            return this.calendarService.updateMasterScheduleEvents(
+              createdSchedule.id, 
+              schedule.scheduleEvents
+            );
+          }
+          return of(createdSchedule);
+        })
+      );
     }
   }
+
+  // === SCHEDULE SELECTION ===
 
   selectScheduleById(scheduleId: number): Observable<Schedule> {
     console.log(`[SchedulePersistenceService] Selecting schedule ID ${scheduleId}`);
@@ -161,24 +167,9 @@ export class SchedulePersistenceService {
     // Alias for the existing saveCurrentMasterSchedule method
     return this.saveCurrentMasterSchedule();
   }
-  
-  loadSchedulesForCourse(courseId: number): Observable<Schedule[]> {
-    console.log(`[SchedulePersistenceService] Loading schedules for course ID ${courseId}`);
-    
-    return this.calendarService.getSchedulesByCourse(courseId).pipe(
-      tap(schedules => {
-        console.log(`[SchedulePersistenceService] Loaded ${schedules.length} schedules for course ID ${courseId}`);
-      }),
-      catchError((error: any) => {
-        console.error(`[SchedulePersistenceService] Failed to load schedules for course ID ${courseId}: ${error.message}`);
-        throw error;
-      })
-    );
-  }
 
   // === SCHEDULE CONFIGURATION ===
 
-  // Update master schedule configuration
   updateMasterScheduleConfig(config: {
     title?: string;
     startDate?: Date;
@@ -195,13 +186,13 @@ export class SchedulePersistenceService {
     }
 
     const configUpdate: ScheduleConfigUpdateResource = {
-        id: currentSchedule.id,
-        title: config.title || currentSchedule.title,
-        startDate: config.startDate || currentSchedule.startDate,
-        endDate: config.endDate || currentSchedule.endDate,
-        teachingDays: config.teachingDays || currentSchedule.teachingDays, // FIXED: Use array directly
-        isLocked: config.isLocked !== undefined ? config.isLocked : currentSchedule.isLocked || false
-      };
+      id: currentSchedule.id,
+      title: config.title || currentSchedule.title,
+      startDate: config.startDate || currentSchedule.startDate,
+      endDate: config.endDate || currentSchedule.endDate,
+      teachingDays: config.teachingDays || currentSchedule.teachingDays,
+      isLocked: config.isLocked !== undefined ? config.isLocked : currentSchedule.isLocked || false
+    };
 
     return this.calendarService.updateScheduleConfig(configUpdate).pipe(
       tap(updatedSchedule => {
@@ -215,16 +206,15 @@ export class SchedulePersistenceService {
 
   // === MASTER SCHEDULE OPERATIONS ===
 
-  // Create new master schedule (replaces current)
   createNewMasterSchedule(title: string, startDate: Date, endDate: Date, teachingDays: string[]): Observable<void> {
     console.log('[SchedulePersistenceService] Creating new master schedule');
     
     const createResource: ScheduleCreateResource = {
-        title,
-        startDate,
-        endDate,
-        teachingDays: teachingDays // FIXED: Use array directly, not joined
-      };
+      title,
+      startDate,
+      endDate,
+      teachingDays: teachingDays
+    };
 
     return this.calendarService.createMasterSchedule(createResource).pipe(
       switchMap(newSchedule => {
@@ -241,7 +231,6 @@ export class SchedulePersistenceService {
     );
   }
 
-  // Lock/unlock master schedule
   lockMasterSchedule(isLocked: boolean): Observable<void> {
     console.log(`[SchedulePersistenceService] ${isLocked ? 'Locking' : 'Unlocking'} master schedule`);
     
@@ -253,55 +242,22 @@ export class SchedulePersistenceService {
     );
   }
 
-  // === SCHEDULE VALIDATION ===
+  // === STATE DELEGATION METHODS ===
 
-  // Validate current master schedule can be saved
-  validateMasterScheduleForSaving(): { canSave: boolean; issues: string[] } {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    const issues: string[] = [];
-
-    if (!currentSchedule) {
-      issues.push('No master schedule available');
-      return { canSave: false, issues };
-    }
-
-    if (!currentSchedule.title?.trim()) {
-      issues.push('Schedule title is required');
-    }
-
-    if (!currentSchedule.startDate || !currentSchedule.endDate) {
-      issues.push('Start and end dates are required');
-    }
-
-    if (currentSchedule.startDate && currentSchedule.endDate && 
-        new Date(currentSchedule.startDate) >= new Date(currentSchedule.endDate)) {
-      issues.push('End date must be after start date');
-    }
-
-    const eventCount = currentSchedule.scheduleEvents?.length || 0;
-    if (eventCount === 0) {
-      issues.push('Schedule has no events');
-    }
-
-    return {
-      canSave: issues.length === 0,
-      issues
-    };
-  }
-
-  // === STATE QUERIES ===
-
-  // Check if master schedule can be saved
   canSaveMasterSchedule(): boolean {
     return this.scheduleStateService.canSaveSchedule();
   }
 
-  // Check if master schedule has unsaved changes
   hasUnsavedChanges(): boolean {
     return this.scheduleStateService.hasUnsavedChanges();
   }
 
-  // Get master schedule save status
+  // === VALIDATION DELEGATION METHODS ===
+
+  validateMasterScheduleForSaving(): { canSave: boolean; issues: string[] } {
+    return this.scheduleValidationService.validateMasterScheduleForSaving();
+  }
+
   getMasterScheduleStatus(): {
     hasSchedule: boolean;
     isInMemory: boolean;
@@ -310,27 +266,16 @@ export class SchedulePersistenceService {
     title: string;
     eventCount: number;
   } {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    
-    return {
-      hasSchedule: currentSchedule !== null,
-      isInMemory: this.scheduleStateService.isInMemorySchedule(),
-      hasUnsavedChanges: this.scheduleStateService.hasUnsavedChanges(),
-      canSave: this.scheduleStateService.canSaveSchedule(),
-      title: currentSchedule?.title || 'No Schedule',
-      eventCount: currentSchedule?.scheduleEvents?.length || 0
-    };
+    return this.scheduleValidationService.getMasterScheduleStatus();
   }
 
   // === CLEANUP AND UTILITIES ===
 
-  // Clear current master schedule
   clearMasterSchedule(): void {
     console.log('[SchedulePersistenceService] Clearing master schedule');
     this.scheduleStateService.clearMasterSchedule();
   }
 
-  // Reload master schedule from scratch
   reloadMasterSchedule(): Observable<void> {
     console.log('[SchedulePersistenceService] Reloading master schedule');
     
@@ -348,15 +293,7 @@ export class SchedulePersistenceService {
     );
   }
 
-  // Get debug information
   getDebugInfo(): any {
-    const scheduleStatus = this.getMasterScheduleStatus();
-    const validation = this.validateMasterScheduleForSaving();
-    
-    return {
-      ...scheduleStatus,
-      validation,
-      stateDebugInfo: this.scheduleStateService.getDebugInfo()
-    };
+    return this.scheduleValidationService.getDebugInfo();
   }
 }

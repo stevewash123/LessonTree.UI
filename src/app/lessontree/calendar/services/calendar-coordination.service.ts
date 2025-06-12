@@ -7,12 +7,12 @@ import { CalendarOptions } from '@fullcalendar/core';
 import { ScheduleStateService } from './schedule-state.service';
 import { SchedulePersistenceService } from './schedule-persistence.service';
 import { CalendarEventService } from './calendar-event.service';
-import { CalendarConfigurationService } from './calendar-configuration.service';
 import { UserService } from '../../../core/services/user.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
-import { CourseCrudService } from '../../../core/services/course-crud.service';
+
 import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
+import { CourseManagementService } from '../../../core/services/course-management.service';
 
 export interface CalendarRefreshCallbacks {
   getCalendarApi: () => any;
@@ -31,10 +31,9 @@ export class CalendarCoordinationService {
     private scheduleStateService: ScheduleStateService,
     private schedulePersistenceService: SchedulePersistenceService,
     private calendarEventService: CalendarEventService,
-    private calendarConfigService: CalendarConfigurationService,
     private userService: UserService,
     private courseDataService: CourseDataService,
-    private courseCrudService: CourseCrudService
+    private courseManagementService: CourseManagementService,
   ) {
     console.log('[CalendarCoordinationService] Initialized for master schedule coordination');
   }
@@ -158,34 +157,40 @@ export class CalendarCoordinationService {
     });
   }
 
-  // Generate new master schedule
+  // Calculate hidden days from teaching days array
+  private calculateHiddenDays(teachingDaysArray: string[]): number[] {
+    // Convert day names to numbers (0=Sunday, 1=Monday, etc.)
+    const dayNameToNumber: { [key: string]: number } = {
+      'Sunday': 0,
+      'Monday': 1,
+      'Tuesday': 2,
+      'Wednesday': 3,
+      'Thursday': 4,
+      'Friday': 5,
+      'Saturday': 6
+    };
+
+    const teachingDayNumbers = teachingDaysArray
+      .map(day => dayNameToNumber[day])
+      .filter(num => num !== undefined);
+
+    // Return all days that are NOT teaching days
+    const allDays = [0, 1, 2, 3, 4, 5, 6];
+    return allDays.filter(day => !teachingDayNumbers.includes(day));
+  }
+
+  // Generate master schedule using ScheduleGenerationService
   private generateMasterSchedule(): void {
-    console.log('[CalendarCoordinationService] Generating new master schedule');
+    console.log('[CalendarCoordinationService] generateMasterSchedule');
     
     this.schedulePersistenceService.generateAndSetMasterSchedule().subscribe({
       next: () => {
         console.log('[CalendarCoordinationService] Master schedule generated successfully');
       },
       error: (error: any) => {
-        console.error('[CalendarCoordinationService] Failed to generate master schedule:', error);
+        console.error('[CalendarCoordinationService] Error generating master schedule:', error);
       }
     });
-  }
-
-  // Calculate hidden days from teaching days array
-  private calculateHiddenDays(teachingDays: string[]): number[] {
-    const dayMap = {
-      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
-      'Thursday': 4, 'Friday': 5, 'Saturday': 6
-    };
-    
-    const allDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const hiddenDayNumbers = allDays
-      .filter(day => !teachingDays.includes(day))
-      .map(day => dayMap[day as keyof typeof dayMap]);
-    
-    console.log(`[CalendarCoordinationService] Teaching: ${teachingDays.join(', ')}, Hidden: ${hiddenDayNumbers.join(', ')}`);
-    return hiddenDayNumbers;
   }
 
   // Refresh calendar events only - handles both populated and empty states
@@ -251,12 +256,12 @@ export class CalendarCoordinationService {
 
   // Check if courses are available
   hasCoursesAvailable(): boolean {
-    return this.courseCrudService.hasCoursesAvailable();
+    return this.courseManagementService.hasCoursesAvailable();
   }
 
   // Get active course count
   getActiveCourseCount(): number {
-    return this.courseCrudService.getActiveCourseCount();
+    return this.courseManagementService.getActiveCourseCount();
   }
 
   // Get master schedule info for display

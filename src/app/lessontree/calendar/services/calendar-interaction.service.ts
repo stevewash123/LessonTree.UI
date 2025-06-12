@@ -6,7 +6,7 @@ import { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { ToastrService } from 'ngx-toastr';
 
 import { CalendarEventService } from './calendar-event.service';
-import { LessonCalendarService } from './lesson-calendar.service';
+import { ScheduleApiService } from './schedule-api.service';
 import { ScheduleStateService } from './schedule-state.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
@@ -18,7 +18,7 @@ import { ScheduleEvent } from '../../../models/schedule-event.model';
 export class CalendarInteractionService {
   constructor(
     private calendarEventService: CalendarEventService,
-    private lessonCalendarService: LessonCalendarService,
+    private lessonCalendarService: ScheduleApiService,
     private scheduleStateService: ScheduleStateService,
     private nodeSelectionService: NodeSelectionService,
     private courseDataService: CourseDataService,
@@ -28,80 +28,26 @@ export class CalendarInteractionService {
   }
 
   // Orchestrate event click handling with all side effects
-  handleEventClick(arg: EventClickArg): boolean {
-    console.log('[CalendarInteractionService] handleEventClick');
-    
-    const clickResult = this.calendarEventService.handleEventClick(arg);
-    
-    if (clickResult.eventType === 'lesson' && clickResult.lesson) {
-      // Handle lesson selection
-      this.nodeSelectionService.selectById(
-        clickResult.lesson.id, 
-        'Lesson', 
-        'calendar'
-      );
-      
-      if (clickResult.message) {
-        this.toastr.info(clickResult.message, 'Calendar Selection', {
-          timeOut: 2000
-        });
-      }
-      
-      return false; // Don't open context menu
-    }
-    
-    // For non-lesson events, let caller decide on context menu
-    return clickResult.shouldOpenContextMenu;
+  public handleEventClick(arg: any): any {
+    console.log('[CalendarInteractionService] Handling event click:', arg);
+    // Return the event data for processing
+    return {
+      success: true,
+      eventData: arg.event.extendedProps || {},
+      eventId: arg.event.id
+    };
   }
 
-  // Orchestrate event drop handling with persistence and state updates
-  handleEventDrop(arg: EventDropArg): void {
-    console.log('[CalendarInteractionService] handleEventDrop');
-    
-    const dropResult = this.calendarEventService.handleEventDrop(arg);
-    
-    if (!dropResult.success) {
-      this.toastr.error(dropResult.errorMessage || 'Failed to move event', 'Error');
-      arg.revert();
-      return;
-    }
-
-    if (!dropResult.scheduleEventId || !dropResult.newDate) {
-      this.toastr.error('Missing event data', 'Error');
-      arg.revert();
-      return;
-    }
-
-    // Find the original schedule event
-    const currentSchedule = this.scheduleStateService.selectedSchedule();
-    if (!currentSchedule?.scheduleEvents) {
-      this.toastr.error('No schedule selected', 'Error');
-      arg.revert();
-      return;
-    }
-
-    const originalEvent = currentSchedule.scheduleEvents.find(
-      (event: ScheduleEvent) => event.id === dropResult.scheduleEventId
-    );
-    
-    if (!originalEvent) {
-      this.toastr.error('Schedule event not found', 'Error');
-      arg.revert();
-      return;
-    }
-
-    // Create the updated event with all original properties
-    const updatedEvent: ScheduleEvent = {
-      ...originalEvent,
-      date: dropResult.newDate
+  // Handle event drop - internal interaction logic  
+  public handleEventDrop(arg: any): any {
+    console.log('[CalendarInteractionService] Handling event drop:', arg);
+    // Return the drop result for processing
+    return {
+      success: true,
+      eventData: arg.event.extendedProps || {},
+      newDate: arg.event.start,
+      oldDate: arg.oldEvent?.start
     };
-
-    // Handle persistence based on schedule type
-    if (this.scheduleStateService.isInMemorySchedule()) {
-      this.handleInMemoryEventUpdate(updatedEvent);
-    } else {
-      this.handlePersistedEventUpdate(updatedEvent, arg);
-    }
   }
 
   // Handle lesson moves initiated from calendar

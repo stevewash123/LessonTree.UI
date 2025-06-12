@@ -6,7 +6,7 @@ import { addDays, format, isAfter, isSameDay } from 'date-fns';
 
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { ScheduleStateService } from './schedule-state.service';
-import { LessonCalendarService } from './lesson-calendar.service';
+import { ScheduleApiService } from './schedule-api.service';
 import { TeachingDayCalculationService } from './teaching-day-calculations.service';
 import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 
@@ -16,7 +16,7 @@ import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 export class LessonShiftingService {
   constructor(
     private scheduleStateService: ScheduleStateService,
-    private calendarService: LessonCalendarService,
+    private calendarService: ScheduleApiService,
     private teachingDayCalculation: TeachingDayCalculationService
   ) {
     console.log('[LessonShiftingService] Initialized for period-based lesson shifting');
