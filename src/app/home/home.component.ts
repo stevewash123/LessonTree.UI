@@ -17,13 +17,13 @@ import { MatDialog } from '@angular/material/dialog';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AuthService } from '../core/services/auth.service';
-import { UserConfigComponent } from './user-config/user-config.component';
-import { ToolbarControlsService } from '../core/services/toolbar-controls.service';
-import { CourseFilterDialogComponent } from '../lessontree/course-list/course-filter/course-filter-dialog.component';
-import { DragMode } from '../core/services/node-operations.service';
-import { LayoutMode } from '../core/services/layout-mode.service';
-import { ScheduleConfigComponent } from './schedule-config/schedule-config.component';
+import { AuthService } from '../shared/services/auth.service';
+import { UserConfigComponent } from '../user-config/user-config.component';
+import { ToolbarControlsService } from '../shared/services/toolbar-controls.service';
+import { CourseFilterDialogComponent } from '../lesson-tree/course-filter/course-filter-dialog.component';
+import { LayoutMode } from '../lesson-tree-container/layout-mode.service';
+import { ScheduleConfigComponent } from '../scheduling/schedule-config/schedule-config.component';
+import { DragMode } from '../lesson-tree/services/node-operations.service';
 
 @Component({
     selector: 'app-home',

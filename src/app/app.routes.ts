@@ -1,12 +1,13 @@
 // src/app/routes.ts
 import { Routes } from '@angular/router';
-import { authGuard } from './core/guards/auth.guard';
-import { adminGuard } from './core/guards/admin.guard';
+import { authGuard } from './shared/guards/auth.guard';
+import { adminGuard } from './shared/guards/admin.guard';
+import { AccountManagementComponent } from './account/account-management/account-management.component';
 import { HomeComponent } from './home/home.component';
 import { LandingComponent } from './landing/landing.component';
-import { AccountManagementComponent } from './account/account-management/account-management.component';
-import { UserConfigComponent } from './home/user-config/user-config.component';
-import { LessonTreeContainerComponent } from './lessontree/lesson-tree-container/lesson-tree-container.component';
+import { LessonTreeContainerComponent } from './lesson-tree-container/lesson-tree-container.component';
+import { UserConfigComponent } from './user-config/user-config.component';
+
 
 export const routes: Routes = [
   { path: '', component: LandingComponent },

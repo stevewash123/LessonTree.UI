@@ -8,7 +8,7 @@ import { importProvidersFrom } from '@angular/core';
 import { JwtModule } from '@auth0/angular-jwt';
 import { ToastrModule } from 'ngx-toastr';
 import { MatDialogModule } from '@angular/material/dialog';
-import { authInterceptor } from './app/core/interceptors/auth.interceptor';
+import { authInterceptor } from './app/shared/interceptors/auth.interceptor';
 import { TreeViewModule } from '@syncfusion/ej2-angular-navigations';
 import { registerLicense } from '@syncfusion/ej2-base';
 import { environment } from './environments/environment'; // Added

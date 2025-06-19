@@ -4,7 +4,7 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatListModule } from '@angular/material/list';
 import { MatButtonModule } from '@angular/material/button';
 import { RouterOutlet, RouterLink } from '@angular/router';
-import { AuthService } from './core/services/auth.service';
+import { AuthService } from './shared/services/auth.service';
 
 @Component({
     selector: 'app-root',
