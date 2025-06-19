@@ -278,14 +278,17 @@ export class PeriodManagementService {
   }
 
   /**
-   * Validate period assignments for conflicts and coverage
+   *   Validate period assignments for conflicts and coverage (respects config-level teaching days)
    */
-  validatePeriodAssignments(periodAssignments: FormArray): PeriodValidationResult {
+  validatePeriodAssignments(periodAssignments: FormArray, configTeachingDays?: string[]): PeriodValidationResult {
     const errors: string[] = [];
     const coverageGaps: string[] = [];
     let hasConflicts = false;
     let hasIncomplete = false;
-
+  
+    // Use config-level teaching days if provided, otherwise fall back to default
+    const expectedDays = configTeachingDays || this.getTeachingDaysArray(this.defaultTeachingDays);
+  
     periodAssignments.controls.forEach(periodControl => {
       const periodNumber = periodControl.get('period')?.value;
       const assignmentsArray = this.getPeriodAssignments(periodControl as FormGroup);
@@ -310,7 +313,14 @@ export class PeriodManagementService {
           errors.push(`Period ${periodNumber}, Assignment ${assignmentIndex + 1}: Cannot assign both course and duty`);
         }
         
-        // Check for teaching day conflicts
+        // Validate teaching days are within config-level constraints
+        const invalidDays = teachingDays.filter((day: string) => !expectedDays.includes(day));
+        if (invalidDays.length > 0) {
+          hasConflicts = true;
+          errors.push(`Period ${periodNumber}, Assignment ${assignmentIndex + 1}: Invalid days ${invalidDays.join(', ')} (not in config-level teaching days)`);
+        }
+        
+        // Check for teaching day conflicts within the period
         teachingDays.forEach((day: string) => {
           if (dayAssignments[day]) {
             hasConflicts = true;
@@ -321,9 +331,8 @@ export class PeriodManagementService {
         });
       });
       
-      // Check for coverage gaps (missing teaching days)
+      // Check for coverage gaps (missing config-level teaching days)
       const coveredDays = Object.keys(dayAssignments);
-      const expectedDays = this.getTeachingDaysArray(this.defaultTeachingDays);
       const missingDays = expectedDays.filter(day => !coveredDays.includes(day));
       
       if (missingDays.length > 0) {
@@ -331,7 +340,7 @@ export class PeriodManagementService {
         coverageGaps.push(`Period ${periodNumber}: Missing coverage for ${missingDays.join(', ')}`);
       }
     });
-
+  
     return {
       isValid: errors.length === 0 && coverageGaps.length === 0,
       hasConflicts,
@@ -340,13 +349,13 @@ export class PeriodManagementService {
       coverageGaps
     };
   }
-
+  
   /**
-   * Get validation status icon for a period
+   * Get validation status icon for a period (respects config-level teaching days)
    */
-  getPeriodValidationIcon(periodForm: FormGroup): string {
+  getPeriodValidationIcon(periodForm: FormGroup, configTeachingDays?: string[]): string {
     const assignmentsArray = this.getPeriodAssignments(periodForm);
-    const periodNumber = periodForm.get('period')?.value;
+    const expectedDays = configTeachingDays || this.getTeachingDaysArray(this.defaultTeachingDays);
     
     // Quick validation for this specific period
     const dayAssignments: { [day: string]: boolean } = {};
@@ -366,6 +375,12 @@ export class PeriodManagementService {
         hasConflicts = true;
       }
       
+      // Check for invalid days (not in config-level teaching days)
+      const invalidDays = teachingDays.filter((day: string) => !expectedDays.includes(day));
+      if (invalidDays.length > 0) {
+        hasConflicts = true;
+      }
+      
       teachingDays.forEach((day: string) => {
         if (dayAssignments[day]) {
           hasConflicts = true;
@@ -375,9 +390,8 @@ export class PeriodManagementService {
       });
     });
     
-    // Check coverage
+    // Check coverage against config-level teaching days
     const coveredDays = Object.keys(dayAssignments);
-    const expectedDays = this.getTeachingDaysArray(this.defaultTeachingDays);
     const hasGaps = expectedDays.some(day => !coveredDays.includes(day));
     
     if (hasConflicts) return 'error'; // Red X

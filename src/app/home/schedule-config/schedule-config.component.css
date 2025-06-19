@@ -1,5 +1,5 @@
-/* **COMPLETE FILE** - New schedule-config.component.css */
-/* RESPONSIBILITY: Schedule configuration component styling */
+/* **COMPLETE FILE** - Replace schedule-config.component.css */
+/* RESPONSIBILITY: Schedule configuration component styling with global teaching days */
 /* DOES NOT: Override library defaults unnecessarily */
 /* CALLED BY: ScheduleConfigComponent */
 
@@ -26,6 +26,31 @@
     grid-template-columns: 1fr 1fr 1fr 1fr;
     gap: 12px;
     align-items: end;
+  }
+  
+  /* Config-Level Teaching Days Row */
+  .config-teaching-days-row {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+  }
+  
+  .config-teaching-days-row .teaching-days-container {
+    justify-content: flex-start;
+    max-width: none;
+    margin-top: 0;
+    background: transparent;
+    border: none;
+    padding: 0;
+  }
+  
+  .config-teaching-days-row .days-label {
+    font-weight: 600;
+    color: #1976d2;
+    font-size: 14px;
+    min-width: 100px;
   }
   
   .period-assignments-section {
@@ -112,12 +137,21 @@
     gap: 16px;
   }
   
-  .assignment-fields {
+/* Desktop grid - already updated */
+.assignment-fields {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1.5fr 1fr auto;
     gap: 16px;
     align-items: start;
     flex: 1;
+  }
+  
+  /* Find the responsive media query and update it */
+  @media (max-width: 1024px) {
+    .assignment-fields {
+      grid-template-columns: 1fr auto;  /* Keep room + color button on same row */
+      gap: 8px;
+    }
   }
   
   .assignment-field {
@@ -169,6 +203,15 @@
     flex-shrink: 0;
   }
   
+  /* Disabled checkbox styling for period assignments */
+  .day-checkbox.mat-mdc-checkbox-disabled {
+    opacity: 0.5;
+  }
+  
+  .day-checkbox.mat-mdc-checkbox-disabled .mdc-checkbox {
+    opacity: 0.5;
+  }
+  
   .validation-summary {
     display: flex;
     align-items: center;
@@ -189,6 +232,32 @@
     background-color: #e8f5e8;
     border: 1px solid #4caf50;
     color: #2e7d32;
+  }
+
+  /* **PARTIAL FILE** - Add after validation summary styles in schedule-config.component.css */
+
+.validation-summary.success {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    color: #2e7d32;
+  }
+  
+  /* Loading Indicator */
+  .loading-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #374151;
+    flex-shrink: 0;
+  }
+  
+  .loading-text {
+    font-weight: 500;
   }
   
   /* Scrollbar styling */
@@ -221,10 +290,6 @@
       gap: 8px;
     }
     
-    .assignment-fields {
-      grid-template-columns: 1fr;
-      gap: 8px;
-    }
     
     .assignment-content {
       flex-direction: column;

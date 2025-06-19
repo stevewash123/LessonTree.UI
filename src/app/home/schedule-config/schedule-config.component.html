@@ -1,5 +1,5 @@
 <!-- **COMPLETE FILE** - Replace schedule-config.component.html -->
-<!-- RESPONSIBILITY: Schedule configuration UI template -->
+<!-- RESPONSIBILITY: Schedule configuration UI template with global teaching days -->
 <!-- DOES NOT: Handle business logic -->
 <!-- CALLED BY: ScheduleConfigComponent -->
 
@@ -54,6 +54,19 @@
             Required
           </mat-error>
         </mat-form-field>
+      </div>
+
+      <!-- Config-Level Teaching Days Row -->
+      <div class="config-teaching-days-row">
+        <div class="teaching-days-container">
+          <span class="days-label">Teaching Days:</span>
+          <mat-checkbox *ngFor="let day of periodMgmt.teachingDays; let k = index"
+                        [checked]="isConfigTeachingDaySelected(day)"
+                        (change)="toggleConfigTeachingDay(day)"
+                        class="day-checkbox">
+            {{periodMgmt.teachingDayAbbreviations[k]}}
+          </mat-checkbox>
+        </div>
       </div>
     </div>
 
@@ -120,6 +133,17 @@
                     <mat-label>Room</mat-label>
                     <input matInput formControlName="room" placeholder="Room">
                   </mat-form-field>
+
+                  <!-- Color Picker Button -->
+                  <button type="button" 
+                          mat-icon-button 
+                          (click)="openColorPicker(assignmentControl)"
+                          [style.background-color]="assignmentControl.get('backgroundColor')?.value"
+                          [style.color]="assignmentControl.get('fontColor')?.value"
+                          matTooltip="Change Colors"
+                          class="color-picker-btn">
+                    <mat-icon>palette</mat-icon>
+                  </button>
                 </div>
 
                 <!-- Teaching Days for this assignment -->
@@ -127,6 +151,7 @@
                   <span class="days-label">Days:</span>
                   <mat-checkbox *ngFor="let day of periodMgmt.teachingDays; let k = index"
                                 [checked]="isTeachingDaySelected(assignmentControl, day)"
+                                [disabled]="!isConfigTeachingDaySelected(day)"
                                 (change)="toggleTeachingDay(assignmentControl, day)"
                                 class="day-checkbox">
                     {{periodMgmt.teachingDayAbbreviations[k]}}
@@ -152,12 +177,19 @@
       </div>
     </div>
 
+    
     <!-- Validation Summary -->
     <div class="validation-summary" 
          [class.error]="!isFormValid"
          [class.success]="isFormValid">
       <mat-icon>{{isFormValid ? 'check_circle' : 'error'}}</mat-icon>
       <span>{{getValidationSummary()}}</span>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div *ngIf="isSaving" class="loading-container">
+      <mat-spinner diameter="24"></mat-spinner>
+      <span class="loading-text">{{getLoadingMessage()}}</span>
     </div>
   </form>
 </mat-dialog-content>

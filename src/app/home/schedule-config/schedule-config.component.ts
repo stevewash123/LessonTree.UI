@@ -6,7 +6,7 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormGroup, FormArray } from '@angular/forms';
-import { MatDialogModule, MatDialogRef } from '@angular/material/dialog';
+import { MatDialog, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -17,12 +17,15 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDatepickerModule } from '@angular/material/datepicker';
 import { MatNativeDateModule } from '@angular/material/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { CourseDataService } from '../../core/services/course-data.service';
-import { UserService } from '../../core/services/user.service';
 import { PeriodManagementService } from '../../core/services/period-management.service';
 import { ScheduleConfigService } from './schedule-config.service';
+import { ScheduleConfigurationApiService } from './schedule-config-api.service';
 import { Course } from '../../models/course';
-import { SchedulePersistenceService } from '../../lessontree/calendar/services/schedule-persistence.service';
+import { ScheduleConfiguration } from '../../models/schedule-configuration.model';
+import { catchError, of } from 'rxjs';
+import { PeriodColorData, PeriodColorPickerComponent, PeriodColorResult } from './period-color-picker.component';
 
 @Component({
   selector: 'app-schedule-config',
@@ -38,25 +41,29 @@ import { SchedulePersistenceService } from '../../lessontree/calendar/services/s
     MatTooltipModule,
     MatCheckboxModule,
     MatDatepickerModule,
-    MatNativeDateModule
+    MatNativeDateModule,
+    MatProgressSpinnerModule
   ],
   templateUrl: './schedule-config.component.html',
   styleUrls: ['./schedule-config.component.css']
 })
 export class ScheduleConfigComponent implements OnInit {
   
-
   scheduleForm: FormGroup;
   availableCourses: Course[] = [];
+  isLoading = false;
+  isSaving = false;
+  existingConfiguration: ScheduleConfiguration | null = null;
+  isUpdateMode = false;
 
   constructor(
     private dialogRef: MatDialogRef<ScheduleConfigComponent>,
+    private dialog: MatDialog,
     private snackBar: MatSnackBar,
     private courseDataService: CourseDataService,
-    private userService: UserService,
+    private scheduleConfigApi: ScheduleConfigurationApiService,
     public periodMgmt: PeriodManagementService,  // public for template
-    public scheduleConfigService: ScheduleConfigService,  // public for template
-    private schedulePersistenceService: SchedulePersistenceService
+    public scheduleConfigService: ScheduleConfigService  // public for template
   ) {
     this.scheduleForm = this.scheduleConfigService.createScheduleForm();
   }
@@ -64,7 +71,10 @@ export class ScheduleConfigComponent implements OnInit {
   ngOnInit(): void {
     console.log('[ScheduleConfig] Component initializing');
     this.loadCourses();
-    this.loadConfiguration();
+    this.loadActiveConfiguration();
+    
+    // NEW: Set form reference for service to use in validation
+    this.scheduleConfigService.setCurrentFormReference(this.scheduleForm);
   }
 
   private loadCourses(): void {
@@ -72,73 +82,51 @@ export class ScheduleConfigComponent implements OnInit {
     console.log('[ScheduleConfig] Loaded courses:', this.availableCourses.length);
   }
 
-  private loadConfiguration(): void {
-    // FIXED: Load from UserService temporarily until we have proper schedule config loading
-    // Don't generate schedule - just load the saved configuration data
-    const existingConfig = this.userService.getUserConfiguration();
+  private loadActiveConfiguration(): void {
+    this.isLoading = true;
+    console.log('[ScheduleConfig] Loading active schedule configuration');
     
-    if (existingConfig) {
-      console.log('[ScheduleConfig] Loading existing config:', existingConfig);
-      this.scheduleConfigService.loadConfigurationIntoForm(this.scheduleForm, existingConfig);
-    } else {
-      console.log('[ScheduleConfig] No existing config, using defaults');
-      this.scheduleConfigService.loadConfigurationIntoForm(this.scheduleForm, null);
-    }
+    this.scheduleConfigApi.getActiveConfiguration().pipe(
+      catchError((error) => {
+        console.log('[ScheduleConfig] No active configuration found, creating new one');
+        // If no active configuration exists, that's fine - we'll create a new one
+        return of(null);
+      })
+    ).subscribe({
+      next: (activeConfig) => {
+        this.isLoading = false;
+        
+        if (activeConfig) {
+          console.log('[ScheduleConfig] Loading from existing active configuration:', activeConfig.id);
+          this.existingConfiguration = activeConfig;
+          this.isUpdateMode = true;
+          this.scheduleConfigService.loadConfigurationIntoForm(this.scheduleForm, activeConfig);
+        } else {
+          console.log('[ScheduleConfig] No existing configuration, using defaults');
+          this.isUpdateMode = false;
+          this.loadDefaultConfiguration();
+        }
+      },
+      error: (error) => {
+        this.isLoading = false;
+        console.error('[ScheduleConfig] Failed to load configuration:', error);
+        this.snackBar.open('Failed to load configuration. Using defaults.', 'Close', { duration: 3000 });
+        this.loadDefaultConfiguration();
+      }
+    });
   }
-//   private loadScheduleConfiguration(): void {
-//     // FIXED: Get schedule config from schedule service, not user service
-//     this.schedulePersistenceService.getMasterSchedule().subscribe({
-//       next: (existingSchedule) => {
-//         console.log('[ScheduleConfig] Loaded existing schedule:', existingSchedule);
-        
-//         // Convert schedule to config format for the form
-//         const configData = existingSchedule ? {
-//           schoolYear: existingSchedule.title?.includes('2024') ? '2024-2025' : '2025-2026',
-//           periodsPerDay: this.extractPeriodsFromSchedule(existingSchedule),
-//           startDate: existingSchedule.startDate ? new Date(existingSchedule.startDate) : null,
-//           endDate: existingSchedule.endDate ? new Date(existingSchedule.endDate) : null,
-//           periodAssignments: this.extractPeriodAssignments(existingSchedule)
-//         } : null;
-        
-//         this.scheduleConfigService.loadConfigurationIntoForm(this.scheduleForm, configData);
-//       },
-//       error: (error) => {
-//         console.warn('[ScheduleConfig] No existing schedule found, using defaults:', error);
-//         this.scheduleConfigService.loadConfigurationIntoForm(this.scheduleForm, null);
-//       }
-//     });
-//   }
 
-//   private extractPeriodsFromSchedule(schedule: any): number {
-//     if (!schedule.scheduleEvents || schedule.scheduleEvents.length === 0) return 6;
+  private loadDefaultConfiguration(): void {
+    const defaultConfig = {
+      schoolYear: '2024-2025',
+      periodsPerDay: 6,
+      startDate: null,
+      endDate: null,
+      periodAssignments: []
+    };
     
-//     const maxPeriod = Math.max(...schedule.scheduleEvents.map((event: any) => event.period || 0));
-//     return maxPeriod > 0 ? maxPeriod : 6;
-//   }
-  
-//   // Helper to extract period assignments from schedule events
-//   private extractPeriodAssignments(schedule: any): any[] {
-//     if (!schedule.scheduleEvents) return [];
-    
-//     const periodMap = new Map<number, any>();
-    
-//     schedule.scheduleEvents.forEach((event: any) => {
-//       if (!periodMap.has(event.period)) {
-//         periodMap.set(event.period, {
-//           period: event.period,
-//           courseId: event.courseId,
-//           specialPeriodType: event.eventType === 'SpecialDay' ? event.eventCategory : null,
-//           teachingDays: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], // Default
-//           room: '',
-//           notes: event.comment || '',
-//           backgroundColor: '',
-//           fontColor: ''
-//         });
-//       }
-//     });
-    
-//     return Array.from(periodMap.values()).sort((a, b) => a.period - b.period);
-//   }
+    this.scheduleConfigService.loadConfigurationIntoForm(this.scheduleForm, defaultConfig);
+  }
 
   // Getters for template
   get periodAssignments(): FormArray {
@@ -147,6 +135,17 @@ export class ScheduleConfigComponent implements OnInit {
 
   get isFormValid(): boolean {
     return this.scheduleConfigService.isFormValid(this.scheduleForm);
+  }
+
+  get saveButtonText(): string {
+    if (this.isSaving) {
+      return this.isUpdateMode ? 'Updating...' : 'Saving...';
+    }
+    return this.isUpdateMode ? 'Update Configuration' : 'Save Configuration';
+  }
+
+  get dialogTitle(): string {
+    return this.isUpdateMode ? 'Update Schedule Configuration' : 'Create Schedule Configuration';
   }
 
   // Event handlers - delegate to service
@@ -173,10 +172,6 @@ export class ScheduleConfigComponent implements OnInit {
 
   isTeachingDaySelected(assignmentControl: any, day: string): boolean {
     return this.scheduleConfigService.isTeachingDaySelected(assignmentControl, day);
-  }
-
-  toggleTeachingDay(assignmentControl: any, day: string): void {
-    this.scheduleConfigService.toggleTeachingDay(assignmentControl, day);
   }
 
   getAssignments(periodControl: any): FormArray {
@@ -206,34 +201,46 @@ export class ScheduleConfigComponent implements OnInit {
       this.snackBar.open('Please complete required fields and fix validation errors', 'Close', { duration: 3000 });
       return;
     }
-  
-    // Use the actual available method signature
-    const title = this.scheduleForm.get('schoolYear')?.value + ' Master Schedule' || '2024-2025 Master Schedule';
-    const startDate = this.scheduleForm.get('startDate')?.value || new Date();
-    const endDate = this.scheduleForm.get('endDate')?.value || new Date();
-    const teachingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']; // Default
-  
-    // FIXED: Use actual method name and signature
-    this.schedulePersistenceService.createNewMasterSchedule(title, startDate, endDate, teachingDays).subscribe({
-      next: (result: any) => {
-        this.snackBar.open('Schedule configuration saved successfully', 'Close', { duration: 3000 });
+
+    this.isSaving = true;
+    console.log(`[ScheduleConfig] Starting ${this.isUpdateMode ? 'update' : 'create'} workflow`);
+
+    // Choose create or update based on whether we have an existing configuration
+    const saveOperation = this.isUpdateMode && this.existingConfiguration
+      ? this.scheduleConfigService.update(this.existingConfiguration.id, this.scheduleForm)
+      : this.scheduleConfigService.save(this.scheduleForm);
+
+    saveOperation.subscribe({
+      next: (result) => {
+        this.isSaving = false;
+        const action = this.isUpdateMode ? 'updated' : 'created';
+        const message = `Schedule configuration ${action} and schedule regenerated successfully`;
         
-        // Generate master schedule immediately after save  
-        this.schedulePersistenceService.generateAndSetMasterSchedule().subscribe({
-          next: () => {
-            this.snackBar.open('Master schedule generated', 'Close', { duration: 3000 });
-            this.dialogRef.close({ saved: true, generated: true, configuration: result });
-          },
-          error: (error: any) => {
-            console.error('Failed to generate master schedule:', error);
-            this.snackBar.open('Configuration saved, but schedule generation failed', 'Close', { duration: 5000 });
-            this.dialogRef.close({ saved: true, generated: false, configuration: result });
-          }
+        console.log(`[ScheduleConfig] ${action} workflow completed successfully:`, result.configurationId);
+        this.snackBar.open(message, 'Close', { duration: 4000 });
+        this.dialogRef.close({ 
+          saved: true, 
+          configurationId: result.configurationId,
+          isUpdate: this.isUpdateMode 
         });
       },
       error: (error: any) => {
-        console.error('[ScheduleConfig] Save failed:', error);
-        this.snackBar.open('Failed to save configuration. Please try again.', 'Close', { duration: 5000 });
+        this.isSaving = false;
+        const action = this.isUpdateMode ? 'update' : 'save';
+        
+        console.error(`[ScheduleConfig] ${action} workflow failed:`, error);
+        
+        // Provide more specific error messaging
+        let errorMessage = `Failed to ${action} configuration. `;
+        if (error.message?.includes('Configuration')) {
+          errorMessage += 'Configuration validation failed.';
+        } else if (error.message?.includes('Schedule')) {
+          errorMessage += 'Schedule generation failed.';
+        } else {
+          errorMessage += 'Please try again.';
+        }
+        
+        this.snackBar.open(errorMessage, 'Close', { duration: 5000 });
       }
     });
   }
@@ -241,4 +248,103 @@ export class ScheduleConfigComponent implements OnInit {
   cancel(): void {
     this.dialogRef.close();
   }
+
+  // Helper methods for template
+  canSave(): boolean {
+    return this.isFormValid && !this.isSaving && !this.isLoading;
+  }
+
+  getLoadingMessage(): string {
+    if (this.isLoading) return 'Loading configuration...';
+    if (this.isSaving) return this.isUpdateMode ? 'Updating configuration and regenerating schedule...' : 'Saving configuration and generating schedule...';
+    return '';
+  }
+
+/**
+ * Check if config-level teaching day is selected
+ */
+isConfigTeachingDaySelected(day: string): boolean {
+  return this.scheduleConfigService.isConfigTeachingDaySelected(this.scheduleForm, day);
+}
+
+/**
+ * Toggle config-level teaching day and update all period assignments
+ */
+toggleConfigTeachingDay(day: string): void {
+  this.scheduleConfigService.toggleConfigTeachingDay(this.scheduleForm, day);
+}
+
+/**
+ * Enhanced toggle teaching day that respects config-level constraints
+ */
+toggleTeachingDay(assignmentControl: any, day: string): void {
+    // Check if day is enabled at config level before allowing toggle
+    if (!this.isConfigTeachingDaySelected(day)) {
+      console.log(`[ScheduleConfig] Cannot select ${day} - not enabled in config-level teaching days`);
+      return;
+    }
+    
+    this.scheduleConfigService.toggleTeachingDay(assignmentControl, day);
+  }
+
+/**
+ * Check if teaching day checkbox should be disabled for period assignments
+ */
+isTeachingDayDisabled(day: string): boolean {
+  return !this.isConfigTeachingDaySelected(day);
+}
+
+
+/**
+ * Open color picker for assignment
+ */
+openColorPicker(assignmentControl: any): void {
+    const currentBackgroundColor = assignmentControl.get('backgroundColor')?.value || '#2196F3';
+    const currentFontColor = assignmentControl.get('fontColor')?.value || '#FFFFFF';
+    
+    // Get period number from parent control
+    const periodControl = this.findPeriodControlForAssignment(assignmentControl);
+    const periodNumber = periodControl?.get('period')?.value || 1;
+    
+    const dialogData: PeriodColorData = {
+      backgroundColor: currentBackgroundColor,
+      fontColor: currentFontColor,
+      periodNumber: periodNumber
+    };
+    
+    const dialogRef = this.dialog.open(PeriodColorPickerComponent, {
+      width: '500px',
+      data: dialogData,
+      disableClose: false
+    });
+    
+    dialogRef.afterClosed().subscribe((result: PeriodColorResult | undefined) => {
+      if (result) {
+        assignmentControl.patchValue({
+          backgroundColor: result.backgroundColor,
+          fontColor: result.fontColor
+        });
+        console.log(`[ScheduleConfig] Updated colors for assignment:`, result);
+      }
+    });
+  }
+  
+  /**
+   * Find the period control that contains the given assignment control
+   */
+  private findPeriodControlForAssignment(assignmentControl: any): any {
+    // Walk up the form structure to find the period control
+    for (let i = 0; i < this.periodAssignments.length; i++) {
+      const periodControl = this.periodAssignments.at(i);
+      const assignments = this.getAssignments(periodControl);
+      
+      for (let j = 0; j < assignments.length; j++) {
+        if (assignments.at(j) === assignmentControl) {
+          return periodControl;
+        }
+      }
+    }
+    return null;
+  }
+
 }

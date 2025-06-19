@@ -558,68 +558,73 @@ export class ApiService {
         return this.get<Standard[]>(`standard/course/${courseId}`, options);
     }
 
-    // **PARTIAL FILE** - Add these methods to your existing api.service.ts
-    // Add after the existing Standard methods, before the private transformKeysToCamelCaseAndEnsureArrays method
+    // === NEW SECURE USER ENDPOINTS ===
 
-    // User Configuration API Methods
-    /** Fetch user configuration by user ID */
-    getUserConfiguration(userId: number): Observable<any> {
-    console.log('ApiService: GET getUserConfiguration', {
-        url: `${this.baseUrl}/user/${userId}/configuration`,
-        userId,
-        timestamp: new Date().toISOString()
+/** Get current user's profile */
+getCurrentUserProfile(): Observable<any> {
+    console.log('ApiService: GET getCurrentUserProfile', {
+      url: `${this.baseUrl}/user/profile`,
+      timestamp: new Date().toISOString()
     });
-    return this.get<any>(`user/${userId}/configuration`);
-    }
-
-    /** Update user configuration */
-    updateUserConfiguration(userId: number, configuration: any): Observable<any> {
+    return this.get<any>('user/profile');
+  }
+  
+  /** Update current user's profile */
+  updateCurrentUserProfile(userData: any): Observable<any> {
     const body = {
-        id: configuration.id || 0,
-        userId: userId,
-        schoolYear: configuration.schoolYear,
-        periodsPerDay: configuration.periodsPerDay,
-        periodAssignments: configuration.periodAssignments
+      username: userData.username,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      phone: userData.phone,
+      district: userData.district
     };
-
-    console.log('ApiService: PUT updateUserConfiguration', {
-        url: `${this.baseUrl}/user/${userId}/configuration`,
-        body,
-        timestamp: new Date().toISOString()
+  
+    console.log('ApiService: PUT updateCurrentUserProfile', {
+      url: `${this.baseUrl}/user/profile`,
+      body,
+      timestamp: new Date().toISOString()
     });
-
-    return this.put<any>(`user/${userId}/configuration`, body);
-    }
-
-    /** Fetch user by ID */
-    getUser(userId: number): Observable<any> {
-    console.log('ApiService: GET getUser', {
-        url: `${this.baseUrl}/user/${userId}`,
-        userId,
-        timestamp: new Date().toISOString()
+  
+    return this.put<any>('user/profile', body);
+  }
+  
+  /** Delete current user's account */
+  deleteCurrentUserAccount(): Observable<void> {
+    console.log('ApiService: DELETE deleteCurrentUserAccount', {
+      url: `${this.baseUrl}/user/profile`,
+      timestamp: new Date().toISOString()
     });
-    return this.get<any>(`user/${userId}`);
-    }
-
-    /** Update user profile */
-    updateUser(userId: number, user: any): Observable<any> {
+    return this.delete<void>('user/profile');
+  }
+  
+  /** Get current user's configuration */
+  getCurrentUserConfiguration(): Observable<any> {
+    console.log('ApiService: GET getCurrentUserConfiguration', {
+      url: `${this.baseUrl}/user/configuration`,
+      timestamp: new Date().toISOString()
+    });
+    return this.get<any>('user/configuration');
+  }
+  
+  /** Update current user's configuration */
+  updateCurrentUserConfiguration(configuration: any): Observable<any> {
     const body = {
-        id: userId,
-        username: user.username,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        fullName: user.fullName,
-        district: user.district
+      schoolYear: configuration.schoolYear,
+      periodsPerDay: configuration.periodsPerDay,
+      periodAssignments: configuration.periodAssignments,
+      startDate: configuration.startDate,
+      endDate: configuration.endDate
     };
-
-    console.log('ApiService: PUT updateUser', {
-        url: `${this.baseUrl}/user/${userId}`,
-        body,
-        timestamp: new Date().toISOString()
+  
+    console.log('ApiService: PUT updateCurrentUserConfiguration', {
+      url: `${this.baseUrl}/user/configuration`,
+      body,
+      timestamp: new Date().toISOString()
     });
-
-    return this.put<any>(`user/${userId}`, body);
-    }  
+  
+    return this.put<any>('user/configuration', body);
+  }
 
     /** Transform keys to camelCase and ensure specific fields are arrays */
     private transformKeysToCamelCaseAndEnsureArrays(obj: any): any {

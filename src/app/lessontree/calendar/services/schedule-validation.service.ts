@@ -4,6 +4,7 @@
 
 import { Injectable } from '@angular/core';
 import { ScheduleStateService } from './schedule-state.service';
+import { ScheduleConfigurationStateService } from './schedule-configuration-state.service';
 import { Schedule } from '../../../models/schedule';
 
 export interface ScheduleValidationResult {
@@ -25,17 +26,21 @@ export interface ScheduleStatus {
 })
 export class ScheduleValidationService {
 
-  constructor(private scheduleStateService: ScheduleStateService) {
+  constructor(
+    private scheduleStateService: ScheduleStateService,
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService
+  ) {
     console.log('[ScheduleValidationService] Initialized for schedule validation');
   }
 
-  // Validate that master schedule can be saved
-  validateMasterScheduleForSaving(): ScheduleValidationResult {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
+  // Validate that  schedule can be saved
+  validateScheduleForSaving(): ScheduleValidationResult {
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
     const issues: string[] = [];
 
     if (!currentSchedule) {
-      issues.push('No master schedule available');
+      issues.push('No  schedule available');
       return { canSave: false, issues };
     }
 
@@ -43,13 +48,18 @@ export class ScheduleValidationService {
       issues.push('Schedule title is required');
     }
 
-    if (!currentSchedule.startDate || !currentSchedule.endDate) {
-      issues.push('Start and end dates are required');
+    if (!activeConfig) {
+      issues.push('No active configuration available');
+      return { canSave: false, issues };
     }
 
-    if (currentSchedule.startDate && currentSchedule.endDate && 
-        new Date(currentSchedule.startDate) >= new Date(currentSchedule.endDate)) {
-      issues.push('End date must be after start date');
+    if (!activeConfig.startDate || !activeConfig.endDate) {
+      issues.push('Start and end dates are required in configuration');
+    }
+
+    if (activeConfig.startDate && activeConfig.endDate && 
+        new Date(activeConfig.startDate) >= new Date(activeConfig.endDate)) {
+      issues.push('End date must be after start date in configuration');
     }
 
     const eventCount = currentSchedule.scheduleEvents?.length || 0;
@@ -63,9 +73,9 @@ export class ScheduleValidationService {
     };
   }
 
-  // Get comprehensive status of master schedule
-  getMasterScheduleStatus(): ScheduleStatus {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
+  // Get comprehensive status of  schedule
+  getScheduleStatus(): ScheduleStatus {
+    const currentSchedule = this.scheduleStateService.getSchedule();
     
     return {
       hasSchedule: currentSchedule !== null,
@@ -81,8 +91,13 @@ export class ScheduleValidationService {
   isScheduleValid(schedule: Schedule): boolean {
     if (!schedule) return false;
     if (!schedule.title?.trim()) return false;
-    if (!schedule.startDate || !schedule.endDate) return false;
-    if (new Date(schedule.startDate) >= new Date(schedule.endDate)) return false;
+    
+    // Get date validation from active configuration
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    if (!activeConfig) return false;
+    
+    if (!activeConfig.startDate || !activeConfig.endDate) return false;
+    if (new Date(activeConfig.startDate) >= new Date(activeConfig.endDate)) return false;
     return true;
   }
 
@@ -119,12 +134,22 @@ export class ScheduleValidationService {
 
   // Get debug information about validation state
   getDebugInfo(): any {
-    const scheduleStatus = this.getMasterScheduleStatus();
-    const validation = this.validateMasterScheduleForSaving();
+    const scheduleStatus = this.getScheduleStatus();
+    const validation = this.validateScheduleForSaving();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
     
     return {
       ...scheduleStatus,
       validation,
+      activeConfiguration: {
+        id: activeConfig?.id || null,
+        title: activeConfig?.title || null,
+        schoolYear: activeConfig?.schoolYear || null,
+        startDate: activeConfig?.startDate || null,
+        endDate: activeConfig?.endDate || null,
+        teachingDays: activeConfig?.teachingDays || [],
+        periodsPerDay: activeConfig?.periodsPerDay || 0
+      },
       stateDebugInfo: this.scheduleStateService.getDebugInfo(),
       validationService: {
         initialized: true,

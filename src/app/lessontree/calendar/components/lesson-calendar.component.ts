@@ -2,7 +2,7 @@
 // RESPONSIBILITY: Displays lessons in calendar format and handles direct UI interactions.
 // DOES NOT: Store schedule data, handle API operations, manage calendar configuration, handle course management, manage node selection, or coordinate complex effects - delegates to appropriate services.
 // CALLED BY: Main application router, displays calendar view of selected course lessons.
-import { Component, OnInit, OnDestroy, ViewChild, Input, computed, Signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, Input, computed, Signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
@@ -17,7 +17,6 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription } from 'rxjs';
 
 import { ScheduleStateService } from '../services/schedule-state.service';
-import { SchedulePersistenceService } from '../services/schedule-persistence.service';
 import { CalendarConfigurationService } from '../services/calendar-configuration.service';
 import { CalendarCoordinationService } from '../services/calendar-coordination.service';
 import { CalendarInteractionService } from '../services/calendar-interaction.service';
@@ -25,8 +24,9 @@ import { ContextMenuService } from '../services/context-menu.service';
 import { NodeSelectionService } from '../../../core/services/node-selection.service';
 import { UserService } from '../../../core/services/user.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
-import { CourseCrudService } from '../../../core/services/course-crud.service';
 import { parseId } from '../../../core/utils/type-conversion.utils';
+import { ScheduleConfigurationStateService } from '../services/schedule-configuration-state.service';
+import { ScheduleCoordinationService } from '../services/schedule-coordination.service';
 
 @Component({
   selector: 'app-lesson-calendar',
@@ -49,9 +49,6 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   
   // Input to control schedule controls visibility
   @Input() showScheduleControls: boolean = true;
-
-  // Subscriptions
-  private userSubscription?: Subscription;
 
   // Context menu state
   contextMenuPosition = { x: '0px', y: '0px' };
@@ -95,123 +92,135 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   }
 
   // Calendar options - created by configuration service
-  calendarOptions: CalendarOptions;
+  readonly calendarOptions = computed(() => {
+    const config = this.scheduleConfigurationStateService.activeConfiguration();
+    const events = this.calendarCoordination.calendarEvents(); // **NEW: Get events from coordination service**
+    
+    console.log('[LessonCalendarComponent] 🔄 Recomputing calendar options:', {
+      hasConfig: !!config,
+      configId: config?.id,
+      periodsPerDay: config?.periodsPerDay || 6,
+      eventCount: events.length // **NEW: Log event count**
+    });
+    
+    // Create base options
+    const baseOptions = this.calendarConfigService.createCalendarOptions(
+      this.handleEventClick.bind(this),
+      this.handleEventContextMenu.bind(this),
+      this.handleEventDrop.bind(this)
+    );
+
+    // **NEW: Add reactive events to the options**
+    return {
+      ...baseOptions,
+      events: events // This will update whenever calendarCoordination.calendarEvents() changes
+    };
+  });
 
   constructor(
     private scheduleStateService: ScheduleStateService,
-    private schedulePersistenceService: SchedulePersistenceService,
     private calendarConfigService: CalendarConfigurationService,
     private calendarCoordination: CalendarCoordinationService,
-    private calendarInteraction: CalendarInteractionService, // NEW: Interaction service
+    private calendarInteraction: CalendarInteractionService, 
     private scheduleContextService: ContextMenuService,
     private nodeSelectionService: NodeSelectionService,
     private userService: UserService,
     private courseDataService: CourseDataService,
-    private courseCrudService: CourseCrudService,
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
+    private scheduleCoordinationService: ScheduleCoordinationService,
     private dialog: MatDialog
   ) {
-    console.log('[LessonCalendarComponent] Initializing');
-
-    // PROPERLY INITIALIZE: Assign signals in constructor to avoid readonly issues
+    // Initialize readonly signals
     this.hasSelection = this.nodeSelectionService.hasSelection;
     this.selectedNodeType = this.nodeSelectionService.selectedNodeType;
     this.selectedCourse = computed(() => {
       const node = this.nodeSelectionService.selectedNode();
       return node?.nodeType === 'Course' ? node : null;
     });
-
-    // Schedule state signals - assigned in constructor
+  
     this.selectedSchedule = this.scheduleStateService.selectedSchedule;
     this.isInMemorySchedule = this.scheduleStateService.isInMemorySchedule;
     this.hasUnsavedChanges = this.scheduleStateService.hasUnsavedChanges;
     this.canSaveSchedule = this.scheduleStateService.canSaveSchedule;
-
-    // Initialize calendar options using configuration service with right-click handler
-    this.calendarOptions = this.calendarConfigService.createCalendarOptions(
-        this.handleEventClick.bind(this),
-        this.handleEventContextMenu.bind(this), // Event-based context menu
-        this.handleEventDrop.bind(this)
-      );
-
-    // Initialize coordination service with simplified calendar callbacks
+  
+    // Configuration change effect - simplified
+    effect(() => {
+      const config = this.scheduleConfigurationStateService.activeConfiguration();
+      
+      if (config && this.calendar?.getApi) {
+        const calendarApi = this.calendar.getApi();
+        
+        setTimeout(() => {
+          const newOptions = this.calendarOptions();
+          
+          if (newOptions.slotMinTime) calendarApi.setOption('slotMinTime', newOptions.slotMinTime);
+          if (newOptions.slotMaxTime) calendarApi.setOption('slotMaxTime', newOptions.slotMaxTime);
+          if (newOptions.slotDuration) calendarApi.setOption('slotDuration', newOptions.slotDuration);
+          if (newOptions.hiddenDays) calendarApi.setOption('hiddenDays', newOptions.hiddenDays);
+          
+          calendarApi.render();
+        }, 100);
+      }
+    });
+  
+    // Initialize coordination service
     this.calendarCoordination.initialize({
       getCalendarApi: () => this.calendar?.getApi(),
-      getCalendarOptions: () => this.calendarOptions,
-      setCalendarOptions: (options: CalendarOptions) => { this.calendarOptions = options; }
+      getCalendarOptions: () => this.calendarOptions(),
+      setCalendarOptions: (options: CalendarOptions) => { 
+        // No-op - using reactive signals instead
+      }
     });
   }
 
   ngOnInit(): void {
     console.log('[LessonCalendarComponent] ngOnInit');
-    
-    // Initialize user subscription
-    this.userSubscription = this.userService.user$.subscribe(user => {
-      if (parseId(user?.id || '0')) {
-        console.log(`[LessonCalendarComponent] User available: ${user!.id}`);
-      }
-    });
   }
+  
 
   ngOnDestroy(): void {
     console.log('[LessonCalendarComponent] ngOnDestroy');
-    
-    this.userSubscription?.unsubscribe();
     this.scheduleContextService.clearContext();
     this.calendarConfigService.cleanup();
     this.calendarCoordination.cleanup();
   }
 
-  // UPDATED: Use interaction service for event click orchestration
+  // Use interaction service for event click orchestration
   handleEventClick(arg: EventClickArg): void {
-    console.log('[LessonCalendarComponent] handleEventClick');
+        const shouldOpenContextMenu = this.calendarInteraction.handleEventClick(arg);
     
-    // Delegate to interaction service - it handles node selection and toasts
-    const shouldOpenContextMenu = this.calendarInteraction.handleEventClick(arg);
-    
-    // If the interaction service says we should open context menu, handle it
-    if (shouldOpenContextMenu) {
-      // Convert to right-click-like event for context menu
-      const fakeRightClick = new MouseEvent('contextmenu', {
-        clientX: (arg.jsEvent as MouseEvent).clientX,
-        clientY: (arg.jsEvent as MouseEvent).clientY,
-        button: 2
-      });
-      this.handleEventContextMenu(arg, fakeRightClick);
-    }
+        if (shouldOpenContextMenu) {
+            const fakeRightClick = new MouseEvent('contextmenu', {
+            clientX: (arg.jsEvent as MouseEvent).clientX,
+            clientY: (arg.jsEvent as MouseEvent).clientY,
+            button: 2
+            });
+            this.handleEventContextMenu(arg, fakeRightClick);
+        }
   }
 
-  // UPDATED: Use interaction service for event drop orchestration  
+  // Use interaction service for event drop orchestration  
   handleEventDrop(arg: EventDropArg): void {
-    console.log('[LessonCalendarComponent] handleEventDrop');
-    
-    // Delegate to interaction service - it handles persistence and state updates
     this.calendarInteraction.handleEventDrop(arg);
   }
 
   handleEventContextMenu(eventInfo: any, jsEvent: MouseEvent): void {
-    console.log('[LessonCalendarComponent] handleEventContextMenu');
-    
-    // FIRST: Always close any existing context menu
     if (this.contextMenuTrigger?.menuOpen) {
       this.contextMenuTrigger.closeMenu();
     }
     
-    // Create EventClickArg-compatible object for context service
     const eventClickArg: any = {
       event: eventInfo.event,
-      jsEvent: { ...jsEvent, button: 2, which: 3 }, // Right click
+      jsEvent: { ...jsEvent, button: 2, which: 3 },
       el: eventInfo.el,
       view: eventInfo.view
     };
     
-    // Set event context for the context service
     this.scheduleContextService.setEventContext(eventClickArg);
     
-    // Set context menu position and open
     this.contextMenuPosition.x = jsEvent.clientX + 'px';
     this.contextMenuPosition.y = jsEvent.clientY + 'px';
     
-    // Small delay to ensure clean menu replacement
     setTimeout(() => {
       this.contextMenuTrigger?.openMenu();
     }, 10);
@@ -219,36 +228,36 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
 
   // Handle context menu selection
   executeContextAction(action: any): void {
-    console.log('[LessonCalendarComponent] executeContextAction');
     action.handler();
     this.contextMenuTrigger?.closeMenu();
   }
 
   // Handle schedule selection from controls
   selectSchedule(scheduleId: number): void {
-    console.log('[LessonCalendarComponent] selectSchedule');
-    this.schedulePersistenceService.selectScheduleById(scheduleId).subscribe({
+    this.scheduleCoordinationService.loadActiveScheduleWithConfiguration().subscribe({
+      next: (success: boolean) => {
+        if (!success) {
+          console.error(`[LessonCalendarComponent] Failed to select schedule ${scheduleId}`);
+        }
+      },
       error: (error: any) => {
-        console.error(`[LessonCalendarComponent] Failed to select schedule ${scheduleId}:`, error);
+        console.error(`[LessonCalendarComponent] Schedule selection error:`, error);
       }
     });
-  }
+}
+  
 
   // Handle save schedule from controls
   saveSchedule(): void {
-    console.log('[LessonCalendarComponent] saveSchedule');
-    this.schedulePersistenceService.saveCurrentSchedule().subscribe({
+    this.scheduleCoordinationService.saveCurrentSchedule().subscribe({
       error: (error: any) => {
-        console.error('[LessonCalendarComponent] Failed to save schedule:', error);
+        console.error('[LessonCalendarComponent] Save schedule error:', error);
       }
     });
   }
 
   // Handle create schedule from controls
   openConfigModal(): void {
-    console.log('[LessonCalendarComponent] openConfigModal - redirecting to user configuration');
-    
-    // Open user configuration instead of calendar config modal
     const dialogRef = this.dialog.open(UserConfigComponent, {
       width: '900px',
       maxWidth: '95vw',
@@ -260,9 +269,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
   
     dialogRef.afterClosed().subscribe(result => {
       if (result?.saved) {
-        console.log('[LessonCalendarComponent] User configuration updated');
         // Optionally refresh calendar data if needed
-        // this.calendarCoordination.refreshCalendarData();
       }
     });
   }
@@ -278,16 +285,25 @@ export class LessonCalendarComponent implements OnInit, OnDestroy {
     // TODO: Implement week report generation
   }
 
-  // Public getters for template usage
-  get debugInfo() {
-    const coordinationDebug = this.calendarCoordination.getDebugInfo();
+  //spinner
+  readonly isLoadingSchedule = computed(() => {
+    const displayState = this.calendarCoordination.scheduleReadyForDisplay();
     
-    return {
-      ...coordinationDebug,
-      teachingDays: this.calendarConfigService.getCurrentTeachingDays(),
-      hiddenDays: this.calendarConfigService.getCurrentHiddenDays(),
-      canInteract: this.calendarInteraction.canInteractWithCalendar(),
-      interactionContext: this.calendarInteraction.getInteractionContext()
-    };
-  }
+    // Show loading when we have courses but schedule/config isn't ready
+    return this.hasCoursesAvailable() && 
+           ((!displayState.hasEvents && !displayState.hasConfiguration) || 
+            (displayState.hasEvents && !displayState.hasConfiguration));
+  });
+  
+  readonly loadingMessage = computed(() => {
+    const displayState = this.calendarCoordination.scheduleReadyForDisplay();
+    
+    if (!displayState.hasEvents && !displayState.hasConfiguration) {
+      return 'Loading schedule...';
+    } else if (displayState.hasEvents && !displayState.hasConfiguration) {
+      return 'Loading configuration...';
+    }
+    return '';
+  });  
+
 }

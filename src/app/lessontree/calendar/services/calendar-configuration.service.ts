@@ -1,4 +1,4 @@
-// RESPONSIBILITY: Manages FullCalendar configuration options and calendar-specific settings for master schedule.
+// RESPONSIBILITY: Manages FullCalendar configuration options and calendar-specific settings for  schedule.
 // DOES NOT: Handle events, state management, or API calls - pure configuration service.
 // CALLED BY: LessonCalendarComponent for calendar setup and configuration updates.
 import { Injectable, computed } from '@angular/core';
@@ -8,8 +8,12 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 
 import { ScheduleStateService } from './schedule-state.service';
+import { ScheduleConfigurationStateService } from './schedule-configuration-state.service';
 import { UserService } from '../../../core/services/user.service';
 import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
+import { CalendarEventInteractionService } from './calandar-event-interaction.service';
+import { CalendarDayCellService } from './calendar-day-cell.service';
+import { CalendarEventTemplateService } from './calendar-event-template.service';
 
 // Constants for default schedule configuration
 const DEFAULT_TEACHING_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -22,13 +26,13 @@ const SCHOOL_YEAR_END_DAY = 15;
   providedIn: 'root'
 })
 export class CalendarConfigurationService {
-  // Computed teaching days for calendar display from master schedule
+  // Computed teaching days for calendar display from active configuration
   readonly teachingDays = computed(() => {
-    const masterSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!masterSchedule?.teachingDays) {
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    if (!activeConfig?.teachingDays) {
       return ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
     }
-    return parseTeachingDaysToArray(masterSchedule.teachingDays);
+    return parseTeachingDaysToArray(activeConfig.teachingDays);
   });
 
   // Computed hidden days for FullCalendar (0=Sunday, 1=Monday, etc.)
@@ -48,20 +52,23 @@ export class CalendarConfigurationService {
     return hiddenDayNumbers;
   });
 
-  // Computed periods per day from user configuration
+  // Computed periods per day from active configuration
   readonly periodsPerDay = computed(() => {
-    const userConfig = this.userService.getUserConfiguration();
-    return userConfig?.periodsPerDay || 6;
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    return activeConfig?.periodsPerDay || 6;
   });
 
   constructor(
     private scheduleStateService: ScheduleStateService,
-    private userService: UserService
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
+    private userService: UserService,
+    private templateService: CalendarEventTemplateService,
+    private interactionService: CalendarEventInteractionService,
+    private dayCellService: CalendarDayCellService
   ) {
-    console.log('[CalendarConfigurationService] Initialized for master schedule configuration');
+    console.log('[CalendarConfigurationService] Initialized with extracted services');
   }
 
-  
   // Get default date range for current school year
   getDefaultDateRange(): { startDate: Date; endDate: Date } {
     const currentYear = new Date().getFullYear();
@@ -92,210 +99,11 @@ export class CalendarConfigurationService {
   // Get current school year
   getCurrentSchoolYear(): string {
     return this.getSchoolYearForDate(new Date());
-  }
+  }  
 
-  // Create base calendar options - EVENT-BASED ONLY
-  createCalendarOptions(
-    eventClickHandler: (arg: any) => void,
-    eventContextMenuHandler: (event: any, jsEvent: MouseEvent) => void,
-    eventDropHandler: (arg: any) => void
-  ): CalendarOptions {
-    console.log('[CalendarConfigurationService] Creating calendar options for master schedule');
-
-    return {
-      plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
-      initialView: this.getOptimalCalendarView(),
-      dayCellDidMount: (arg) => this.handleDayCellMount(arg),
-      eventDidMount: (info) => this.handleEventMount(info, eventClickHandler, eventContextMenuHandler),
-      events: [],
-      eventClick: () => {}, // Disabled - we use DOM listeners
-      editable: true,
-      eventDrop: eventDropHandler,
-      selectable: false, // No date selection for master schedule
-      selectMirror: false,
-      hiddenDays: this.hiddenDays(),
-      height: 'auto',
-      headerToolbar: {
-        left: 'prev,next today',
-        center: 'title',
-        right: 'dayGridMonth,timeGridWeek'
-      },
-      slotMinTime: '07:00:00',
-      slotMaxTime: '18:00:00',
-      allDaySlot: false,
-      slotLabelFormat: {
-        hour: 'numeric',
-        minute: '2-digit',
-        omitZeroMinute: false
-      }
-    };
-  }
-
-  // Handle day cell mounting - DISPLAY ONLY (no interactions)
-  private handleDayCellMount(arg: any): void {
-    // Basic styling for day cells - no interaction handlers
-    const dayEl = arg.el;
-    
-    // Add period count display for teaching days
-    const date = arg.date;
-    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
-    
-    if (this.teachingDays().includes(dayName)) {
-      dayEl.classList.add('teaching-day');
-      
-      // Add period count indicator
-      const periodCount = this.periodsPerDay();
-      const periodIndicator = document.createElement('div');
-      periodIndicator.className = 'period-count-indicator';
-      periodIndicator.textContent = `${periodCount} periods`;
-      dayEl.appendChild(periodIndicator);
-    } else {
-      dayEl.classList.add('non-teaching-day');
-    }
-    
-    console.log('[CalendarConfigurationService] Day cell mounted with master schedule styling');
-  }
-
-  // Handle event mounting - FULL EVENT INTERACTION with period colors
-  private handleEventMount(
-    info: any, 
-    eventClickHandler: (arg: any) => void,
-    eventContextMenuHandler: (event: any, jsEvent: MouseEvent) => void
-  ): void {
-    console.log('[CalendarConfigurationService] Event mounted, attaching DOM listeners with period colors');
-    
-    // LEFT CLICK: Direct event interaction
-    info.el.addEventListener('click', (jsEvent: MouseEvent) => {
-      jsEvent.stopPropagation();
-      console.log('[CalendarConfigurationService] Event left-clicked via DOM listener');
-      
-      const eventClickArg = this.createEventClickArg(info, jsEvent);
-      eventClickHandler(eventClickArg);
-    });
-    
-    // RIGHT CLICK: Context menu
-    info.el.addEventListener('contextmenu', (jsEvent: MouseEvent) => {
-      jsEvent.preventDefault();
-      jsEvent.stopPropagation();
-      console.log('[CalendarConfigurationService] Event right-clicked via DOM listener');
-      
-      eventContextMenuHandler(info, jsEvent);
-    });
-    
-    // Apply master schedule event styling with period colors
-    this.applyMasterScheduleEventStyling(info);
-  }
-
-  // Helper: Create FullCalendar-compatible EventClickArg from DOM event
-  private createEventClickArg(info: any, jsEvent: MouseEvent): any {
-    return {
-      event: info.event,
-      jsEvent: jsEvent,
-      el: info.el,
-      view: info.view
-    };
-  }
-
-  // Apply master schedule event styling with period colors and type indicators
-  private applyMasterScheduleEventStyling(info: any): void {
-    const event = info.event;
-    const extendedProps = event.extendedProps || {};
-    const scheduleEvent = extendedProps.scheduleEvent;
-    const periodAssignment = extendedProps.periodAssignment;
-    
-    // Clear any default styling
-    info.el.style.backgroundColor = '';
-    info.el.style.border = '';
-    info.el.style.color = '';
-    
-    // Apply period colors if available
-    if (periodAssignment) {
-      info.el.style.backgroundColor = periodAssignment.backgroundColor;
-      info.el.style.color = periodAssignment.fontColor;
-      info.el.style.borderColor = periodAssignment.fontColor;
-      info.el.style.borderWidth = '2px';
-    }
-    
-    // Apply CSS classes based on event type
-    if (scheduleEvent) {
-      const eventType = scheduleEvent.eventType;
-      const eventCategory = scheduleEvent.eventCategory;
-      
-      // Clear existing event type classes
-      info.el.classList.remove('calendar-event-lesson', 'calendar-event-special-period', 
-                              'calendar-event-special-day', 'calendar-event-error');
-      
-      if (eventCategory === 'Lesson') {
-        info.el.classList.add('calendar-event-lesson');
-      } else if (eventCategory === 'SpecialPeriod') {
-        info.el.classList.add('calendar-event-special-period');
-      } else if (eventCategory === 'SpecialDay') {
-        info.el.classList.add('calendar-event-special-day');
-      } else if (eventType === 'Error') {
-        info.el.classList.add('calendar-event-error');
-        // Override colors for error events to be more prominent
-        info.el.style.backgroundColor = '#ffebee';
-        info.el.style.color = '#d32f2f';
-        info.el.style.borderColor = '#f44336';
-      }
-    }
-    
-    // Ensure events are clickable and distinct
-    info.el.style.cursor = 'pointer';
-    info.el.style.position = 'relative';
-    info.el.style.zIndex = '1';
-    info.el.style.fontSize = '0.85em';
-    
-    // Add period number badge
-    const period = extendedProps.period;
-    if (period) {
-      const periodBadge = document.createElement('span');
-      periodBadge.className = 'period-badge';
-      periodBadge.textContent = `P${period}`;
-      periodBadge.style.cssText = `
-        position: absolute;
-        top: -5px;
-        right: -5px;
-        background: ${periodAssignment?.fontColor || '#333'};
-        color: ${periodAssignment?.backgroundColor || '#fff'};
-        border-radius: 50%;
-        width: 18px;
-        height: 18px;
-        font-size: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: bold;
-        z-index: 2;
-      `;
-      info.el.style.position = 'relative';
-      info.el.appendChild(periodBadge);
-    }
-    
-    console.log('[CalendarConfigurationService] Applied master schedule styling with period colors');
-  }
-
-  // Update calendar options with current master schedule data
-  updateCalendarOptionsForMasterSchedule(options: CalendarOptions): CalendarOptions {
-    const masterSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!masterSchedule) {
-      console.log('[CalendarConfigurationService] No master schedule available for options update');
-      return options;
-    }
-
-    console.log('[CalendarConfigurationService] Updating options for master schedule');
-
-    if (masterSchedule.startDate) {
-      options.initialDate = new Date(masterSchedule.startDate);
-    }
-
-    options.hiddenDays = this.hiddenDays();
-    options.initialView = this.getOptimalCalendarView();
-    
-    return options;
-  }
-
-  // Get current teaching days from master schedule
+  
+  
+  // Get current teaching days from active configuration
   getCurrentTeachingDays(): string[] {
     return this.teachingDays();
   }
@@ -321,33 +129,156 @@ export class CalendarConfigurationService {
     return this.isTeachingDay(dayName);
   }
 
-  // Get default calendar view based on teaching days and periods
-  getOptimalCalendarView(): string {
-    const teachingDaysCount = this.teachingDays().length;
-    const periodsCount = this.periodsPerDay();
-    
-    // If many periods or few teaching days, use week view for better visibility
-    if (periodsCount >= 7 || teachingDaysCount <= 3) {
-      return 'timeGridWeek';
-    }
-    
-    return 'dayGridMonth';
-  }
 
-  // Get master schedule configuration summary
-  getMasterScheduleConfigSummary(): {
+  // Get  schedule configuration summary
+  getScheduleConfigSummary(): {
     teachingDays: string[];
     hiddenDays: number[];
     periodsPerDay: number;
     hasSchedule: boolean;
     optimalView: string;
+    extractedServices: any;
   } {
     return {
       teachingDays: this.getCurrentTeachingDays(),
       hiddenDays: this.getCurrentHiddenDays(),
       periodsPerDay: this.periodsPerDay(),
       hasSchedule: this.scheduleStateService.hasActiveSchedule(),
-      optimalView: this.getOptimalCalendarView()
+      optimalView: this.getOptimalCalendarView(),
+      extractedServices: {
+        template: this.templateService.getDebugInfo(),
+        interaction: this.interactionService.getDebugInfo(),
+        dayCell: this.dayCellService.getDebugInfo()
+      }
+    };
+  }
+  
+  
+  /**
+   * Update createCalendarOptions to use period configuration
+   */
+  // **REPLACEMENT** - Update createCalendarOptions in calendar-configuration.service.ts
+
+  // **PARTIAL FILE** - Replace these methods in calendar-configuration.service.ts
+
+  // **PARTIAL FILE** - Replace these methods in calendar-configuration.service.ts
+
+  createCalendarOptions(
+  handleEventClick: (arg: any) => void,
+  handleEventContextMenu: (eventInfo: any, jsEvent: MouseEvent) => void,
+  handleEventDrop: (arg: any) => void
+): CalendarOptions {
+  const periodsCount = this.periodsPerDay();
+  
+  return {
+    plugins: [timeGridPlugin, interactionPlugin],
+    initialView: 'timeGridWeek',
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'timeGridWeek,timeGridDay'
+    },
+    
+    // === PERIOD CONFIGURATION ===
+    slotLabelFormat: (date) => {
+      const currentHour = date.date.hour;
+      const startHour = 8;
+      const periodNumber = currentHour - startHour + 1;
+      
+      if (periodNumber > 0 && periodNumber <= periodsCount) {
+        return `Period ${periodNumber}`;
+      }
+      return '';
+    },
+    
+    // === TIME CONFIGURATION ===
+    height: 'auto',
+    slotDuration: '01:00:00',
+    slotMinTime: '08:00:00',
+    slotMaxTime: `${8 + periodsCount}:00:00`,
+    hiddenDays: this.hiddenDays(),
+    expandRows: true,
+    
+    // === EVENT CONFIGURATION (Delegated) ===
+    eventContent: (arg) => {
+      const scheduleEvent = arg.event.extendedProps?.['scheduleEvent'];
+      const periodAssignment = this.getPeriodAssignmentForEvent(scheduleEvent);
+      const html = this.templateService.generateEventHTML(scheduleEvent, periodAssignment);
+      return { html };
+    },
+    
+    eventDidMount: (info) => {
+      this.interactionService.mountEvent(info, handleEventContextMenu);
+    },
+    
+    dayCellDidMount: (arg) => {
+      this.dayCellService.mountDayCell(arg, this.teachingDays(), periodsCount);
+    },
+    
+    // === EVENT HANDLERS ===
+    eventClick: handleEventClick,
+    eventDrop: handleEventDrop,
+    
+    // === CALENDAR BEHAVIOR ===
+    editable: true,
+    selectable: true,
+    selectMirror: true,
+    dayMaxEvents: true,
+    allDaySlot: false,
+    eventDisplay: 'block',
+  };
+}
+    
+  // **ADD THIS HELPER METHOD** to calendar-configuration.service.ts
+  private getPeriodAssignmentForEvent(scheduleEvent: any): any | null {
+    if (!scheduleEvent?.period) return null;
+    
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    if (!activeConfig?.periodAssignments) return null;
+    
+    return activeConfig.periodAssignments.find(
+      (assignment: any) => assignment.period === scheduleEvent.period
+    ) || null;
+  }
+  
+  /**
+   * MODIFY EXISTING METHOD - Update getOptimalCalendarView to prefer week view
+   */
+  getOptimalCalendarView(): string {
+    const teachingDaysCount = this.teachingDays().length;
+    const periodsCount = this.periodsPerDay();
+    
+    // Always prefer week view for period-based display
+    // Month view will be tweaked separately later
+    return 'timeGridWeek';
+  }
+  
+  /**
+   * Get period configuration summary for debugging
+   */
+  getPeriodConfigSummary(): {
+    periodsPerDay: number;
+    periodSlots: string[];
+    timeRange: { start: string; end: string };
+    slotDuration: string;
+  } {
+    const periodsCount = this.periodsPerDay();
+    const startHour = 8;
+    const endHour = startHour + periodsCount;
+    
+    const periodSlots = [];
+    for (let i = 1; i <= periodsCount; i++) {
+      periodSlots.push(`Period ${i}`);
+    }
+    
+    return {
+      periodsPerDay: periodsCount,
+      periodSlots,
+      timeRange: {
+        start: `${startHour.toString().padStart(2, '0')}:00:00`,
+        end: `${endHour.toString().padStart(2, '0')}:00:00`
+      },
+      slotDuration: '01:00:00'
     };
   }
 
@@ -355,4 +286,6 @@ export class CalendarConfigurationService {
   cleanup(): void {
     console.log('[CalendarConfigurationService] Cleanup completed');
   }
+
+  
 }

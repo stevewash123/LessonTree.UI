@@ -63,13 +63,6 @@ export class UserService {
       
       if (!parsedUserId) {
         console.error('[UserService] No user ID found in token claims');
-        console.error('[UserService] Token structure:', {
-          hasUserId: !!decoded.userId,
-          hasId: !!decoded.id,
-          hasSub: !!decoded.sub,
-          hasNameId: !!decoded.nameid,
-          allClaims: Object.keys(decoded)
-        });
         this.userSubject.next(null);
         observer.error('No user ID in token');
         return;
@@ -111,10 +104,10 @@ export class UserService {
         roles: baseUser.roles
       });
   
-      // Load application data from API
+      // ✅ FIXED: Load application data using NEW secure endpoints
       forkJoin({
-        user: this.apiService.getUser(parsedUserId),           // For district
-        config: this.apiService.getUserConfiguration(parsedUserId) // For configuration
+        user: this.apiService.getCurrentUserProfile(),           // NEW secure endpoint
+        config: this.apiService.getCurrentUserConfiguration()    // NEW secure endpoint
       }).pipe(
         map(({ user: userResponse, config: configResponse }) => {
           // Add application data from API
@@ -225,25 +218,21 @@ export class UserService {
       return throwError(() => new Error('No current user found'));
     }
   
-    const userId = parseInt(currentUser.id, 10);
-    
-    // Prepare API payload - compute fullName from firstName + lastName
+    // ✅ FIXED: Use NEW secure endpoint
     const apiProfileUpdate = {
-      id: userId,
       username: currentUser.username, // Keep existing username
       firstName: profileUpdate.firstName,
       lastName: profileUpdate.lastName,
-      fullName: `${profileUpdate.firstName} ${profileUpdate.lastName}`.trim(), // Computed
       district: currentUser.district, // Keep existing district
-      email: profileUpdate.email || currentUser.email || '', // Use existing if not provided
-      phone: profileUpdate.phone || currentUser.phone || ''   // Use existing if not provided
+      email: profileUpdate.email || currentUser.email || '', 
+      phone: profileUpdate.phone || currentUser.phone || ''   
     };
     
-    console.log('[UserService] Updating user profile:', apiProfileUpdate);
+    console.log('[UserService] Updating user profile with new secure endpoint:', apiProfileUpdate);
     
-    return this.apiService.updateUser(userId, apiProfileUpdate).pipe(
+    return this.apiService.updateCurrentUserProfile(apiProfileUpdate).pipe(
       map((response: any) => {
-        // Update local user state - no fullName property needed
+        // Update local user state
         const updatedUser: User = {
           ...currentUser,
           firstName: profileUpdate.firstName,
@@ -270,10 +259,9 @@ export class UserService {
     if (!currentUser) {
         return throwError(() => new Error('No current user found'));
     }
-
-    const userId = parseInt(currentUser.id, 10);
-    
-    return this.apiService.updateUserConfiguration(userId, configUpdate).pipe(
+  
+    // ✅ FIXED: Use NEW secure endpoint (no userId parameter needed)
+    return this.apiService.updateCurrentUserConfiguration(configUpdate).pipe(
         map((response: any) => {
             const updatedConfig: UserConfiguration = {
                 lastUpdated: new Date(response.lastUpdated || Date.now()),
@@ -283,13 +271,13 @@ export class UserService {
                 endDate: response.endDate ? new Date(response.endDate) : this.getDefaultSchoolYearEnd(),
                 periodAssignments: this.transformPeriodAssignments(response.periodAssignments || [])
               }
-
+  
             const updatedUser: User = {
                 ...currentUser,
                 configuration: updatedConfig
             };
-
-            console.log('[UserService] User configuration updated:', updatedConfig);
+  
+            console.log('[UserService] User configuration updated with secure endpoint:', updatedConfig);
             this.userSubject.next(updatedUser);
             
             return updatedConfig;
@@ -333,37 +321,4 @@ export class UserService {
     return user?.configuration !== undefined;
   }
 
-    getPeriodAssignment(period: number): PeriodAssignment | null {
-        const config = this.getUserConfiguration();
-        if (!config) return null;
-        
-        return config.periodAssignments?.find(assignment => assignment.period === period) || null;
-    }
-
-    getPeriodAssignmentsForCourse(courseId: number): PeriodAssignment[] {
-        const config = this.getUserConfiguration();
-        if (!config || !config.periodAssignments) return [];
-        
-        return config.periodAssignments.filter(assignment => assignment.courseId === courseId);
-    }
-
-    getPeriodsPerDay(): number {
-        const config = this.getUserConfiguration();
-        return config?.periodsPerDay || 6;
-    }
-
-  // NEW: Period configuration helpers for calendar service
-  getAllPeriods(): number[] {
-    const periodsPerDay = this.getPeriodsPerDay();
-    return Array.from({ length: periodsPerDay }, (_, i) => i + 1);
-  }
-
-  isPeriodAssigned(period: number): boolean {
-    return this.getPeriodAssignment(period) !== null;
-  }
-
-  getPeriodCourseId(period: number): number | null {
-    const assignment = this.getPeriodAssignment(period);
-    return assignment?.courseId || null;
-  }
 }

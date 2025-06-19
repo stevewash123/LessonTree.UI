@@ -1,12 +1,17 @@
-// **COMPLETE FILE** - New schedule-config.service.ts
-// RESPONSIBILITY: Schedule configuration form logic and validation
+// **COMPLETE FILE** - Replace schedule-config.service.ts
+// RESPONSIBILITY: Schedule configuration form logic, validation, and triggering schedule regeneration
 // DOES NOT: Handle UI concerns or dialog management
 // CALLED BY: ScheduleConfigComponent
 
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators } from '@angular/forms';
-import { Course } from '../../models/course';
+import { Observable, tap, map, switchMap } from 'rxjs';
 import { PeriodManagementService } from '../../core/services/period-management.service';
+import { ScheduleConfigurationStateService } from '../../lessontree/calendar/services/schedule-configuration-state.service';
+import { SchedulePersistenceService } from '../../lessontree/calendar/services/schedule-persistence.service';
+import { ScheduleConfigurationCreateResource, ScheduleConfigUpdateResource, SchedulePeriodAssignment } from '../../models/schedule-configuration.model';
+import { ScheduleConfigurationApiService } from './schedule-config-api.service';
+import { ScheduleCoordinationService } from '../../lessontree/calendar/services/schedule-coordination.service';
 
 export interface ScheduleFormData {
   schoolYear: string;
@@ -20,8 +25,6 @@ export interface ScheduleFormData {
   providedIn: 'root'
 })
 export class ScheduleConfigService {
-  private fb = inject(FormBuilder);
-  private periodMgmt = inject(PeriodManagementService);
 
   readonly specialPeriodOptions = [
     { value: 'Lunch', label: 'Lunch' },
@@ -32,6 +35,14 @@ export class ScheduleConfigService {
     { value: 'Other Duty', label: 'Other Duty' }
   ];
 
+  constructor(
+    private fb: FormBuilder,
+    private periodMgmt: PeriodManagementService,
+    private scheduleConfigApi: ScheduleConfigurationApiService,
+    private scheduleConfigStateService: ScheduleConfigurationStateService,
+    private scheduleCoordinationService: ScheduleCoordinationService
+  ) {}
+
   /**
    * Create the main schedule form
    */
@@ -41,6 +52,7 @@ export class ScheduleConfigService {
       periodsPerDay: [6, [Validators.required, Validators.min(1), Validators.max(10)]],
       startDate: [null, Validators.required],
       endDate: [null, Validators.required],
+      teachingDays: [this.periodMgmt.getTeachingDaysArray(this.periodMgmt.defaultTeachingDays), Validators.required], // NEW: Config-level teaching days
       periodAssignments: this.fb.array([])
     });
   }
@@ -54,7 +66,8 @@ export class ScheduleConfigService {
         schoolYear: existingConfig.schoolYear || '2024-2025',
         periodsPerDay: existingConfig.periodsPerDay || 6,
         startDate: existingConfig.startDate || null,
-        endDate: existingConfig.endDate || null
+        endDate: existingConfig.endDate || null,
+        teachingDays: existingConfig.teachingDays || this.periodMgmt.getTeachingDaysArray(this.periodMgmt.defaultTeachingDays) // NEW: Load config-level teaching days
       });
       
       const periodAssignments = form.get('periodAssignments') as FormArray;
@@ -68,6 +81,7 @@ export class ScheduleConfigService {
       this.initializePeriods(form.get('periodAssignments') as FormArray, 6);
     }
   }
+  
 
   /**
    * Initialize periods with defaults
@@ -131,28 +145,11 @@ export class ScheduleConfigService {
   }
 
   /**
-   * Toggle teaching day selection
-   */
-  toggleTeachingDay(assignmentControl: any, day: string): void {
-    const teachingDays = assignmentControl.get('teachingDays')?.value || [];
-    const index = teachingDays.indexOf(day);
-    
-    if (index > -1) {
-      teachingDays.splice(index, 1);
-    } else {
-      teachingDays.push(day);
-    }
-    
-    assignmentControl.patchValue({
-      teachingDays: [...teachingDays]
-    });
-  }
-
-  /**
    * Get validation icon for period
    */
   getValidationIcon(periodControl: any): string {
-    return this.periodMgmt.getPeriodValidationIcon(periodControl);
+    const globalTeachingDays = this.currentFormRef?.get('teachingDays')?.value || [];
+    return this.periodMgmt.getPeriodValidationIcon(periodControl, globalTeachingDays);
   }
 
   /**
@@ -174,7 +171,14 @@ export class ScheduleConfigService {
   isFormValid(form: FormGroup): boolean {
     const basicFormValid = form.valid;
     const periodAssignments = form.get('periodAssignments') as FormArray;
-    const periodValidation = this.periodMgmt.validatePeriodAssignments(periodAssignments);
+    const globalTeachingDays = form.get('teachingDays')?.value || [];
+    
+    // Validate that at least one global teaching day is selected
+    if (globalTeachingDays.length === 0) {
+      return false;
+    }
+    
+    const periodValidation = this.periodMgmt.validatePeriodAssignments(periodAssignments, globalTeachingDays);
     return basicFormValid && periodValidation.isValid;
   }
 
@@ -182,12 +186,19 @@ export class ScheduleConfigService {
    * Get validation summary text
    */
   getValidationSummary(form: FormGroup): string {
+    const globalTeachingDays = form.get('teachingDays')?.value || [];
+    
+    // Check global teaching days first
+    if (globalTeachingDays.length === 0) {
+      return 'Select at least one teaching day';
+    }
+    
     if (!form.valid) {
       return 'Complete required schedule fields';
     }
     
     const periodAssignments = form.get('periodAssignments') as FormArray;
-    const validation = this.periodMgmt.validatePeriodAssignments(periodAssignments);
+    const validation = this.periodMgmt.validatePeriodAssignments(periodAssignments, globalTeachingDays);
     
     if (validation.isValid) {
       return 'Schedule configuration is valid and ready to save';
@@ -205,26 +216,19 @@ export class ScheduleConfigService {
    * Get save button tooltip
    */
   getSaveTooltip(form: FormGroup): string {
+    const globalTeachingDays = form.get('teachingDays')?.value || [];
+    
+    if (globalTeachingDays.length === 0) {
+      return 'Select at least one teaching day';
+    }
+    
     if (!form.valid) return 'Complete required fields';
     
     const periodAssignments = form.get('periodAssignments') as FormArray;
-    const validation = this.periodMgmt.validatePeriodAssignments(periodAssignments);
+    const validation = this.periodMgmt.validatePeriodAssignments(periodAssignments, globalTeachingDays);
     if (!validation.isValid) return 'Fix period assignment issues';
     
     return '';
-  }
-
-  /**
-   * Convert form data to API format
-   */
-  convertToApiFormat(form: FormGroup): any {
-    const periodAssignments = form.get('periodAssignments') as FormArray;
-    
-    return {
-      schoolYear: form.get('schoolYear')?.value || '2024-2025',
-      periodsPerDay: form.get('periodsPerDay')?.value || 6,
-      periodAssignments: this.periodMgmt.convertToApiFormat(periodAssignments)
-    };
   }
 
   /**
@@ -246,5 +250,236 @@ export class ScheduleConfigService {
    */
   getPeriodAssignments(periodControl: any): FormArray {
     return this.periodMgmt.getPeriodAssignments(periodControl);
+  }
+
+  /**
+   * Save schedule configuration and trigger schedule regeneration
+   * This is the complete save workflow: Configuration → Schedule Generation → Schedule Save
+   */
+  save(form: FormGroup): Observable<{ success: boolean; configurationId: number; configuration: any }> {
+    if (!this.isFormValid(form)) {
+      console.error('[ScheduleConfigService] Cannot save invalid form');
+      throw new Error('Form validation failed');
+    }
+  
+    console.log('[ScheduleConfigService] Starting simplified save workflow');
+  
+    // Convert form data to API format
+    const formData = this.convertToApiFormat(form);
+    
+    // Create period assignments in API format
+    const periodAssignments: SchedulePeriodAssignment[] = formData.periodAssignments.map((pa: any) => ({
+      period: pa.period,
+      courseId: pa.courseId,
+      specialPeriodType: pa.specialPeriodType,
+      room: pa.room || '',
+      notes: pa.notes || '',
+      teachingDays: pa.teachingDays,
+      backgroundColor: pa.backgroundColor || '#2196F3',
+      fontColor: pa.fontColor || '#FFFFFF'
+    }));
+    
+    // Create the configuration resource for API
+    const configurationResource: ScheduleConfigurationCreateResource = {
+      title: formData.schoolYear,
+      schoolYear: formData.schoolYear,
+      startDate: formData.startDate,
+      endDate: formData.endDate,
+      periodsPerDay: formData.periodsPerDay,
+      teachingDays: formData.teachingDays,
+      isTemplate: false,
+      periodAssignments: periodAssignments
+    };
+  
+    // SIMPLIFIED: Save configuration then delegate workflow to coordination service
+    return this.scheduleConfigApi.createConfiguration(configurationResource).pipe(
+      tap((savedConfig: any) => {
+        console.log('[ScheduleConfigService] Configuration saved successfully:', savedConfig.id);
+        this.scheduleConfigStateService.setActiveConfiguration(savedConfig);
+        this.scheduleConfigStateService.addConfiguration(savedConfig);
+      }),
+      
+      switchMap((savedConfig: any) => {
+        console.log('[ScheduleConfigService] Delegating workflow to coordination service');
+        
+        // **NEW: Use coordination service for complete workflow**
+        return this.scheduleCoordinationService.executeConfigurationSaveWorkflow(savedConfig.id).pipe(
+          map(() => ({ 
+            success: true, 
+            configurationId: savedConfig.id,
+            configuration: savedConfig 
+          }))
+        );
+      })
+    );
+  }
+  /**
+   * Update existing schedule configuration and trigger schedule regeneration
+   */
+  update(configurationId: number, form: FormGroup): Observable<{ success: boolean; configurationId: number; configuration: any }> {
+    if (!this.isFormValid(form)) {
+      console.error('[ScheduleConfigService] Cannot update invalid form');
+      throw new Error('Form validation failed');
+    }
+  
+    console.log(`[ScheduleConfigService] Starting simplified update workflow for configuration ID ${configurationId}`);
+  
+    // Convert form data to API format
+    const formData = this.convertToApiFormat(form);
+    
+    const periodAssignments: SchedulePeriodAssignment[] = formData.periodAssignments.map((pa: any) => ({
+      period: pa.period,
+      courseId: pa.courseId,
+      specialPeriodType: pa.specialPeriodType,
+      room: pa.room || '',
+      notes: pa.notes || '',
+      teachingDays: pa.teachingDays,
+      backgroundColor: pa.backgroundColor || '#2196F3',
+      fontColor: pa.fontColor || '#FFFFFF'
+    }));
+    
+    const configurationResource: ScheduleConfigUpdateResource = {
+      id: configurationId,
+      title: formData.schoolYear,
+      schoolYear: formData.schoolYear,
+      startDate: form.get('startDate')?.value,
+      endDate: form.get('endDate')?.value,
+      periodsPerDay: formData.periodsPerDay,
+      teachingDays: formData.teachingDays,
+      isActive: true,
+      periodAssignments: periodAssignments
+    };
+  
+    // SIMPLIFIED: Update configuration then delegate workflow to coordination service
+    return this.scheduleConfigApi.updateConfiguration(configurationId, configurationResource).pipe(
+      tap((updatedConfig: any) => {
+        console.log('[ScheduleConfigService] Configuration updated successfully:', updatedConfig.id);
+        this.scheduleConfigStateService.setActiveConfiguration(updatedConfig);
+      }),
+      
+      switchMap((updatedConfig: any) => {
+        console.log('[ScheduleConfigService] Delegating workflow to coordination service');
+        
+        // **NEW: Use coordination service for complete workflow**
+        return this.scheduleCoordinationService.executeConfigurationSaveWorkflow(updatedConfig.id).pipe(
+          map(() => ({ 
+            success: true, 
+            configurationId: updatedConfig.id,
+            configuration: updatedConfig 
+          }))
+        );
+      })
+    );
+  }
+  
+  /**
+ * Check if config-level teaching day is selected
+ */
+  isConfigTeachingDaySelected(form: FormGroup, day: string): boolean {
+    const configTeachingDays = form.get('teachingDays')?.value || [];
+    return configTeachingDays.includes(day);
+  }
+  
+  /**
+   * Toggle config-level teaching day and update all period assignments
+   */
+  toggleConfigTeachingDay(form: FormGroup, day: string): void {
+    const configTeachingDays = form.get('teachingDays')?.value || [];
+    const periodAssignments = form.get('periodAssignments') as FormArray;
+    
+    if (configTeachingDays.includes(day)) {
+      // Remove day from config-level and all period assignments
+      const updatedConfigDays = configTeachingDays.filter((d: string) => d !== day);
+      form.patchValue({ teachingDays: updatedConfigDays });
+      
+      // Remove this day from all period assignments
+      this.removeDayFromAllPeriodAssignments(periodAssignments, day);
+      
+      console.log(`[ScheduleConfigService] Removed ${day} from config-level teaching days and all period assignments`);
+    } else {
+      // Add day to config-level (but don't automatically add to period assignments)
+      const updatedConfigDays = [...configTeachingDays, day];
+      form.patchValue({ teachingDays: updatedConfigDays });
+      
+      console.log(`[ScheduleConfigService] Added ${day} to config-level teaching days`);
+    }
+  }
+  
+  /**
+   * Enhanced toggle teaching day - respects config-level constraints
+   */
+  toggleTeachingDay(assignmentControl: any, day: string): void {
+    // Get current form to check config-level teaching days
+    const currentForm = this.getCurrentFormReference(); // This will need to be set by component
+    if (!currentForm) {
+      console.error('[ScheduleConfigService] Cannot toggle teaching day - no form reference');
+      return;
+    }
+    
+    const configTeachingDays = currentForm.get('teachingDays')?.value || [];
+    
+    // Only allow toggle if day is enabled at config level
+    if (!configTeachingDays.includes(day)) {
+      console.log(`[ScheduleConfigService] Cannot toggle ${day} - not enabled in config-level teaching days`);
+      return;
+    }
+    
+    const teachingDays = assignmentControl.get('teachingDays')?.value || [];
+    const index = teachingDays.indexOf(day);
+    
+    if (index > -1) {
+      teachingDays.splice(index, 1);
+    } else {
+      teachingDays.push(day);
+    }
+    
+    assignmentControl.patchValue({
+      teachingDays: [...teachingDays]
+    });
+  }
+  
+  /**
+   * Remove a specific day from all period assignments
+   */
+  private removeDayFromAllPeriodAssignments(periodAssignments: FormArray, dayToRemove: string): void {
+    periodAssignments.controls.forEach(periodControl => {
+      const assignmentsArray = this.periodMgmt.getPeriodAssignments(periodControl as FormGroup);
+      
+      assignmentsArray.controls.forEach(assignmentControl => {
+        const teachingDays = assignmentControl.get('teachingDays')?.value || [];
+        const updatedDays = teachingDays.filter((day: string) => day !== dayToRemove);
+        
+        if (updatedDays.length !== teachingDays.length) {
+          assignmentControl.patchValue({ teachingDays: updatedDays });
+        }
+      });
+    });
+  }
+  
+  /**
+   * Convert form data to API format with config-level teaching days
+   */
+  convertToApiFormat(form: FormGroup): any {
+    const periodAssignments = form.get('periodAssignments') as FormArray;
+    
+    return {
+      schoolYear: form.get('schoolYear')?.value || '2024-2025',
+      periodsPerDay: form.get('periodsPerDay')?.value || 6,
+      startDate: form.get('startDate')?.value,
+      endDate: form.get('endDate')?.value,
+      teachingDays: form.get('teachingDays')?.value || [], // NEW: Include config-level teaching days
+      periodAssignments: this.periodMgmt.convertToApiFormat(periodAssignments)
+    };
+  }
+  
+  // Form reference management (needed for enhanced teaching day validation)
+  private currentFormRef: FormGroup | null = null;
+  
+  setCurrentFormReference(form: FormGroup): void {
+    this.currentFormRef = form;
+  }
+  
+  private getCurrentFormReference(): FormGroup | null {
+    return this.currentFormRef;
   }
 }

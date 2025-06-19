@@ -18,15 +18,40 @@ import { Lesson, LessonDetail } from '../../models/lesson';
 })
 export class CourseCrudService {
   
-  constructor(
-    private apiService: ApiService,
-    private courseDataService: CourseDataService,
-    private toastr: ToastrService
-  ) {
-    console.log('[CourseCrudService] Service initialized for pure CRUD operations', { 
-      timestamp: new Date().toISOString() 
-    });
-  }
+    constructor(
+        private apiService: ApiService,
+        private courseDataService: CourseDataService,
+        private toastr: ToastrService
+      ) {
+        console.log('[CourseCrudService] Service initialized for pure CRUD operations', { 
+          timestamp: new Date().toISOString() 
+        });
+        
+        // Auto-load courses on service initialization (restored from original CourseDataService)
+        this.autoLoadCourses();
+      }
+      
+      private autoLoadCourses(): void {
+        console.log('[CourseCrudService] Auto-loading courses on service initialization', {
+          timestamp: new Date().toISOString()
+        });
+      
+        this.loadCourses('active', 'private').subscribe({
+          next: (courses) => {
+            console.log('[CourseCrudService] Auto-load completed', {
+              count: courses.length,
+              courses: courses.map(c => ({ id: c.id, title: c.title })),
+              timestamp: new Date().toISOString()
+            });
+          },
+          error: (error) => {
+            console.error('[CourseCrudService] Auto-load failed:', error, {
+              timestamp: new Date().toISOString()
+            });
+            // Don't show toastr error for auto-load - it's called during app initialization
+          }
+        });
+      }
 
   // === COURSE CRUD OPERATIONS ===
 

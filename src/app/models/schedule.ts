@@ -9,25 +9,14 @@ export interface Schedule {
     id: number;
     title: string;
     userId: number;
-    startDate: Date;
-    endDate: Date;
-    isLocked?: boolean;
-    teachingDays: string[];  // Standardized on string[] everywhere
-    scheduleEvents?: ScheduleEvent[];  // FIXED: Should be array, not single object
+    scheduleConfigurationId: number; // Reference to configuration
+    isLocked: boolean;
+    createdDate: Date;
+    scheduleEvents: ScheduleEvent[]; // Event data only
 }
 
 export interface ScheduleCreateResource {
     title: string;
-    startDate: Date;
-    endDate: Date;
-    teachingDays: string[];  // Standardized on string[]
-}
-
-export interface ScheduleConfigUpdateResource {
-    id: number;
-    title: string;
-    startDate: Date;
-    endDate: Date;
-    teachingDays: string[];  // Standardized on string[]
-    isLocked: boolean;
+    scheduleConfigurationId: number;
+    scheduleEvents?: ScheduleEvent[]; // Optional for creation
 }

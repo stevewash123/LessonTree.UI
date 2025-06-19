@@ -23,12 +23,6 @@ export interface PeriodValidationResponse {
     message?: string;
 }
 
-// Teaching schedule wrapper
-export interface TeachingSchedule {
-    periodsPerDay: number;
-    periodAssignments: PeriodAssignment[];
-}
-
 // Period-course combination for event generation
 export interface PeriodCourseAssignment {
     period: number;

@@ -40,7 +40,7 @@ export class SpecialDayManagementService {
   createSpecialDay(data: SpecialDayData): Observable<ScheduleEvent[]> {
     console.log(`[SpecialDayManagementService] Creating special day for ${data.periods.length} periods`);
     
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
+    const currentSchedule = this.scheduleStateService.getSchedule();
     if (!currentSchedule) {
       throw new Error('No schedule available');
     }
@@ -100,7 +100,7 @@ export class SpecialDayManagementService {
 
   // Find special day by schedule event ID
   findSpecialDayById(scheduleEventId: number): ScheduleEvent | null {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
+    const currentSchedule = this.scheduleStateService.getSchedule();
     if (!currentSchedule?.scheduleEvents) {
       return null;
     }
@@ -111,7 +111,7 @@ export class SpecialDayManagementService {
 
   // Find special day for a specific date and period
   findSpecialDayForPeriod(date: Date, period: number): ScheduleEvent | null {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
+    const currentSchedule = this.scheduleStateService.getSchedule();
     if (!currentSchedule?.scheduleEvents) return null;
 
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -126,7 +126,7 @@ export class SpecialDayManagementService {
 
   // Get all special days for a specific date
   getSpecialDaysForDate(date: Date): ScheduleEvent[] {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
+    const currentSchedule = this.scheduleStateService.getSchedule();
     if (!currentSchedule?.scheduleEvents) return [];
 
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -175,7 +175,11 @@ export class SpecialDayManagementService {
     // Check for conflicts with existing events
     if (data.date && data.periods) {
       for (const period of data.periods) {
-        const existingEvent = this.scheduleStateService.getScheduleEventForPeriod(data.date, period);
+        const allEvents = this.scheduleStateService.getScheduleEvents();
+        const existingEvent = allEvents.find(event => 
+            event.date === data.date && event.period === period
+        );
+
         if (existingEvent) {
           errors.push(`Period ${period} on ${format(data.date, 'yyyy-MM-dd')} is already occupied`);
         }
@@ -188,61 +192,6 @@ export class SpecialDayManagementService {
     };
   }
 
-  // Helper method to create Error Events
-  createErrorEvent(date: Date, period: number, scheduleId: number, comment?: string): ScheduleEvent {
-    const defaultComment = comment || 'No lesson assigned - schedule needs more content';
-    
-    return {
-      id: this.scheduleStateService.isInMemorySchedule() ? this.generateInMemoryId() : 0,
-      scheduleId: scheduleId,
-      courseId: null,
-      date: new Date(date),
-      period: period,
-      lessonId: null,
-      eventType: 'Error',                      // UPDATED: was specialCode: 'Error Day'
-      eventCategory: null,                     // NEW: Error events have null category
-      comment: defaultComment
-    };
-  }
-
-  // Helper method to remove Error Events
-  removeErrorEventIfExists(date: Date, period: number): boolean {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!currentSchedule?.scheduleEvents) return false;
-
-    const existingErrorEvent = currentSchedule.scheduleEvents.find(event => {
-      const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
-      const targetDateStr = format(date, 'yyyy-MM-dd');
-      return eventDateStr === targetDateStr && 
-             event.period === period && 
-             event.eventType === 'Error';      // UPDATED: was specialCode === 'Error Day'
-    });
-    
-    if (existingErrorEvent) {
-      this.scheduleStateService.removeScheduleEvent(existingErrorEvent.id);
-      return true;
-    }
-    
-    return false;
-  }
-
-  // Remove all error events for a specific date
-  removeAllErrorEventsForDate(date: Date): number {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!currentSchedule?.scheduleEvents) return 0;
-
-    const dateStr = format(date, 'yyyy-MM-dd');
-    const errorEvents = currentSchedule.scheduleEvents.filter(event => {
-      const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
-      return eventDateStr === dateStr && event.eventType === 'Error';  // UPDATED: was specialCode === 'Error Day'
-    });
-
-    errorEvents.forEach(event => {
-      this.scheduleStateService.removeScheduleEvent(event.id);
-    });
-
-    return errorEvents.length;
-  }
 
   // === PRIVATE HELPER METHODS ===
 

@@ -13,6 +13,13 @@ export interface ScheduleEvent {
     eventType: string;                     // Required: 'Lesson', 'Assembly', etc.
     eventCategory?: string | null;         // 'Lesson', 'SpecialPeriod', 'SpecialDay'
     comment?: string | null;
+
+    // **NEW** - Rich lesson display properties from API
+    lessonTitle?: string | null;
+    lessonObjective?: string | null;
+    lessonMethods?: string | null;
+    lessonMaterials?: string | null;
+    lessonAssessment?: string | null;
 }
 
 export interface ScheduleEventCreateResource {

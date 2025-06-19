@@ -28,7 +28,8 @@ export class AuthService {
       console.log('[AuthService] JWT token contents:', decoded);
       console.log('[AuthService] Available claims:', Object.keys(decoded));
       
-      const username = decoded.unique_name;
+      // FIX: Use 'username' instead of 'unique_name'
+      const username = decoded.username;
       console.log('[AuthService] Extracted username:', username);
       
       if (username) {

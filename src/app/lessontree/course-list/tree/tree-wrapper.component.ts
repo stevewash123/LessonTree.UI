@@ -166,12 +166,19 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     
     private updateTreeData(): void {
         if (!this.isViewInitialized) return;
-
+    
         this.treeSyncService.updateTreeData(this.course, this.syncFuncTree, this.courseId)
             .then(result => {
                 if (result.success && this.syncFuncTree?.fields) {
+                    // FIX: Update local treeData properly
                     this.treeData = (this.syncFuncTree.fields as any).dataSource || [];
                     this.treeFields = this.syncFuncTree.fields;
+                    
+                    console.log('[TreeWrapper] Tree data updated successfully', {
+                        courseId: this.courseId,
+                        localTreeDataLength: this.treeData.length,
+                        timestamp: new Date().toISOString()
+                    });
                 } else if (!result.success) {
                     console.error(`[TreeWrapper] Update failed:`, result.error);
                 }
@@ -179,7 +186,19 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     public onDataBound(): void {
-        this.treeSyncService.handleDataBound(this.treeData, this.course?.id);
+        // Debug: Check what data we actually have
+        const syncFusionData = (this.syncFuncTree?.fields as any)?.dataSource || [];
+        
+        console.log('[TreeWrapper] onDataBound called', {
+            courseId: this.courseId,
+            localTreeDataLength: this.treeData.length,
+            syncFusionDataLength: syncFusionData.length,
+            syncFusionData: syncFusionData,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Pass the correct data to TreeSyncService
+        this.treeSyncService.handleDataBound(syncFusionData, this.course?.id);
     }
 
     public emitNodeSelected(args: any): void {

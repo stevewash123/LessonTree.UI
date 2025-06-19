@@ -11,19 +11,38 @@
 
     <!-- Main Calendar Content -->
     @if (hasCoursesAvailable()) {
-      <!-- Full Calendar -->
-      <full-calendar 
-        #calendar 
-        [options]="calendarOptions">
-      </full-calendar>
+        <div class="calendar-content-wrapper" style="position: relative;">
+          
+          <!-- Loading Overlay -->
+          @if (isLoadingSchedule()) {
+            <div class="calendar-loading-overlay">
+              <div class="loading-content">
+                <div class="spinner">
+                  <div class="spinner-border" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+                <div class="loading-text">{{ loadingMessage() }}</div>
+              </div>
+            </div>
+          }
       
-      <!-- Material Design Context Menu -->
-      <div style="visibility: hidden; position: fixed;"
-           [style.left]="contextMenuPosition.x"
-           [style.top]="contextMenuPosition.y"
-           [matMenuTriggerFor]="contextMenu"
-           #contextMenuTrigger="matMenuTrigger">
-      </div>
+          <!-- Full Calendar -->
+          <full-calendar 
+            #calendar 
+            [options]="calendarOptions()">
+          </full-calendar>
+          
+        </div>
+        
+        <!-- Material Design Context Menu (unchanged) -->
+        <div style="visibility: hidden; position: fixed;"
+             [style.left]="contextMenuPosition.x"
+             [style.top]="contextMenuPosition.y"
+             [matMenuTriggerFor]="contextMenu"
+             #contextMenuTrigger="matMenuTrigger">
+        </div>
+      
 
       <mat-menu #contextMenu="matMenu" class="calendar-context-menu">
         @for (action of contextMenuActions; track action.id) {
@@ -56,16 +75,5 @@
         </button>
       </div>
 
-      <!-- Debug Info (Development Only) -->
-      @if (true) { <!-- TEMPORARILY SET TO TRUE FOR DEBUGGING -->
-        <div class="debug-panel">
-          <h4>Debug Information</h4>
-          <p><strong>Context Menu Actions:</strong> {{ contextMenuActions.length }}</p>
-          @for (action of contextMenuActions; track action.id) {
-            <p>- {{ action.id }}: {{ action.label }}</p>
-          }
-          <pre>{{ debugInfo | json }}</pre>
-        </div>
-      }
     }
   </div>

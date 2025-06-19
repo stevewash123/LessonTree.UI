@@ -1,146 +1,138 @@
+// **COMPLETE FILE** - CalendarEventService Final Clean Version
 // RESPONSIBILITY: Event transformation and handling for calendar display
 // DOES NOT: Create events, manage course data, or handle generation logic
 // CALLED BY: Calendar components for event transformation and display formatting
 
 import { Injectable } from '@angular/core';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
+import { ScheduleConfigurationStateService } from './schedule-configuration-state.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CalendarEventService {
-
-  constructor() {
-    console.log('[CalendarEventService] Initialized for event transformation and handling');
+  constructor(private scheduleConfigurationStateService: ScheduleConfigurationStateService) {
+    console.log('[CalendarEventService] Initialized for event transformation');
   }
 
-  // === EVENT TRANSFORMATION METHODS (ORIGINAL FUNCTIONALITY) ===
+  // === EVENT TRANSFORMATION METHODS (CORE RESPONSIBILITY) ===
 
-  // Transform schedule events for calendar display
+  /**
+   * Transform schedule events for calendar display
+   */
   transformEventsForCalendar(events: ScheduleEvent[]): any[] {
-    console.log('[CalendarEventService] Transforming events for calendar display');
+    console.log(`[CalendarEventService] Transforming ${events.length} events for calendar`);
     
-    return events.map(event => this.transformSingleEvent(event));
+    const transformedEvents = events.map(event => this.transformSingleEvent(event));
+    
+    return transformedEvents;
   }
 
-  // Transform a single schedule event
-  private transformSingleEvent(event: ScheduleEvent): any {
-    // Implementation for transforming events to calendar format
-    // This would contain the original transformation logic
+  /**
+   * Transform a single schedule event
+   */
+  transformSingleEvent(event: ScheduleEvent): any {
+    // Get time slot mapping for this event
+    const timeSlot = this.mapPeriodToTimeSlot(event.period, new Date(event.date));
+    
+    // Get period assignment for styling
+    const periodAssignment = this.getPeriodAssignmentForEvent(event);
+  
     return {
       id: event.id,
       title: this.getEventDisplayTitle(event),
-      start: event.date,
-      period: event.period,
-      courseId: event.courseId,
-      lessonId: event.lessonId,
-      eventType: event.eventType,
-      eventCategory: event.eventCategory,
-      comment: event.comment
+      start: timeSlot.start,
+      end: timeSlot.end,
+      backgroundColor: periodAssignment?.backgroundColor || '#2196F3',
+      borderColor: periodAssignment?.backgroundColor || '#2196F3',
+      textColor: periodAssignment?.fontColor || '#FFFFFF',
+      extendedProps: {
+        scheduleEvent: event,
+        period: event.period,
+        courseId: event.courseId,
+        lessonId: event.lessonId,
+        eventType: event.eventType,
+        room: periodAssignment?.room || '',
+        lessonTitle: event.lessonTitle,
+        lessonObjective: event.lessonObjective,
+        lessonMethods: event.lessonMethods
+      }
     };
   }
-
-  // Get display title for an event
-  private getEventDisplayTitle(event: ScheduleEvent): string {
-    if (event.comment) {
-      return event.comment;
+  
+  /**
+   * Map period number to time slot for FullCalendar
+   */
+  private mapPeriodToTimeSlot(period: number, date: Date): { start: string; end: string } {
+    const startHour = 8;
+    const eventStartHour = startHour + period - 1;
+    const eventEndHour = eventStartHour + 1;
+    
+    const eventDate = new Date(date);
+    const year = eventDate.getFullYear();
+    const month = String(eventDate.getMonth() + 1).padStart(2, '0');
+    const day = String(eventDate.getDate()).padStart(2, '0');
+    
+    const start = `${year}-${month}-${day}T${eventStartHour.toString().padStart(2, '0')}:00:00`;
+    const end = `${year}-${month}-${day}T${eventEndHour.toString().padStart(2, '0')}:00:00`;
+    
+    return { start, end };
+  }
+  
+  /**
+   * Look up period assignment colors and details for an event
+   */
+  private getPeriodAssignmentForEvent(event: ScheduleEvent): any | null {
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    
+    if (!activeConfig?.periodAssignments) {
+      return null;
     }
     
-    if (event.eventType) {
-      return event.eventType;
-    }
+    const periodAssignment = activeConfig.periodAssignments.find(
+      (assignment: any) => assignment.period === event.period
+    );
     
-    return 'Untitled Event';
-  }
-
-  // Filter events by date range
-  filterEventsByDateRange(events: ScheduleEvent[], startDate: Date, endDate: Date): ScheduleEvent[] {
-    return events.filter(event => {
-      const eventDate = new Date(event.date);
-      return eventDate >= startDate && eventDate <= endDate;
-    });
-  }
-
-  // Filter events by period
-  filterEventsByPeriod(events: ScheduleEvent[], period: number): ScheduleEvent[] {
-    return events.filter(event => event.period === period);
-  }
-
-  // Filter events by course
-  filterEventsByCourse(events: ScheduleEvent[], courseId: number): ScheduleEvent[] {
-    return events.filter(event => event.courseId === courseId);
-  }
-
-  // Group events by date
-  groupEventsByDate(events: ScheduleEvent[]): Map<string, ScheduleEvent[]> {
-    const grouped = new Map<string, ScheduleEvent[]>();
-    
-    for (const event of events) {
-      const dateKey = new Date(event.date).toISOString().split('T')[0];
-      
-      if (!grouped.has(dateKey)) {
-        grouped.set(dateKey, []);
-      }
-      
-      grouped.get(dateKey)!.push(event);
-    }
-    
-    return grouped;
-  }
-
-  // Group events by period
-  groupEventsByPeriod(events: ScheduleEvent[]): Map<number, ScheduleEvent[]> {
-    const grouped = new Map<number, ScheduleEvent[]>();
-    
-    for (const event of events) {
-      if (!grouped.has(event.period)) {
-        grouped.set(event.period, []);
-      }
-      
-      grouped.get(event.period)!.push(event);
-    }
-    
-    return grouped;
-  }
-
-  // Sort events by date and period
-  sortEvents(events: ScheduleEvent[]): ScheduleEvent[] {
-    return [...events].sort((a, b) => {
-      const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
-      if (dateCompare !== 0) {
-        return dateCompare;
-      }
-      return a.period - b.period;
-    });
-  }
-
-  // Validate event data
-  validateEvent(event: ScheduleEvent): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    
-    if (!event.date) {
-      errors.push('Event date is required');
-    }
-    
-    if (event.period <= 0) {
-      errors.push('Event period must be greater than 0');
-    }
-    
-    if (!event.eventType) {
-      errors.push('Event type is required');
+    if (!periodAssignment) {
+      return null;
     }
     
     return {
-      isValid: errors.length === 0,
-      errors
+      backgroundColor: periodAssignment.backgroundColor,
+      fontColor: periodAssignment.fontColor,
+      period: periodAssignment.period,
+      room: periodAssignment.room,
+      notes: periodAssignment.notes
     };
   }
 
-  // === TRANSFORMATION METHODS (PROPER RESPONSIBILITY) ===
+  /**
+   * Get display title for an event
+   */
+  getEventDisplayTitle(event: ScheduleEvent): string {
+    // Use rich lesson data if available (from enhanced API)
+    if (event.lessonTitle) {
+      return event.lessonTitle;
+    }
 
-  // Map schedule events to calendar format - used by calendar-coordination.service
+    // Fallback to generic titles for non-lesson events
+    if (event.eventCategory === 'SpecialPeriod') {
+      return event.eventType || 'Special Period';
+    }
+
+    if (event.eventCategory === 'SpecialDay') {
+      return event.eventType || 'Special Day';
+    }
+
+    // Final fallback
+    return event.eventType || 'Event';
+  }
+
+  /**
+   * Map schedule events to calendar format - used by calendar-coordination.service
+   */
   mapScheduleEventsToCalendarEvents(scheduleEvents: ScheduleEvent[]): any[] {
-    console.log('[CalendarEventService] Mapping schedule events to calendar format');
+    console.log(`[CalendarEventService] Mapping ${scheduleEvents.length} schedule events to calendar format`);
     return this.transformEventsForCalendar(scheduleEvents);
   }
 }

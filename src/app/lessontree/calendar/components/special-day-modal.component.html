@@ -1,40 +1,63 @@
-<!-- src/app/lessontree/calendar/components/special-day-modal.component.html - COMPLETE FILE -->
 <div class="modal-container">
-    <h2>{{ isEditMode ? 'Edit Special Day' : 'Add Special Day' }}</h2>
+    <h2>{{ data.mode === 'add' ? 'Add Special Day' : 'Edit Special Day' }}</h2>
     
     <form [formGroup]="specialDayForm">
-      <!-- Date Field -->
+      <!-- Date -->
       <mat-form-field>
         <mat-label>Date</mat-label>
-        <input matInput [matDatepicker]="datePicker" formControlName="date" [readonly]="isEditMode" />
+        <input matInput [matDatepicker]="datePicker" formControlName="date" [readonly]="data.mode === 'edit'" />
         <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
         <mat-datepicker #datePicker></mat-datepicker>
         @if (specialDayForm.get('date')?.hasError('required')) {
           <mat-error>Date is required</mat-error>
         }
       </mat-form-field>
-  
-      <!-- Special Day Type -->
+
+      <!-- Period Selection -->
+      <div class="period-selection">
+        <h3>Affected Periods</h3>
+        <p class="period-help">Select which periods this special day affects:</p>
+        
+        <div class="period-checkboxes">
+          @for (period of availablePeriods; track period) {
+            <mat-checkbox 
+              [formControlName]="'period_' + period"
+              class="period-checkbox">
+              Period {{ period }}
+              @if (getPeriodAssignment(period); as assignment) {
+                <span class="period-info">({{ assignment.sectionName || 'No section' }}{{ assignment.room ? ' - ' + assignment.room : '' }})</span>
+              }
+            </mat-checkbox>
+          }
+        </div>
+        
+        @if (noPeriodSelected) {
+          <mat-error>Please select at least one period</mat-error>
+        }
+      </div>
+
+      <!-- Special Code -->
       <mat-form-field>
-        <mat-label>Type</mat-label>
+        <mat-label>Special Code</mat-label>
         <mat-select formControlName="specialCode">
-          <mat-option value="Instructor PT">Instructor Professional Development</mat-option>
-          <mat-option value="School Holiday">School Holiday</mat-option>
-          <mat-option value="Assembly">School Assembly</mat-option>
-          <mat-option value="Testing Day">Testing Day</mat-option>
+          <mat-option value="Assembly">Assembly</mat-option>
           <mat-option value="Field Trip">Field Trip</mat-option>
-          <mat-option value="Weather Day">Weather Closure</mat-option>
+          <mat-option value="Testing">Testing</mat-option>
+          <mat-option value="Holiday">Holiday</mat-option>
+          <mat-option value="Professional Development">Professional Development</mat-option>
+          <mat-option value="Early Dismissal">Early Dismissal</mat-option>
+          <mat-option value="Weather Delay">Weather Delay</mat-option>
           <mat-option value="Other">Other</mat-option>
         </mat-select>
         @if (specialDayForm.get('specialCode')?.hasError('required')) {
-          <mat-error>Type is required</mat-error>
+          <mat-error>Special code is required</mat-error>
         }
       </mat-form-field>
-  
-      <!-- Title Field -->
+
+      <!-- Title -->
       <mat-form-field>
         <mat-label>Title</mat-label>
-        <input matInput formControlName="title" placeholder="e.g., All School Assembly on Drugs" />
+        <input matInput formControlName="title" maxlength="100" />
         @if (specialDayForm.get('title')?.hasError('required')) {
           <mat-error>Title is required</mat-error>
         }
@@ -42,51 +65,44 @@
           <mat-error>Maximum 100 characters</mat-error>
         }
       </mat-form-field>
-  
-      <!-- Description Field -->
+
+      <!-- Description -->
       <mat-form-field>
         <mat-label>Description (Optional)</mat-label>
-        <textarea matInput 
-                  formControlName="description" 
-                  rows="3"
-                  placeholder="Additional details about this special day..."></textarea>
+        <textarea matInput formControlName="description" maxlength="500" rows="3"></textarea>
         @if (specialDayForm.get('description')?.hasError('maxlength')) {
           <mat-error>Maximum 500 characters</mat-error>
         }
       </mat-form-field>
-  
-      <!-- Lesson Shifting Information -->
-      @if (!isEditMode) {
-        <div class="lesson-shift-info">
-          <mat-icon>info</mat-icon>
-          <div class="info-content">
-            <h4>Lesson Scheduling Impact</h4>
-            <p>Adding this special day will shift the scheduled lesson and all subsequent lessons forward by one day.</p>
-          </div>
+
+      <!-- Preview -->
+      @if (selectedPeriods.length > 0) {
+        <div class="preview-section">
+          <h4>Preview</h4>
+          <p><strong>Date:</strong> {{ formatDate(specialDayForm.get('date')?.value) }}</p>
+          <p><strong>Periods:</strong> {{ selectedPeriods.join(', ') }}</p>
+          <p><strong>Event:</strong> {{ specialDayForm.get('specialCode')?.value }} - {{ specialDayForm.get('title')?.value }}</p>
         </div>
       }
-  
-      <!-- Action Buttons -->
-      <div class="actions">
-        <button mat-button (click)="cancel()" type="button">Cancel</button>
-        
-        @if (isEditMode) {
-          <button mat-button 
-                  color="warn" 
-                  (click)="delete()" 
-                  type="button"
-                  [disabled]="isSubmitting">
-            Delete
-          </button>
-        }
-        
-        <button mat-raised-button 
-                color="primary" 
-                (click)="save()" 
-                type="button"
-                [disabled]="specialDayForm.invalid || isSubmitting">
-          {{ isSubmitting ? 'Saving...' : (isEditMode ? 'Update' : 'Add Special Day') }}
-        </button>
-      </div>
     </form>
+
+    <!-- Actions -->
+    <div class="actions">
+      <button mat-button (click)="cancel()">Cancel</button>
+      
+      @if (data.mode === 'edit') {
+        <button mat-button color="warn" (click)="delete()" class="delete-button">
+          <mat-icon>delete</mat-icon>
+          Delete
+        </button>
+      }
+      
+      <button 
+        mat-raised-button 
+        color="primary" 
+        (click)="save()" 
+        [disabled]="specialDayForm.invalid || noPeriodSelected">
+        {{ data.mode === 'add' ? 'Create' : 'Update' }} Special Day
+      </button>
+    </div>
   </div>

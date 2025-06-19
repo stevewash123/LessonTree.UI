@@ -1,9 +1,11 @@
+// **COMPLETE FILE** - special-day-modal.component.ts - Clean version with external files
+
 // RESPONSIBILITY: Provides UI for creating and editing special day events with multi-period selection.
 // DOES NOT: Handle business logic, API calls, or data persistence - pure UI component.
 // CALLED BY: SpecialDayModalService for special day UI interactions.
 import { Component, Inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule, FormArray } from '@angular/forms';
+import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -15,7 +17,7 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatIconModule } from '@angular/material/icon';
 import { format } from 'date-fns';
 
-import { UserService } from '../../../core/services/user.service';
+import { ScheduleConfigurationStateService } from '../services/schedule-configuration-state.service';
 
 export interface SpecialDayModalData {
   date: Date;
@@ -58,206 +60,21 @@ export interface SpecialDayResult {
     MatSelectModule,
     MatIconModule
   ],
-  template: `
-    <div class="modal-container">
-      <h2>{{ data.mode === 'add' ? 'Add Special Day' : 'Edit Special Day' }}</h2>
-      
-      <form [formGroup]="specialDayForm">
-        <!-- Date -->
-        <mat-form-field>
-          <mat-label>Date</mat-label>
-          <input matInput [matDatepicker]="datePicker" formControlName="date" [readonly]="data.mode === 'edit'" />
-          <mat-datepicker-toggle matSuffix [for]="datePicker"></mat-datepicker-toggle>
-          <mat-datepicker #datePicker></mat-datepicker>
-          @if (specialDayForm.get('date')?.hasError('required')) {
-            <mat-error>Date is required</mat-error>
-          }
-        </mat-form-field>
-
-        <!-- Period Selection -->
-        <div class="period-selection">
-          <h3>Affected Periods</h3>
-          <p class="period-help">Select which periods this special day affects:</p>
-          
-          <div class="period-checkboxes">
-            @for (period of availablePeriods; track period) {
-              <mat-checkbox 
-                [formControlName]="'period_' + period"
-                class="period-checkbox">
-                Period {{ period }}
-                @if (getPeriodAssignment(period); as assignment) {
-                  <span class="period-info">({{ assignment.sectionName || 'No section' }}{{ assignment.room ? ' - ' + assignment.room : '' }})</span>
-                }
-              </mat-checkbox>
-            }
-          </div>
-          
-          @if (noPeriodSelected) {
-            <mat-error>Please select at least one period</mat-error>
-          }
-        </div>
-
-        <!-- Special Code -->
-        <mat-form-field>
-          <mat-label>Special Code</mat-label>
-          <mat-select formControlName="specialCode">
-            <mat-option value="Assembly">Assembly</mat-option>
-            <mat-option value="Field Trip">Field Trip</mat-option>
-            <mat-option value="Testing">Testing</mat-option>
-            <mat-option value="Holiday">Holiday</mat-option>
-            <mat-option value="Professional Development">Professional Development</mat-option>
-            <mat-option value="Early Dismissal">Early Dismissal</mat-option>
-            <mat-option value="Weather Delay">Weather Delay</mat-option>
-            <mat-option value="Other">Other</mat-option>
-          </mat-select>
-          @if (specialDayForm.get('specialCode')?.hasError('required')) {
-            <mat-error>Special code is required</mat-error>
-          }
-        </mat-form-field>
-
-        <!-- Title -->
-        <mat-form-field>
-          <mat-label>Title</mat-label>
-          <input matInput formControlName="title" maxlength="100" />
-          @if (specialDayForm.get('title')?.hasError('required')) {
-            <mat-error>Title is required</mat-error>
-          }
-          @if (specialDayForm.get('title')?.hasError('maxlength')) {
-            <mat-error>Maximum 100 characters</mat-error>
-          }
-        </mat-form-field>
-
-        <!-- Description -->
-        <mat-form-field>
-          <mat-label>Description (Optional)</mat-label>
-          <textarea matInput formControlName="description" maxlength="500" rows="3"></textarea>
-          @if (specialDayForm.get('description')?.hasError('maxlength')) {
-            <mat-error>Maximum 500 characters</mat-error>
-          }
-        </mat-form-field>
-
-        <!-- Preview -->
-        @if (selectedPeriods.length > 0) {
-          <div class="preview-section">
-            <h4>Preview</h4>
-            <p><strong>Date:</strong> {{ formatDate(specialDayForm.get('date')?.value) }}</p>
-            <p><strong>Periods:</strong> {{ selectedPeriods.join(', ') }}</p>
-            <p><strong>Event:</strong> {{ specialDayForm.get('specialCode')?.value }} - {{ specialDayForm.get('title')?.value }}</p>
-          </div>
-        }
-      </form>
-
-      <!-- Actions -->
-      <div class="actions">
-        <button mat-button (click)="cancel()">Cancel</button>
-        
-        @if (data.mode === 'edit') {
-          <button mat-button color="warn" (click)="delete()" class="delete-button">
-            <mat-icon>delete</mat-icon>
-            Delete
-          </button>
-        }
-        
-        <button 
-          mat-raised-button 
-          color="primary" 
-          (click)="save()" 
-          [disabled]="specialDayForm.invalid || noPeriodSelected">
-          {{ data.mode === 'add' ? 'Create' : 'Update' }} Special Day
-        </button>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .modal-container {
-      padding: 24px;
-      min-width: 500px;
-      max-width: 600px;
-    }
-
-    h2 {
-      margin: 0 0 24px 0;
-      font-size: 24px;
-      font-weight: 500;
-    }
-
-    h3 {
-      margin: 20px 0 12px 0;
-      font-size: 16px;
-      font-weight: 500;
-    }
-
-    h4 {
-      margin: 16px 0 8px 0;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    mat-form-field {
-      width: 100%;
-      margin-bottom: 16px;
-    }
-
-    .period-selection {
-      margin-bottom: 20px;
-    }
-
-    .period-help {
-      margin: 0 0 16px 0;
-      font-size: 14px;
-      color: #666;
-    }
-
-    .period-checkboxes {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-
-    .period-checkbox {
-      display: flex;
-      align-items: center;
-    }
-
-    .period-info {
-      font-size: 12px;
-      color: #666;
-      margin-left: 4px;
-    }
-
-    .preview-section {
-      background: #f5f5f5;
-      padding: 16px;
-      border-radius: 4px;
-      margin-bottom: 20px;
-    }
-
-    .preview-section p {
-      margin: 4px 0;
-      font-size: 14px;
-    }
-
-    .actions {
-      display: flex;
-      gap: 12px;
-      justify-content: flex-end;
-      margin-top: 24px;
-    }
-
-    .delete-button {
-      margin-right: auto;
-    }
-
-    mat-error {
-      font-size: 12px;
-      margin-top: 4px;
-    }
-  `]
+  templateUrl: './special-day-modal.component.html',
+  styleUrls: ['./special-day-modal.component.css']
 })
 export class SpecialDayModalComponent implements OnInit {
   specialDayForm: FormGroup;
   availablePeriods: number[] = [];
+
+  get isEditMode(): boolean {
+    return this.data.mode === 'edit';
+  }
+
+  get isSubmitting(): boolean {
+    // Future: Can be used for loading states
+    return false;
+  }
 
   get noPeriodSelected(): boolean {
     return this.selectedPeriods.length === 0;
@@ -273,17 +90,15 @@ export class SpecialDayModalComponent implements OnInit {
     private dialogRef: MatDialogRef<SpecialDayModalComponent>,
     @Inject(MAT_DIALOG_DATA) public data: SpecialDayModalData,
     private fb: FormBuilder,
-    private userService: UserService
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService
   ) {
-    // Initialize available periods from user config
-    
-    const userConfig = this.userService.getUserConfiguration();
-    if (userConfig) {
-        this.availablePeriods = Array.from({ length: userConfig.periodsPerDay }, (_, i) => i + 1);
+    // **FIXED: Get periods from ScheduleConfiguration instead of UserConfiguration**
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    if (activeConfig) {
+      this.availablePeriods = Array.from({ length: activeConfig.periodsPerDay }, (_, i) => i + 1);
     } else {
-        this.availablePeriods = [1, 2, 3, 4, 5]; // Default fallback
+      this.availablePeriods = [1, 2, 3, 4, 5, 6]; // Default fallback
     }
-
 
     // Build form with dynamic period checkboxes
     const formConfig: any = {
@@ -343,9 +158,10 @@ export class SpecialDayModalComponent implements OnInit {
     });
   }
   
+  // **UPDATED METHOD** - Get period assignment from ScheduleConfiguration
   getPeriodAssignment(period: number): any {
-        const userConfig = this.userService.getUserConfiguration();
-        return userConfig?.periodAssignments?.find(assignment => assignment.period === period) || null;
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    return activeConfig?.periodAssignments?.find((assignment: any) => assignment.period === period) || null;
   }
 
   formatDate(date: Date): string {

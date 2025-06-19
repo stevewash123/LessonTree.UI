@@ -1,111 +1,84 @@
-/* src/app/lessontree/calendar/components/special-day-modal.component.css - COMPLETE FILE */
 .modal-container {
     padding: 24px;
-    min-width: 480px;
+    min-width: 500px;
     max-width: 600px;
   }
-  
-  .modal-container h2 {
+
+  h2 {
     margin: 0 0 24px 0;
-    color: #333;
+    font-size: 24px;
     font-weight: 500;
-    font-size: 20px;
   }
-  
-  /* Form styling */
-  form {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
+
+  h3 {
+    margin: 20px 0 12px 0;
+    font-size: 16px;
+    font-weight: 500;
   }
-  
+
+  h4 {
+    margin: 16px 0 8px 0;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
   mat-form-field {
     width: 100%;
+    margin-bottom: 16px;
   }
-  
-  /* Lesson shift information box */
-  .lesson-shift-info {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 16px;
-    background-color: #e3f2fd;
-    border-radius: 8px;
-    border-left: 4px solid #2196f3;
-    margin: 8px 0;
+
+  .period-selection {
+    margin-bottom: 20px;
   }
-  
-  .lesson-shift-info mat-icon {
-    color: #2196f3;
-    font-size: 20px;
-    width: 20px;
-    height: 20px;
-    margin-top: 2px;
-    flex-shrink: 0;
-  }
-  
-  .info-content {
-    flex: 1;
-  }
-  
-  .info-content h4 {
-    margin: 0 0 8px 0;
+
+  .period-help {
+    margin: 0 0 16px 0;
     font-size: 14px;
-    font-weight: 600;
-    color: #1976d2;
+    color: #666;
   }
-  
-  .info-content p {
-    margin: 0;
-    font-size: 13px;
-    color: #555;
-    line-height: 1.4;
+
+  .period-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 8px;
   }
-  
-  /* Action buttons */
+
+  .period-checkbox {
+    display: flex;
+    align-items: center;
+  }
+
+  .period-info {
+    font-size: 12px;
+    color: #666;
+    margin-left: 4px;
+  }
+
+  .preview-section {
+    background: #f5f5f5;
+    padding: 16px;
+    border-radius: 4px;
+    margin-bottom: 20px;
+  }
+
+  .preview-section p {
+    margin: 4px 0;
+    font-size: 14px;
+  }
+
   .actions {
     display: flex;
-    justify-content: flex-end;
     gap: 12px;
+    justify-content: flex-end;
     margin-top: 24px;
-    padding-top: 16px;
-    border-top: 1px solid #e0e0e0;
   }
-  
-  .actions button {
-    min-width: 100px;
+
+  .delete-button {
+    margin-right: auto;
   }
-  
-  /* Responsive design */
-  @media (max-width: 600px) {
-    .modal-container {
-      padding: 16px;
-      min-width: auto;
-      max-width: 100%;
-    }
-  
-    .actions {
-      flex-direction: column-reverse;
-    }
-  
-    .actions button {
-      width: 100%;
-      min-width: auto;
-    }
-  }
-  
-  /* Form validation styling */
-  .mat-mdc-form-field.mat-form-field-invalid .mat-mdc-text-field-wrapper {
-    border-color: #f44336;
-  }
-  
-  /* Special styling for readonly date field */
-  mat-form-field input[readonly] {
-    cursor: default;
-    background-color: #f5f5f5;
-  }
-  
-  /* Custom styling for select dropdown */
-  .mat-mdc-select-panel {
-    max-height: 300px;
+
+  mat-error {
+    font-size: 12px;
+    margin-top: 4px;
   }

@@ -1,18 +1,20 @@
-// RESPONSIBILITY: Coordinates master schedule state reactions and delegates to appropriate services for calendar component.
+// **COMPLETE FILE** - Cleaned calendar-coordination.service.ts
+// RESPONSIBILITY: Coordinates schedule state reactions and delegates to appropriate services for calendar component.
 // DOES NOT: Handle UI interactions, direct API calls, or template logic - pure reactive coordination service.
 // CALLED BY: LessonCalendarComponent for managing reactive state coordination.
-import { Injectable, effect, signal } from '@angular/core';
+import { Injectable, effect, signal, computed } from '@angular/core';
 import { CalendarOptions } from '@fullcalendar/core';
 
 import { ScheduleStateService } from './schedule-state.service';
+import { ScheduleConfigurationStateService } from './schedule-configuration-state.service';
 import { SchedulePersistenceService } from './schedule-persistence.service';
 import { CalendarEventService } from './calendar-event.service';
-import { UserService } from '../../../core/services/user.service';
 import { CourseDataService } from '../../../core/services/course-data.service';
 
 import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { CourseManagementService } from '../../../core/services/course-management.service';
+import { ScheduleCoordinationService } from './schedule-coordination.service';
 
 export interface CalendarRefreshCallbacks {
   getCalendarApi: () => any;
@@ -27,15 +29,19 @@ export class CalendarCoordinationService {
   private readonly _initialized = signal<boolean>(false);
   private _callbacks: CalendarRefreshCallbacks | null = null;
 
+  private readonly _calendarEvents = signal<any[]>([]);
+  readonly calendarEvents = computed(() => this._calendarEvents());
+
   constructor(
     private scheduleStateService: ScheduleStateService,
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
     private schedulePersistenceService: SchedulePersistenceService,
     private calendarEventService: CalendarEventService,
-    private userService: UserService,
     private courseDataService: CourseDataService,
     private courseManagementService: CourseManagementService,
+    private scheduleCoordinationService: ScheduleCoordinationService
   ) {
-    console.log('[CalendarCoordinationService] Initialized for master schedule coordination');
+    console.log('[CalendarCoordinationService] Initialized for schedule coordination');
   }
 
   // Initialize the coordination service with calendar refresh callbacks
@@ -44,91 +50,78 @@ export class CalendarCoordinationService {
     
     this._callbacks = callbacks;
     this._initialized.set(true);
-
-    // Set up reactive effects for master schedule
-    this.setupUserConfigurationEffect();
-    this.setupMasterScheduleEventsEffect();
-    this.setupMasterScheduleDateEffect();
-    this.setupMasterScheduleConfigurationEffect();
-    this.setupScheduleVersionEffect();
-
-    // Load master schedule on initialization
-    this.loadMasterSchedule();
+  
+    // Set up reactive effects for schedule
+    this.setupScheduleDisplayEffect();
+    this.setupScheduleDateEffect();     
+    this.setupScheduleConfigurationEffect();
+  
+    // Load active schedule on initialization
+    this.loadActiveSchedule();
   }
 
-  // === REACTIVE EFFECTS ===
+  /**
+   * Combined signal that coordinates schedule events and configuration readiness
+   * Prevents transformation attempts before both are loaded
+   */
+  readonly scheduleReadyForDisplay = computed(() => {
+    const events = this.scheduleStateService.currentScheduleEvents();
+    const config = this.scheduleConfigurationStateService.activeConfiguration();
+    
+    return {
+      canTransform: events.length > 0 && !!config?.periodAssignments?.length,
+      hasEvents: events.length > 0,
+      hasConfiguration: !!config?.periodAssignments?.length,
+      events,
+      config,
+      eventCount: events.length,
+      configTitle: config?.title || null
+    };
+  });
 
-  // Effect: Load master schedule when user configuration changes
-  private setupUserConfigurationEffect(): void {
-    effect(() => {
-      if (!this._initialized()) return;
-
-      const userConfig = this.userService.getUserConfiguration();
-      
-      if (userConfig && userConfig.periodAssignments && userConfig.periodAssignments.length > 0) {
-        console.log('[CalendarCoordinationService] User configuration updated, loading master schedule');
-        this.loadMasterSchedule();
-      } else {
-        console.log('[CalendarCoordinationService] No user configuration, clearing master schedule');
-        this.scheduleStateService.clearMasterSchedule();
-        this.refreshCalendarEventsOnly([]);
-      }
-    });
-  }
-
-  // Effect: React to master schedule version changes for refresh triggering
-  private setupScheduleVersionEffect(): void {
-    effect(() => {
-      if (!this._initialized() || !this._callbacks) return;
-
-      const scheduleVersion = this.scheduleStateService.scheduleVersion();
-      const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
-
-      if (scheduleEvents.length > 0) {
-        this.refreshCalendarEventsOnly(scheduleEvents);
-      } else {
-        this.refreshCalendarEventsOnly([]);
-      }
-    });
-  }
-
-  // Effect: Update calendar events when master schedule changes
-  private setupMasterScheduleEventsEffect(): void {
+  private setupScheduleDisplayEffect(): void {
     effect(() => {
       if (!this._initialized() || !this._callbacks) return;
   
-      const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
+      const displayState = this.scheduleReadyForDisplay();
       
-      if (scheduleEvents.length > 0) {
-        this.refreshCalendarEventsOnly(scheduleEvents);
-      } else {
+      // **CLEANED: Removed "Schedule display state changed" - too frequent**
+  
+      if (displayState.canTransform) {
+        console.log('[CalendarCoordinationService] Transforming events for calendar display');
+        this.refreshCalendarEventsOnly(displayState.events);
+      } else if (displayState.hasEvents && !displayState.hasConfiguration) {
+        // **CLEANED: Removed "Schedule loaded but waiting for configuration" - expected state**
+        this.refreshCalendarEventsOnly([]); // Show empty calendar while waiting
+      } else if (!displayState.hasEvents) {
+        // **CLEANED: Removed "No schedule events available" - expected state**
         this.refreshCalendarEventsOnly([]);
       }
     });
   }
-
-  // Effect: Update calendar date when master schedule changes
-  private setupMasterScheduleDateEffect(): void {
+  
+  // Effect: Update calendar date when configuration changes
+  private setupScheduleDateEffect(): void {
     effect(() => {
       if (!this._initialized() || !this._callbacks) return;
 
-      const masterSchedule = this.scheduleStateService.getMasterSchedule();
+      const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
       
-      if (masterSchedule?.startDate) {
-        this.updateCalendarDate(new Date(masterSchedule.startDate));
+      if (activeConfig?.startDate) {
+        this.updateCalendarDate(new Date(activeConfig.startDate));
       }
     });
   }
 
-  // Effect: Update calendar configuration when master schedule changes
-  private setupMasterScheduleConfigurationEffect(): void {
+  // Effect: Update calendar configuration when active configuration changes
+  private setupScheduleConfigurationEffect(): void {
     effect(() => {
       if (!this._initialized() || !this._callbacks) return;
 
-      const masterSchedule = this.scheduleStateService.getMasterSchedule();
+      const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
       
-      if (masterSchedule?.teachingDays) {
-        const teachingDaysArray = parseTeachingDaysToArray(masterSchedule.teachingDays);
+      if (activeConfig?.teachingDays) {
+        const teachingDaysArray = parseTeachingDaysToArray(activeConfig.teachingDays);
         const hiddenDays = this.calculateHiddenDays(teachingDaysArray);
         this.updateHiddenDays(hiddenDays);
       }
@@ -137,37 +130,31 @@ export class CalendarCoordinationService {
 
   // === PRIVATE HELPER METHODS ===
 
-  // Load master schedule for current user
-  private loadMasterSchedule(): void {
-    console.log('[CalendarCoordinationService] Loading master schedule');
+  // Load active schedule for current user
+  private loadActiveSchedule(): void {
+    console.log('[CalendarCoordinationService] Loading active schedule');
     
-    this.schedulePersistenceService.loadMasterSchedule().subscribe({
-      next: (success) => {
+    this.scheduleCoordinationService.loadActiveScheduleWithConfiguration().subscribe({
+      next: (success: boolean) => {
         if (success) {
-          console.log('[CalendarCoordinationService] Master schedule loaded successfully');
+          console.log('[CalendarCoordinationService] Active schedule loaded successfully');
         } else {
-          console.log('[CalendarCoordinationService] No existing master schedule, will create on demand');
+          console.log('[CalendarCoordinationService] No existing schedule, generating new one');
+          this.generateSchedule();
         }
       },
       error: (error: any) => {
-        console.error('[CalendarCoordinationService] Failed to load master schedule:', error);
-        // On error, try to generate a new master schedule
-        this.generateMasterSchedule();
+        console.error('[CalendarCoordinationService] Failed to load active schedule:', error);
+        this.generateSchedule();
       }
     });
   }
 
   // Calculate hidden days from teaching days array
   private calculateHiddenDays(teachingDaysArray: string[]): number[] {
-    // Convert day names to numbers (0=Sunday, 1=Monday, etc.)
     const dayNameToNumber: { [key: string]: number } = {
-      'Sunday': 0,
-      'Monday': 1,
-      'Tuesday': 2,
-      'Wednesday': 3,
-      'Thursday': 4,
-      'Friday': 5,
-      'Saturday': 6
+      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
+      'Thursday': 4, 'Friday': 5, 'Saturday': 6
     };
 
     const teachingDayNumbers = teachingDaysArray
@@ -179,37 +166,29 @@ export class CalendarCoordinationService {
     return allDays.filter(day => !teachingDayNumbers.includes(day));
   }
 
-  // Generate master schedule using ScheduleGenerationService
-  private generateMasterSchedule(): void {
-    console.log('[CalendarCoordinationService] generateMasterSchedule');
+  // Generate schedule using ScheduleGenerationService
+  private generateSchedule(): void {
+    console.log('[CalendarCoordinationService] Generating schedule');
     
-    this.schedulePersistenceService.generateAndSetMasterSchedule().subscribe({
+    this.scheduleCoordinationService.generateAndSetSchedule().subscribe({
       next: () => {
-        console.log('[CalendarCoordinationService] Master schedule generated successfully');
+        console.log('[CalendarCoordinationService] Schedule generated successfully');
       },
       error: (error: any) => {
-        console.error('[CalendarCoordinationService] Error generating master schedule:', error);
+        console.error('[CalendarCoordinationService] Schedule generation failed:', error);
       }
     });
   }
 
   // Refresh calendar events only - handles both populated and empty states
   private refreshCalendarEventsOnly(scheduleEvents: ScheduleEvent[]): void {
-    if (!this._callbacks) return;
-
     if (scheduleEvents.length > 0) {
       const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
-      const currentOptions = this._callbacks.getCalendarOptions();
-      this._callbacks.setCalendarOptions({ ...currentOptions, events });
+      console.log(`[CalendarCoordinationService] Calendar events updated: ${events.length} events`);
+      this._calendarEvents.set(events);
     } else {
-      const currentOptions = this._callbacks.getCalendarOptions();
-      this._callbacks.setCalendarOptions({ ...currentOptions, events: [] });
-    }
-
-    // Trigger calendar re-render
-    const calendarApi = this._callbacks.getCalendarApi();
-    if (calendarApi) {
-      calendarApi.refetchEvents();
+      console.log('[CalendarCoordinationService] Calendar events cleared');
+      this._calendarEvents.set([]);
     }
   }
 
@@ -242,99 +221,87 @@ export class CalendarCoordinationService {
   // === PUBLIC API METHODS ===
 
   // Check if user has configured periods
-  hasUserConfiguration(): boolean {
-    const userConfig = this.userService.getUserConfiguration();
-    return userConfig !== null && 
-           userConfig !== undefined && 
-           (userConfig.periodAssignments?.length || 0) > 0;
+  hasScheduleConfiguration(): boolean {
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    return activeConfig !== null && 
+           activeConfig !== undefined && 
+           (activeConfig.periodAssignments?.length || 0) > 0;
   }
 
-  // Check if master schedule is available
-  hasMasterSchedule(): boolean {
+  // Check if schedule is available
+  hasActiveSchedule(): boolean {
     return this.scheduleStateService.hasActiveSchedule();
   }
 
-  // Check if courses are available
-  hasCoursesAvailable(): boolean {
-    return this.courseManagementService.hasCoursesAvailable();
-  }
-
-  // Get active course count
-  getActiveCourseCount(): number {
-    return this.courseManagementService.getActiveCourseCount();
-  }
-
-  // Get master schedule info for display
-  getMasterScheduleInfo(): { title: string; eventCount: number; isInMemory: boolean } | null {
-    const masterSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!masterSchedule) return null;
+  // Get schedule info for display
+  getScheduleInfo(): { title: string; eventCount: number; isInMemory: boolean } | null {
+    const schedule = this.scheduleStateService.getSchedule();
+    if (!schedule) return null;
 
     return {
-      title: masterSchedule.title,
-      eventCount: masterSchedule.scheduleEvents?.length || 0,
+      title: schedule.title,
+      eventCount: schedule.scheduleEvents?.length || 0,
       isInMemory: this.scheduleStateService.isInMemorySchedule()
     };
   }
 
-  // Refresh master schedule - loads fresh schedule data
-  refreshMasterSchedule(): void {
-    console.log('[CalendarCoordinationService] refreshMasterSchedule');
-    this.loadMasterSchedule();
+  // Refresh schedule - loads fresh schedule data
+  refreshSchedule(): void {
+    console.log('[CalendarCoordinationService] refreshSchedule');
+    this.loadActiveSchedule();
   }
 
-  // Force regenerate master schedule
-  regenerateMasterSchedule(): void {
-    console.log('[CalendarCoordinationService] regenerateMasterSchedule');
-    this.generateMasterSchedule();
-  }
-
-  // Save current master schedule
-  saveMasterSchedule(): void {
-    console.log('[CalendarCoordinationService] saveMasterSchedule');
+  // Force regenerate schedule
+  regenerateSchedule(): void {
+    console.log('[CalendarCoordinationService] Regenerating schedule');
     
-    this.schedulePersistenceService.saveCurrentMasterSchedule().subscribe({
+    this.scheduleCoordinationService.regenerateSchedule().subscribe({
       next: () => {
-        console.log('[CalendarCoordinationService] Master schedule saved successfully');
+        console.log('[CalendarCoordinationService] Schedule regenerated successfully');
       },
       error: (error: any) => {
-        console.error('[CalendarCoordinationService] Failed to save master schedule:', error);
+        console.error('[CalendarCoordinationService] Schedule regeneration failed:', error);
       }
     });
   }
 
-  // === COURSE QUERIES (for period iteration) ===
-  getCurrentCourse(): any | null {
-    // This would need to be implemented based on your course selection logic
-    // For now, return null as a placeholder
-    return null;
+  // Save current schedule
+  saveSchedule(): void {
+    console.log('[CalendarCoordinationService] Saving schedule');
+    
+    this.scheduleCoordinationService.saveCurrentSchedule().subscribe({
+      next: () => {
+        console.log('[CalendarCoordinationService] Schedule saved successfully');
+      },
+      error: (error: any) => {
+        console.error('[CalendarCoordinationService] Schedule save failed:', error);
+      }
+    });
+  }
+
+  hasCoursesAvailable(): boolean {
+    return this.courseManagementService.hasCoursesAvailable();
   }
   
-  // Get course data by ID (used during period iteration)
-  getCourseData(courseId: number): any | null {
-    return this.courseDataService.getCourseById(courseId);
+  /**
+   * Get active course count
+   */
+  getActiveCourseCount(): number {
+    return this.courseManagementService.getActiveCourseCount();
   }
-
-  // Get all course data for assigned courses
-  getAssignedCoursesData(): any[] {
-    const userConfig = this.userService.getUserConfiguration();
-    if (!userConfig?.periodAssignments) return [];
-
-    const courseIds = new Set<number>();
-    userConfig.periodAssignments.forEach(assignment => {
-      if (assignment.courseId) {
-        courseIds.add(assignment.courseId);
-      }
-    });
-
-    const courses: any[] = [];
-    for (const courseId of courseIds) {
-      const course = this.courseDataService.getCourseById(courseId);
-      if (course) {
-        courses.push(course);
-      }
+  
+  /**
+   * Get current course data
+   */
+  getCurrentCourse(): any | null {
+    // **FIXED: Use CourseManagementService validation which checks selection**
+    const validation = this.courseManagementService.validateCourseSelection();
+    
+    if (validation.isValid && validation.course) {
+      return validation.course;
     }
-
-    return courses;
+    
+    return null;
   }
 
   // === CLEANUP ===
@@ -347,22 +314,20 @@ export class CalendarCoordinationService {
     this._initialized.set(false);
   }
 
-  // Get debug information for troubleshooting
+  // Essential debug information only
   getDebugInfo() {
-    const masterScheduleInfo = this.getMasterScheduleInfo();
-    const userConfig = this.userService.getUserConfiguration();
+    const scheduleInfo = this.getScheduleInfo();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
     
     return {
       initialized: this._initialized(),
-      hasCallbacks: !!this._callbacks,
-      hasUserConfiguration: this.hasUserConfiguration(),
-      hasMasterSchedule: this.hasMasterSchedule(),
-      masterScheduleInfo: masterScheduleInfo,
-      periodsConfigured: userConfig?.periodAssignments?.length || 0,
-      periodsPerDay: userConfig?.periodsPerDay || 0,
-      availableCoursesCount: this.getActiveCourseCount(),
-      hasCoursesData: this.hasCoursesAvailable(),
-      assignedCoursesCount: this.getAssignedCoursesData().length
+      hasScheduleConfiguration: this.hasScheduleConfiguration(),
+      hasActiveSchedule: this.hasActiveSchedule(),
+      scheduleEventCount: scheduleInfo?.eventCount || 0,
+      periodsConfigured: activeConfig?.periodAssignments?.length || 0,
+      availableCoursesCount: this.courseManagementService.getActiveCourseCount(),
+      configurationTitle: activeConfig?.title || null
     };
   }
+
 }

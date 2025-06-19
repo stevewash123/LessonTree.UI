@@ -6,9 +6,9 @@ import { addDays, format, isAfter, isSameDay } from 'date-fns';
 
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { ScheduleStateService } from './schedule-state.service';
+import { ScheduleConfigurationStateService } from './schedule-configuration-state.service';
 import { ScheduleApiService } from './schedule-api.service';
 import { TeachingDayCalculationService } from './teaching-day-calculations.service';
-import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 
 @Injectable({
   providedIn: 'root'
@@ -16,6 +16,7 @@ import { parseTeachingDaysToArray } from '../../../models/utils/shared.utils';
 export class LessonShiftingService {
   constructor(
     private scheduleStateService: ScheduleStateService,
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
     private calendarService: ScheduleApiService,
     private teachingDayCalculation: TeachingDayCalculationService
   ) {
@@ -29,13 +30,15 @@ export class LessonShiftingService {
   shiftLessonsForward(insertionDate: Date, period: number): void {
     console.log(`[LessonShiftingService] shiftLessonsForward - Period ${period} from ${format(insertionDate, 'yyyy-MM-dd')}`);
     
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!currentSchedule?.scheduleEvents || !currentSchedule?.teachingDays) {
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    
+    if (!currentSchedule?.scheduleEvents || !activeConfig?.teachingDays) {
       console.error('[LessonShiftingService] Cannot shift: No schedule or teaching days available');
       return;
     }
 
-    const teachingDayNumbers = this.getTeachingDayNumbers(currentSchedule.teachingDays);
+    const teachingDayNumbers = this.getTeachingDayNumbers(activeConfig.teachingDays);
     const affectedLessons = this.findLessonsInPeriodOnOrAfter(currentSchedule.scheduleEvents, insertionDate, period);
 
     if (affectedLessons.length === 0) {
@@ -47,7 +50,8 @@ export class LessonShiftingService {
       insertionDate, 
       period,
       teachingDayNumbers, 
-      currentSchedule
+      currentSchedule,
+      activeConfig
     );
 
     this.applyLessonShifts(shiftedLessons);
@@ -60,13 +64,15 @@ export class LessonShiftingService {
   shiftLessonsBackward(deletedDate: Date, period: number): void {
     console.log(`[LessonShiftingService] shiftLessonsBackward - Period ${period} from ${format(deletedDate, 'yyyy-MM-dd')}`);
     
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    if (!currentSchedule?.scheduleEvents || !currentSchedule?.teachingDays) {
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    
+    if (!currentSchedule?.scheduleEvents || !activeConfig?.teachingDays) {
       console.error('[LessonShiftingService] Cannot shift backward: No schedule or teaching days available');
       return;
     }
 
-    const teachingDayNumbers = this.getTeachingDayNumbers(currentSchedule.teachingDays);
+    const teachingDayNumbers = this.getTeachingDayNumbers(activeConfig.teachingDays);
     const lessonsAfterDeleted = this.findLessonsInPeriodAfter(currentSchedule.scheduleEvents, deletedDate, period);
 
     if (lessonsAfterDeleted.length === 0) {
@@ -112,7 +118,8 @@ export class LessonShiftingService {
     insertionDate: Date, 
     period: number,
     teachingDayNumbers: number[], 
-    currentSchedule: any
+    currentSchedule: any,
+    activeConfig: any
   ): ScheduleEvent[] {
     const shiftedLessons: ScheduleEvent[] = [];
     let currentShiftDate = this.teachingDayCalculation.getNextTeachingDay(addDays(insertionDate, 1), teachingDayNumbers);
@@ -132,7 +139,7 @@ export class LessonShiftingService {
       };
 
       // Check if lesson goes past schedule end date
-      if (currentSchedule.endDate && isAfter(currentShiftDate, new Date(currentSchedule.endDate))) {
+      if (activeConfig.endDate && isAfter(currentShiftDate, new Date(activeConfig.endDate))) {
         // Convert to error event
         shiftedLesson.lessonId = null;
         shiftedLesson.eventType = 'Error';
@@ -250,35 +257,6 @@ export class LessonShiftingService {
     });
     
     this.scheduleStateService.markAsChanged();
-  }
-
-  // === DEBUG AND UTILITY METHODS ===
-
-  getShiftingDebugInfo(): any {
-    const currentSchedule = this.scheduleStateService.getMasterSchedule();
-    
-    if (!currentSchedule) {
-      return { error: 'No schedule selected' };
-    }
-
-    const lessonEvents = currentSchedule.scheduleEvents?.filter(event => event.lessonId) || [];
-    const specialEvents = currentSchedule.scheduleEvents?.filter(event => 
-      event.eventType && event.eventType !== 'Lesson'
-    ) || [];
-
-    return {
-      scheduleId: currentSchedule.id,
-      scheduleTitle: currentSchedule.title,
-      totalEvents: currentSchedule.scheduleEvents?.length || 0,
-      lessonEvents: lessonEvents.length,
-      specialEvents: specialEvents.length,
-      lessonEventsByPeriod: this.groupEventsByPeriod(lessonEvents),
-      teachingDays: currentSchedule.teachingDays,
-      dateRange: {
-        start: currentSchedule.startDate,
-        end: currentSchedule.endDate
-      }
-    };
   }
 
   private groupEventsByPeriod(events: ScheduleEvent[]): { [period: number]: number } {
