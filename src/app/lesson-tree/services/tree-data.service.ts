@@ -14,20 +14,11 @@ import { TreeNode, TreeData } from '../../models/tree-node';
 export class TreeDataService {
 
   constructor() {
-    console.log('[TreeDataService] Service initialized', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[TreeDataService] Service initialized');
   }
 
   // Build complete tree structure from course data
   buildTreeFromCourse(course: Course, courseId: number): TreeNode[] {
-    console.log('[TreeDataService] Building tree from course data', {
-      courseId,
-      courseTitle: course.title,
-      topicsCount: course.topics?.length ?? 0,
-      timestamp: new Date().toISOString()
-    });
-
     // Create the course node
     const courseNode: TreeNode = {
       id: course.nodeId || courseId.toString(),
@@ -47,35 +38,48 @@ export class TreeDataService {
       courseNode.child = [];
     }
 
-    console.log('[TreeDataService] Tree structure built', {
-      nodeCount: this.countNodes([courseNode]),
-      timestamp: new Date().toISOString()
-    });
-
     return [courseNode];
   }
 
   // Build topic node with children
   private buildTopicNode(topic: Topic): TreeNode {
     const topicNode = createTopicNode(topic);
-    const children: TreeNode[] = [];
     
-    // Add subtopics as children of topic
+    // Create unified array of all children (subtopics + direct lessons)
+    const allChildren: Array<{node: TreeNode, sortOrder: number, type: string}> = [];
+    
+    // Add subtopics with their sort orders
     if (topic.subTopics?.length) {
-      children.push(...topic.subTopics
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(st => this.buildSubTopicNode(st)));
+      topic.subTopics.forEach(subTopic => {
+        allChildren.push({
+          node: this.buildSubTopicNode(subTopic),
+          sortOrder: subTopic.sortOrder,
+          type: 'SubTopic'
+        });
+      });
     }
     
-    // Add direct lessons as children of topic
+    // Add direct lessons with their sort orders
     if (topic.lessons?.length) {
-      children.push(...topic.lessons
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map(l => createLessonNode(l)));
+      topic.lessons.forEach(lesson => {
+        allChildren.push({
+          node: createLessonNode(lesson),
+          sortOrder: lesson.sortOrder,
+          type: 'Lesson'
+        });
+      });
     }
     
-    topicNode.child = children;
-    topicNode.hasChildren = children.length > 0;
+    // Sort by unified sortOrder and extract nodes
+    topicNode.child = allChildren
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(item => item.node);
+      
+    topicNode.hasChildren = topicNode.child.length > 0;
+    
+    console.log(`[TreeDataService] Built topic "${topic.title}" with ${allChildren.length} children in unified sort order:`, 
+      allChildren.map(c => `${c.type}(${c.sortOrder})`).join(', '));
+    
     return topicNode;
   }
 
@@ -164,10 +168,6 @@ export class TreeDataService {
         }
       });
     }
-
-    console.log('[TreeDataService] Tree data sorted', { 
-      timestamp: new Date().toISOString() 
-    });
   }
 
   // Add node to tree structure
@@ -192,10 +192,7 @@ export class TreeDataService {
     }
   
     if (!parentNodeId) {
-      console.warn(`[TreeDataService] No valid parent nodeId found for ${newNode.nodeType}`, { 
-        nodeId: newNode.id,
-        timestamp: new Date().toISOString() 
-      });
+      console.warn(`[TreeDataService] No valid parent nodeId found for ${newNode.nodeType}`);
       return { success: false };
     }
   
@@ -205,17 +202,9 @@ export class TreeDataService {
       parentNode.child.push(newNode);
       parentNode.hasChildren = true;
       
-      console.log(`[TreeDataService] Added ${newNode.nodeType} node to tree`, {
-        parentNodeId,
-        newNodeId: newNode.id,
-        timestamp: new Date().toISOString()
-      });
       return { success: true, parentNodeId };
     } else {
-      console.warn(`[TreeDataService] Parent node not found in treeData`, {
-        parentNodeId,
-        timestamp: new Date().toISOString()
-      });
+      console.warn(`[TreeDataService] Parent node not found in treeData`);
       return { success: false };
     }
   }
@@ -226,12 +215,6 @@ export class TreeDataService {
     if (result.success) {
       // Sort the tree data after adding
       this.sortTreeData(treeData);
-      
-      console.log(`[TreeDataService] Added and sorted ${newNode.nodeType} node`, {
-        newNodeId: newNode.id,
-        parentNodeId: result.parentNodeId,
-        timestamp: new Date().toISOString()
-      });
     }
     
     return {
@@ -255,12 +238,45 @@ export class TreeDataService {
     };
     
     const updatedTreeData = updateChildren(treeData);
-    console.log(`[TreeDataService] Updated tree data with children for parent ${parentId}`, {
-      childCount: childNodes.length,
-      timestamp: new Date().toISOString()
-    });
-    
     return updatedTreeData;
+  }
+
+  /**
+ * Create a single lesson node for incremental tree updates
+ * Used by TreeSyncService.addLessonNode() for SyncFusion addNodes() method
+ */
+createLessonNode(lesson: any): TreeNode {
+    const nodeId = `lesson_${lesson.id}`;
+    
+    return {
+      id: nodeId,
+      text: lesson.title || 'Untitled Lesson',
+      nodeType: 'Lesson',
+      iconCss: 'e-file-icon', // SyncFusion icon class
+      hasChildren: false,
+      child: [], // Required by SyncFusion, empty for lessons
+      
+      // Lesson-specific properties
+      lessonId: lesson.id,
+      courseId: lesson.courseId,
+      topicId: lesson.topicId,
+      subTopicId: lesson.subTopicId,
+      sortOrder: lesson.sortOrder || 0,
+      
+      // Optional lesson properties
+      archived: lesson.archived || false,
+      visibility: lesson.visibility || 0,
+      userId: lesson.userId,
+      
+      // Additional properties that might be useful
+      level: lesson.level,
+      objective: lesson.objective,
+      materials: lesson.materials,
+      methods: lesson.methods,
+      classTime: lesson.classTime,
+      assessment: lesson.assessment,
+      specialNeeds: lesson.specialNeeds
+    };
   }
 
   // Get text property from tree data based on node type
@@ -348,10 +364,6 @@ export class TreeDataService {
           }
         }
       }
-      
-      console.log(`[TreeDataService] Tree statistics: ${topicCount} topics, ${subTopicCount} subtopics, ${lessonCount} lessons`, {
-        timestamp: new Date().toISOString()
-      });
     }
   }
 }

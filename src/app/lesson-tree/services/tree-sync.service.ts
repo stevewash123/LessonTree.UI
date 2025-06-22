@@ -10,7 +10,7 @@ import { TreeNode } from '../../models/tree-node';
 
 export interface SyncResult {
   success: boolean;
-  operation: 'bind' | 'clear' | 'update' | 'sync';
+  operation: 'bind' | 'clear' | 'update' | 'sync' | 'add';
   nodeCount?: number;
   error?: string;
 }
@@ -21,9 +21,60 @@ export interface SyncResult {
 export class TreeSyncService {
 
   constructor(private treeDataService: TreeDataService) {
-    console.log('[TreeSyncService] Service initialized', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[TreeSyncService] Service initialized');
+  }
+
+  /**
+   * BEST PRACTICE: Add lesson node incrementally using SyncFusion's addNodes() method
+   * This preserves tree state (expansion, selection) and follows SyncFusion best practices
+   */
+  addLessonNode(
+    lesson: any,
+    syncFuncTree: TreeViewComponent | null,
+    parentNodeId: string,
+    courseId: number
+  ): SyncResult {
+    if (!syncFuncTree) {
+      console.warn(`[TreeSyncService] addLessonNode: SyncFusion component not available for course ${courseId}`);
+      return {
+        success: false,
+        operation: 'add',
+        error: 'SyncFusion component not available'
+      };
+    }
+
+    if (!this.isComponentReady(syncFuncTree)) {
+      console.warn(`[TreeSyncService] addLessonNode: SyncFusion component not ready for course ${courseId}`);
+      return {
+        success: false,
+        operation: 'add',
+        error: 'SyncFusion component not ready'
+      };
+    }
+
+    try {
+      // Create the new lesson node using TreeDataService
+      const newLessonNode = this.treeDataService.createLessonNode(lesson);
+      
+      console.log(`[TreeSyncService] Adding lesson node "${lesson.title}" to parent "${parentNodeId}" for course ${courseId}`);
+      
+      // Use SyncFusion's addNodes() method - preserves tree state
+      // This is the official SyncFusion recommendation for incremental updates
+      syncFuncTree.addNodes([newLessonNode], parentNodeId);
+      
+      return {
+        success: true,
+        operation: 'add',
+        nodeCount: 1
+      };
+    } catch (error) {
+      console.error(`[TreeSyncService] Error adding lesson node for course ${courseId}:`, error);
+      return {
+        success: false,
+        operation: 'add',
+        error: error instanceof Error ? error.message : 'Add node error'
+      };
+    }
   }
 
   /**
@@ -80,12 +131,6 @@ export class TreeSyncService {
             iconCss: 'iconCss',
           };
           
-          console.log(`[TreeSyncService] Binding tree data for course ${course.id}`, {
-            nodeCount: treeData.length,
-            courseTitle: course.title,
-            timestamp: new Date().toISOString()
-          });
-          
           syncFuncTree.dataBind();
           
           resolve({
@@ -106,13 +151,17 @@ export class TreeSyncService {
   }
 
   /**
-   * Sync data without UI rebuild (preserves SyncFusion UI state)
+   * LEGACY: Full data sync (causes collapse) - only use for major structural changes
+   * WARNING: This method will cause tree collapse and should be avoided for incremental updates
+   * Use addLessonNode(), removeNode(), updateNode() methods instead for preserving tree state
    */
   syncDataOnly(
     course: Course | null,
     syncFuncTree: TreeViewComponent | null,
     courseId: number
   ): SyncResult {
+    console.warn(`[TreeSyncService] syncDataOnly called - this WILL cause tree collapse. Consider using incremental methods (addLessonNode, etc.) instead.`);
+    
     if (!courseId || !course) {
       return {
         success: false,
@@ -131,19 +180,14 @@ export class TreeSyncService {
     }
     
     try {
-      // Update the underlying data without calling dataBind() - preserves SyncFusion UI state
+      // WARNING: This WILL trigger dataBind() and cause tree collapse
+      // SyncFusion's property change detection automatically calls dataBind() when fields.dataSource changes
       const treeData = this.treeDataService.buildTreeFromCourse(course, courseId);
       
       syncFuncTree.fields = { 
         ...syncFuncTree.fields,
         dataSource: treeData
       };
-      
-      console.log(`[TreeSyncService] Data synced without UI rebuild for course ${courseId}`, {
-        nodeCount: treeData.length,
-        courseTitle: course.title,
-        timestamp: new Date().toISOString()
-      });
       
       return {
         success: true,
@@ -167,10 +211,6 @@ export class TreeSyncService {
     syncFuncTree: TreeViewComponent | null,
     courseId: number
   ): SyncResult {
-    console.log(`[TreeSyncService] Clearing tree data for course ${courseId}`, {
-      timestamp: new Date().toISOString()
-    });
-    
     if (!syncFuncTree) {
       console.warn(`[TreeSyncService] clearTreeData: SyncFusion component not available for course ${courseId}`);
       return {
@@ -192,10 +232,6 @@ export class TreeSyncService {
       
       syncFuncTree.dataBind();
       
-      console.log(`[TreeSyncService] Tree data cleared successfully for course ${courseId}`, {
-        timestamp: new Date().toISOString()
-      });
-      
       return {
         success: true,
         operation: 'clear',
@@ -215,11 +251,6 @@ export class TreeSyncService {
    * Handle SyncFusion onDataBound event
    */
   handleDataBound(treeData: TreeNode[], courseId?: number): void {
-    console.log(`[TreeSyncService] Tree data bound completed for course ${courseId}`, {
-      nodeCount: treeData?.length || 0,
-      timestamp: new Date().toISOString()
-    });
-    
     // Use TreeDataService for logging statistics
     if (treeData && treeData.length > 0) {
       this.treeDataService.logTreeStatistics(treeData);
@@ -245,11 +276,6 @@ export class TreeSyncService {
       this.treeDataService.sortTreeData(treeData);
       
       syncFuncTree.dataBind();
-      
-      console.log('[TreeSyncService] Tree data sorted and rebound', { 
-        nodeCount: treeData.length,
-        timestamp: new Date().toISOString() 
-      });
       
       return {
         success: true,
@@ -318,7 +344,8 @@ export class TreeSyncService {
     try {
       // Check if component has been initialized properly
       return syncFuncTree.fields !== undefined && 
-             typeof syncFuncTree.dataBind === 'function';
+             typeof syncFuncTree.dataBind === 'function' &&
+             typeof syncFuncTree.addNodes === 'function';
     } catch (error) {
       console.warn('[TreeSyncService] Error checking component readiness:', error);
       return false;

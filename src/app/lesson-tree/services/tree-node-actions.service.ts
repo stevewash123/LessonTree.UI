@@ -32,9 +32,7 @@ export class TreeNodeActionsService {
     private courseCrudService: CourseCrudService,
     private treeDataService: TreeDataService
   ) {
-    console.log('[TreeNodeActionsService] Service initialized', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[TreeNodeActionsService] Service initialized');
   }
 
   /**
@@ -45,12 +43,6 @@ export class TreeNodeActionsService {
     treeData: TreeNode[],
     courseId: number
   ): NodeActionResult {
-    console.log('[TreeNodeActionsService] Node selected in tree:', {
-      nodeId: args.nodeData?.id || 'none',
-      courseId,
-      timestamp: new Date().toISOString()
-    });
-    
     if (!args.nodeData || !args.nodeData.id) {
       return {
         success: false,
@@ -63,13 +55,6 @@ export class TreeNodeActionsService {
     const selectedTreeNode = this.treeDataService.findNodeById(treeData, args.nodeData.id);
     
     if (selectedTreeNode && selectedTreeNode.original) {
-      console.log('[TreeNodeActionsService] Found node in tree data:', {
-        nodeId: selectedTreeNode.original.nodeId, 
-        nodeType: selectedTreeNode.original.nodeType,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
-      
       // Update the selection service
       this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
       
@@ -80,11 +65,7 @@ export class TreeNodeActionsService {
         nodeType: selectedTreeNode.original.nodeType as NodeType
       };
     } else {
-      console.warn('[TreeNodeActionsService] Node not found in tree data:', {
-        nodeId: args.nodeData.id,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
+      console.warn('[TreeNodeActionsService] Node not found in tree data:', args.nodeData.id);
       
       return {
         success: false,
@@ -104,21 +85,8 @@ export class TreeNodeActionsService {
     courseId: number,
     hasCurrentSelection: boolean
   ): NodeActionResult {
-    console.log('[TreeNodeActionsService] Node expanded - checking for auto-selection:', {
-      nodeId: args.nodeData?.id || 'none',
-      courseId,
-      hasCurrentSelection,
-      timestamp: new Date().toISOString()
-    });
-    
     // Only auto-select if no node is currently selected
     if (hasCurrentSelection) {
-      console.log('[TreeNodeActionsService] Skipping auto-selection - node already selected:', {
-        expandedNodeId: args.nodeData?.id,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
-      
       return {
         success: false,
         action: 'auto-select',
@@ -138,13 +106,6 @@ export class TreeNodeActionsService {
     const expandedTreeNode = this.treeDataService.findNodeById(treeData, args.nodeData.id);
     
     if (expandedTreeNode && expandedTreeNode.original) {
-      console.log('[TreeNodeActionsService] Auto-selecting expanded node (no current selection):', {
-        nodeId: expandedTreeNode.original.nodeId, 
-        nodeType: expandedTreeNode.original.nodeType,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
-      
       // Select with 'tree' source so TreeWrapper doesn't react to its own selection
       this.nodeSelectionService.selectNode(expandedTreeNode.original as TreeData, 'tree');
       
@@ -155,11 +116,7 @@ export class TreeNodeActionsService {
         nodeType: expandedTreeNode.original.nodeType as NodeType
       };
     } else {
-      console.warn('[TreeNodeActionsService] Expanded node not found in tree data:', {
-        nodeId: args.nodeData.id,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
+      console.warn('[TreeNodeActionsService] Expanded node not found in tree data:', args.nodeData.id);
       
       return {
         success: false,
@@ -183,11 +140,7 @@ export class TreeNodeActionsService {
     const node = this.treeDataService.findNodeById(treeData, nodeId);
     
     if (!node || !node.original) {
-      console.warn('[TreeNodeActionsService] Could not find node data for add child action:', { 
-        nodeId, 
-        courseId,
-        timestamp: new Date().toISOString() 
-      });
+      console.warn('[TreeNodeActionsService] Could not find node data for add child action:', nodeId);
       
       return {
         success: false,
@@ -198,13 +151,6 @@ export class TreeNodeActionsService {
     }
     
     const treeData_ = node.original as TreeData;
-    console.log(`[TreeNodeActionsService] Initiating add child node`, { 
-      parentNodeId: treeData_.nodeId,
-      parentNodeType: treeData_.nodeType,
-      requestedChildType: childType,
-      courseId,
-      timestamp: new Date().toISOString() 
-    });
     
     // Delegate to panel state service for add mode
     this.panelStateService.initiateAddMode(childType, treeData_, treeData_.id);
@@ -229,10 +175,7 @@ export class TreeNodeActionsService {
     const node = this.treeDataService.findNodeById(treeData, nodeId);
     
     if (!node) {
-      console.warn(`[TreeNodeActionsService] Node not found for deletion: ${nodeId}`, {
-        courseId,
-        timestamp: new Date().toISOString()
-      });
+      console.warn(`[TreeNodeActionsService] Node not found for deletion:`, nodeId);
       
       return {
         success: false,
@@ -241,11 +184,6 @@ export class TreeNodeActionsService {
         error: 'Node not found for deletion'
       };
     }
-
-    console.log(`[TreeNodeActionsService] Deleting ${node.nodeType} node: ${nodeId}`, {
-      courseId,
-      timestamp: new Date().toISOString()
-    });
 
     // Call appropriate CRUD service method
     try {

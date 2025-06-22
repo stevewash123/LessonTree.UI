@@ -1,19 +1,16 @@
-// NodeOperationsService
-// RESPONSIBILITY: Handles drag & drop operations, move/copy logic, and API coordination.
-// DOES NOT: Manage tree UI state or course data storage.
+// RESPONSIBILITY: Orchestrates drag & drop operations, move/copy logic, and API coordination
+// DOES NOT: Manage drag mode state, perform sort order calculations, or handle direct API operations
 // CALLED BY: TreeWrapper drag handlers, Calendar scheduling operations
-import { Injectable, signal } from '@angular/core';
-import { catchError, map, Observable, of, tap } from 'rxjs';
+
+import { Injectable } from '@angular/core';
+import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 import { CourseCrudService } from './course-crud.service';
+import { NodeDragModeService, DragMode } from './node-drag-mode.service';
+import { NodePositioningService } from './node-positioning.service';
 import { ToastrService } from 'ngx-toastr';
 import { TreeData, NodeMovedEvent } from '../../models/tree-node';
 import { ApiService } from '../../shared/services/api.service';
 import { CourseDataService } from '../../shared/services/course-data.service';
-
-export enum DragMode {
-  Move = 'move',
-  Copy = 'copy'
-}
 
 export interface NodeCopyEvent {
   node: TreeData;
@@ -29,38 +26,37 @@ export interface NodeCopyEvent {
   providedIn: 'root'
 })
 export class NodeOperationsService {
-  // Drag mode state
-  private readonly _dragMode = signal<DragMode>(DragMode.Move);
-  readonly dragMode = this._dragMode.asReadonly();
 
   constructor(
     private apiService: ApiService,
     private courseDataService: CourseDataService,    
     private courseCrudService: CourseCrudService,
+    private nodeDragModeService: NodeDragModeService,
+    private nodePositioningService: NodePositioningService,
     private toastr: ToastrService
   ) {
-    console.log('[NodeOperationsService] Service initialized', { timestamp: new Date().toISOString() });
+    console.log('[NodeOperationsService] Service initialized');
   }
 
-  // Drag mode methods
-  toggleDragMode(): void {
-    const currentMode = this._dragMode();
-    this._dragMode.set(currentMode === DragMode.Move ? DragMode.Copy : DragMode.Move);
-    console.log('[NodeOperationsService] Toggled drag mode to:', this._dragMode(), { timestamp: new Date().toISOString() });
+  // Expose drag mode service methods for convenience
+  get dragMode() {
+    return this.nodeDragModeService.dragMode;
   }
 
-  setDragMode(mode: DragMode): void {
-    this._dragMode.set(mode);
-    console.log('[NodeOperationsService] Set drag mode to:', mode, { timestamp: new Date().toISOString() });
-  }
-
-  // Convenience getters for checking current mode
   get isDragModeMove(): boolean {
-    return this._dragMode() === DragMode.Move;
+    return this.nodeDragModeService.isDragModeMove;
   }
 
   get isDragModeCopy(): boolean {
-    return this._dragMode() === DragMode.Copy;
+    return this.nodeDragModeService.isDragModeCopy;
+  }
+
+  toggleDragMode(): void {
+    this.nodeDragModeService.toggleDragMode();
+  }
+
+  setDragMode(mode: DragMode): void {
+    this.nodeDragModeService.setDragMode(mode);
   }
 
   // Private helper to get node title for logging/messages
@@ -88,7 +84,7 @@ export class NodeOperationsService {
     }
   }
 
-  // Move node operation (existing logic from CourseDataService)
+  // Move node operation
   moveNode(event: NodeMovedEvent): Observable<boolean> {
     const { node, sourceParentId, sourceParentType, targetParentId, targetParentType, sourceCourseId, targetCourseId } = event;
     
@@ -98,17 +94,14 @@ export class NodeOperationsService {
       targetParentType,
       targetParentId,
       sourceCourseId,
-      targetCourseId,
-      timestamp: new Date().toISOString() 
+      targetCourseId
     });
     
     // Handle special case: Topic moving between courses
     if (node.nodeType === 'Topic' && targetCourseId) {
       return this.apiService.moveTopic(node.id, targetCourseId).pipe(
         tap(() => {
-          console.log(`[NodeOperationsService] Successfully moved topic ${this.getNodeTitle(node)} between courses`, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.log(`[NodeOperationsService] Successfully moved topic ${this.getNodeTitle(node)} between courses`);
           
           // Signal the move through data service
           this.courseDataService.emitNodeMoved({
@@ -131,11 +124,9 @@ export class NodeOperationsService {
           // Reload courses to get fresh data
           this.courseCrudService.loadCourses().subscribe();
         }),
-        map(() => true), // Convert to boolean
+        map(() => true),
         catchError(err => {
-          console.error('[NodeOperationsService] Failed to move topic between courses:', err, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.error('[NodeOperationsService] Failed to move topic between courses:', err);
           this.toastr.error('Failed to move topic: ' + err.message, 'Error');
           return of(false);
         })
@@ -158,8 +149,7 @@ export class NodeOperationsService {
           console.log('[NodeOperationsService] Successfully moved lesson', {
             lessonId: node.id,
             targetSubTopicId,
-            targetTopicId,
-            timestamp: new Date().toISOString()
+            targetTopicId
           });
           
           // Signal the move through data service
@@ -176,11 +166,9 @@ export class NodeOperationsService {
           // Reload courses to get fresh data
           this.courseCrudService.loadCourses().subscribe();
         }),
-        map(() => true), // Convert to boolean
+        map(() => true),
         catchError(err => {
-          console.error('[NodeOperationsService] Failed to move lesson:', err, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.error('[NodeOperationsService] Failed to move lesson:', err);
           this.toastr.error('Failed to move lesson: ' + err.message, 'Error');
           return of(false);
         })
@@ -191,9 +179,7 @@ export class NodeOperationsService {
     if (node.nodeType === 'SubTopic' && targetParentType === 'Topic' && targetParentId) {
       return this.apiService.moveSubTopic(node.id, targetParentId).pipe(
         tap(() => {
-          console.log(`[NodeOperationsService] Successfully moved subtopic ${this.getNodeTitle(node)}`, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.log(`[NodeOperationsService] Successfully moved subtopic ${this.getNodeTitle(node)}`);
           
           // Signal the move through data service
           this.courseDataService.emitNodeMoved({
@@ -208,11 +194,9 @@ export class NodeOperationsService {
           // Reload courses to get fresh data
           this.courseCrudService.loadCourses().subscribe();
         }),
-        map(() => true), // Convert to boolean
+        map(() => true),
         catchError(err => {
-          console.error('[NodeOperationsService] Failed to move subtopic:', err, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.error('[NodeOperationsService] Failed to move subtopic:', err);
           this.toastr.error('Failed to move subtopic: ' + err.message, 'Error');
           return of(false);
         })
@@ -220,12 +204,12 @@ export class NodeOperationsService {
     }
     
     // If we reach here, it's an unsupported move type
-    console.error('[NodeOperationsService] Unsupported move operation', event, { timestamp: new Date().toISOString() });
+    console.error('[NodeOperationsService] Unsupported move operation', event);
     this.toastr.error('Unsupported move operation', 'Error');
     return of(false);
   }
 
-  // Copy node operation - using correct API endpoints from Swagger
+  // Copy node operation - using correct API endpoints
   copyNode(event: NodeCopyEvent): Observable<boolean> {
     const { node, sourceParentId, sourceParentType, targetParentId, targetParentType, sourceCourseId, targetCourseId } = event;
     
@@ -235,13 +219,11 @@ export class NodeOperationsService {
       targetParentType,
       targetParentId,
       sourceCourseId,
-      targetCourseId,
-      timestamp: new Date().toISOString() 
+      targetCourseId
     });
 
-    // Handle Topic copying - using the /api/Topic/copy endpoint
+    // Handle Topic copying
     if (node.nodeType === 'Topic' && targetCourseId) {
-      // Based on Swagger, the copy endpoint likely takes a TopicMoveResource
       const copyPayload = {
         topicId: node.id,
         newCourseId: targetCourseId
@@ -249,9 +231,7 @@ export class NodeOperationsService {
       
       return this.apiService.post('Topic/copy', copyPayload).pipe(
         tap(() => {
-          console.log(`[NodeOperationsService] Successfully copied topic ${this.getNodeTitle(node)} between courses`, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.log(`[NodeOperationsService] Successfully copied topic ${this.getNodeTitle(node)} between courses`);
           
           // Show success message
           if (sourceCourseId && targetCourseId) {
@@ -267,18 +247,16 @@ export class NodeOperationsService {
           // Reload courses to get fresh data
           this.courseCrudService.loadCourses().subscribe();
         }),
-        map(() => true), // Convert to boolean
+        map(() => true),
         catchError(err => {
-          console.error('[NodeOperationsService] Failed to copy topic between courses:', err, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.error('[NodeOperationsService] Failed to copy topic between courses:', err);
           this.toastr.error('Failed to copy topic: ' + err.message, 'Error');
           return of(false);
         })
       );
     }
 
-    // Handle Lesson copying - using the /api/Lesson/copy endpoint
+    // Handle Lesson copying
     if (node.nodeType === 'Lesson') {
       let targetSubTopicId: number | undefined = undefined;
       let targetTopicId: number | undefined = undefined;
@@ -289,7 +267,6 @@ export class NodeOperationsService {
         targetTopicId = targetParentId;
       }
       
-      // Based on Swagger, likely takes a LessonMoveResource
       const copyPayload = {
         lessonId: node.id,
         newSubTopicId: targetSubTopicId,
@@ -301,8 +278,7 @@ export class NodeOperationsService {
           console.log('[NodeOperationsService] Successfully copied lesson', {
             lessonId: node.id,
             targetSubTopicId,
-            targetTopicId,
-            timestamp: new Date().toISOString()
+            targetTopicId
           });
           
           // Show success message
@@ -311,20 +287,17 @@ export class NodeOperationsService {
           // Reload courses to get fresh data
           this.courseCrudService.loadCourses().subscribe();
         }),
-        map(() => true), // Convert to boolean
+        map(() => true),
         catchError(err => {
-          console.error('[NodeOperationsService] Failed to copy lesson:', err, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.error('[NodeOperationsService] Failed to copy lesson:', err);
           this.toastr.error('Failed to copy lesson: ' + err.message, 'Error');
           return of(false);
         })
       );
     }
 
-    // Handle SubTopic copying - using the /api/SubTopic/copy endpoint
+    // Handle SubTopic copying
     if (node.nodeType === 'SubTopic' && targetParentType === 'Topic' && targetParentId) {
-      // Based on Swagger, likely takes a SubTopicMoveResource
       const copyPayload = {
         subTopicId: node.id,
         newTopicId: targetParentId
@@ -332,9 +305,7 @@ export class NodeOperationsService {
       
       return this.apiService.post('SubTopic/copy', copyPayload).pipe(
         tap(() => {
-          console.log(`[NodeOperationsService] Successfully copied subtopic ${this.getNodeTitle(node)}`, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.log(`[NodeOperationsService] Successfully copied subtopic ${this.getNodeTitle(node)}`);
           
           // Show success message
           this.toastr.success(`Copied SubTopic "${this.getNodeTitle(node)}" successfully`);
@@ -342,11 +313,9 @@ export class NodeOperationsService {
           // Reload courses to get fresh data
           this.courseCrudService.loadCourses().subscribe();
         }),
-        map(() => true), // Convert to boolean
+        map(() => true),
         catchError(err => {
-          console.error('[NodeOperationsService] Failed to copy subtopic:', err, { 
-            timestamp: new Date().toISOString() 
-          });
+          console.error('[NodeOperationsService] Failed to copy subtopic:', err);
           this.toastr.error('Failed to copy subtopic: ' + err.message, 'Error');
           return of(false);
         })
@@ -354,8 +323,58 @@ export class NodeOperationsService {
     }
     
     // If we reach here, it's an unsupported copy type
-    console.error('[NodeOperationsService] Unsupported copy operation', event, { timestamp: new Date().toISOString() });
+    console.error('[NodeOperationsService] Unsupported copy operation', event);
     this.toastr.error('Unsupported copy operation', 'Error');
     return of(false);
+  }
+  
+  /**
+   * Perform positional move operation - delegates to positioning service
+   */
+  performPositionalMove(
+    event: NodeMovedEvent,
+    relativeToId: number,
+    relativePosition: 'before' | 'after',
+    relativeToType: 'Lesson' | 'SubTopic'
+  ): Observable<boolean> {
+    console.log(`[NodeOperationsService] Delegating positional move to NodePositioningService`);
+    
+    // Check if positioning is supported for this node type
+    if (!this.nodePositioningService.supportsPositionalMove(event.node.nodeType)) {
+      console.log(`[NodeOperationsService] Positional move not supported for ${event.node.nodeType}, using regular move`);
+      return this.moveNode(event);
+    }
+
+    return this.nodePositioningService.performPositionalMove(
+      event,
+      relativeToId,
+      relativePosition,
+      relativeToType
+    ).pipe(
+      switchMap(result => {
+        if (result.success) {
+          // Signal the move through data service
+          this.courseDataService.emitNodeMoved({
+            node: event.node,
+            sourceLocation: event.sourceParentType ? `${event.sourceParentType}:${event.sourceParentId}` : 'Unknown',
+            targetLocation: `${event.targetParentType}:${event.targetParentId}@${result.sortOrder}`
+          }, 'tree');
+          
+          // Show success message
+          this.toastr.success(`Moved ${event.node.nodeType} "${this.getNodeTitle(event.node)}" to specific position`);
+          
+          // Reload courses to get fresh data
+          return this.courseCrudService.loadCourses().pipe(map(() => true));
+        } else {
+          this.toastr.error('Failed to move to position: positioning service error', 'Error');
+          return of(false);
+        }
+      }),
+      catchError(err => {
+        console.error('[NodeOperationsService] Failed positional move coordination:', err);
+        this.toastr.error('Failed to coordinate positional move: ' + err.message, 'Error');
+        return of(false);
+      })
+    );
   }
 }

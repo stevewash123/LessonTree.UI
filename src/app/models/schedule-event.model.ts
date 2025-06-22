@@ -20,6 +20,7 @@ export interface ScheduleEvent {
     lessonMethods?: string | null;
     lessonMaterials?: string | null;
     lessonAssessment?: string | null;
+    lessonSort?: number;
 }
 
 export interface ScheduleEventCreateResource {

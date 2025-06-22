@@ -489,30 +489,56 @@ export class CourseDataService {
   collectLessonsFromCourse(course: Course): Lesson[] {
     const lessons: Lesson[] = [];
     if (!course.topics) return lessons;
-
+  
     const sortedTopics = [...course.topics].sort((a, b) => a.sortOrder - b.sortOrder);
     
     for (const topic of sortedTopics) {
-      const topicLessons: Lesson[] = [];
+      // Collect ALL children (subtopics + direct lessons) and sort by unified sortOrder
+      const allChildren: Array<{type: 'SubTopic' | 'Lesson', item: any, sortOrder: number}> = [];
       
-      if (topic.lessons) {
-        topicLessons.push(...topic.lessons);
-      }
-      
+      // Add subtopics to unified list
       if (topic.subTopics) {
-        const sortedSubTopics = [...topic.subTopics].sort((a, b) => a.sortOrder - b.sortOrder);
-        for (const subTopic of sortedSubTopics) {
-          if (subTopic.lessons) {
-            topicLessons.push(...subTopic.lessons);
-          }
-        }
+        topic.subTopics.forEach(subTopic => {
+          allChildren.push({
+            type: 'SubTopic',
+            item: subTopic,
+            sortOrder: subTopic.sortOrder
+          });
+        });
       }
       
-      topicLessons.sort((a, b) => a.sortOrder - b.sortOrder);
-      lessons.push(...topicLessons);
+      // Add direct lessons to unified list
+      if (topic.lessons) {
+        topic.lessons.forEach(lesson => {
+          allChildren.push({
+            type: 'Lesson', 
+            item: lesson,
+            sortOrder: lesson.sortOrder
+          });
+        });
+      }
+      
+      // Sort by unified sortOrder and process in order
+      allChildren
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .forEach(child => {
+          if (child.type === 'Lesson') {
+            // Direct lesson - add to collection
+            lessons.push(child.item);
+          } else if (child.type === 'SubTopic') {
+            // SubTopic - add its lessons in sortOrder
+            if (child.item.lessons) {
+              const sortedSubTopicLessons = [...child.item.lessons]
+                .sort((a, b) => a.sortOrder - b.sortOrder);
+              lessons.push(...sortedSubTopicLessons);
+            }
+          }
+        });
     }
-
-    console.log(`[CourseDataService] Collected ${lessons.length} lessons from course ${course.title}`);
+  
+    console.log(`[CourseDataService] Collected ${lessons.length} lessons from course ${course.title} in unified order:`, 
+      lessons.map(l => `${l.title}(${l.sortOrder})`).join(', '));
+    
     return lessons;
   }
 

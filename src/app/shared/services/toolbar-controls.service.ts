@@ -8,7 +8,8 @@ import { Observable } from 'rxjs';
 import { LayoutModeService, LayoutMode } from '../../lesson-tree-container/layout-mode.service';
 import { CourseDataService } from './course-data.service';
 import { UserService } from '../../user-config/user.service';
-import { DragMode, NodeOperationsService } from '../../lesson-tree/services/node-operations.service';
+import { DragMode } from '../../lesson-tree/services/node-drag-mode.service';
+import { NodeOperationsService } from '../../lesson-tree/services/node-operations.service';
 
 export interface CourseFilterState {
   courseFilter: 'active' | 'archived' | 'both';

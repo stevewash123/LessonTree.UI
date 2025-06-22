@@ -44,30 +44,7 @@
                     />
                   </div>
               
-                  <!-- Level and Class Time on the same row -->
-                  <div class="form-row">
-                    <div class="form-group form-group-inline half-width">
-                      <label for="level">Level:</label>
-                      <input
-                        id="level"
-                        [readonly]="!isEditing"
-                        [(ngModel)]="lessonDetail.level"
-                        name="level"
-                        [ngClass]="{'editing': isEditing}"
-                      />
-                    </div>
-                    <div class="form-group form-group-inline half-width">
-                      <label for="classTime">Class Time:</label>
-                      <input
-                        id="classTime"
-                        [readonly]="!isEditing"
-                        [(ngModel)]="lessonDetail.classTime"
-                        name="classTime"
-                        [ngClass]="{'editing': isEditing}"
-                      />
-                    </div>
-                  </div>
-              
+                  
                   <!-- Objective -->
                   <div class="form-group">
                     <label for="objective">Objective:</label>
@@ -91,7 +68,31 @@
                       [ngClass]="{'editing': isEditing}"
                     ></textarea>
                   </div>
-              
+                  
+                  <!-- Level and Class Time on the same row -->
+                  <div class="form-row">
+                    <div class="form-group form-group-inline half-width">
+                      <label for="level">Level:</label>
+                      <input
+                        id="level"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="lessonDetail.level"
+                        name="level"
+                        [ngClass]="{'editing': isEditing}"
+                      />
+                    </div>
+                    <div class="form-group form-group-inline half-width">
+                      <label for="classTime">Class Time:</label>
+                      <input
+                        id="classTime"
+                        [readonly]="!isEditing"
+                        [(ngModel)]="lessonDetail.classTime"
+                        name="classTime"
+                        [ngClass]="{'editing': isEditing}"
+                      />
+                    </div>
+                  </div>
+                            
                   <!-- Assessment -->
                   <div class="form-group">
                     <label for="assessment">Assessment:</label>

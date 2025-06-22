@@ -13,7 +13,7 @@ export interface TreeEffectCallbacks {
   onCourseCleared: () => void;
   onExternalSelection: (node: TreeData) => Promise<void>;
   onInternalTreeChange: () => void;
-  onExternalTreeChange: () => void;
+  // REMOVED: onExternalTreeChange - was redundant with onInternalTreeChange
 }
 
 export interface EffectSetupResult {
@@ -27,27 +27,19 @@ export interface EffectSetupResult {
 })
 export class TreeEffectsService {
   private activeEffects: Map<string, EffectRef[]> = new Map();
-  private readonly injector = inject(Injector); // FIX: Add injector for proper context
+  private readonly injector = inject(Injector);
 
   constructor(
     private courseDataService: CourseDataService,
     private nodeSelectionService: NodeSelectionService
   ) {
-    console.log('[TreeEffectsService] Service initialized', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[TreeEffectsService] Service initialized');
   }
 
   /**
    * Setup all effects for a tree component
-   * FIX: Use runInInjectionContext to ensure proper injection context
    */
   setupEffects(courseId: number, callbacks: TreeEffectCallbacks): EffectSetupResult {
-    console.log('[TreeEffectsService] Setting up effects for course', {
-      courseId,
-      timestamp: new Date().toISOString()
-    });
-
     try {
       const effects: EffectRef[] = [];
       const effectKey = `course_${courseId}`;
@@ -55,7 +47,7 @@ export class TreeEffectsService {
       // Clean up any existing effects for this course
       this.destroyEffectsForCourse(courseId);
 
-      // FIX: Wrap effect creation in proper injection context
+      // Wrap effect creation in proper injection context
       runInInjectionContext(this.injector, () => {
         // 1. Course Data Effect
         const courseDataEffect = this.setupCourseDataEffect(courseId, callbacks);
@@ -73,22 +65,13 @@ export class TreeEffectsService {
       // Store effects for cleanup
       this.activeEffects.set(effectKey, effects);
 
-      console.log('[TreeEffectsService] Effects setup completed', {
-        courseId,
-        effectsCreated: effects.length,
-        timestamp: new Date().toISOString()
-      });
-
       return {
         success: true,
         effectsCreated: effects.length
       };
 
     } catch (error) {
-      console.error('[TreeEffectsService] Failed to setup effects:', error, {
-        courseId,
-        timestamp: new Date().toISOString()
-      });
+      console.error('[TreeEffectsService] Failed to setup effects:', error);
 
       return {
         success: false,
@@ -104,35 +87,17 @@ export class TreeEffectsService {
   private setupCourseDataEffect(courseId: number, callbacks: TreeEffectCallbacks): EffectRef {
     return effect(() => {
       const activeCourses = this.courseDataService.activeCourses();
-      
-      console.log('[TreeEffectsService] Course data effect triggered', {
-        courseId,
-        activeCoursesCount: activeCourses.length,
-        timestamp: new Date().toISOString()
-      });
 
       if (activeCourses.length > 0) {
         const updatedCourse = activeCourses.find(c => c.id === courseId);
         
         if (updatedCourse) {
-          console.log(`[TreeEffectsService] Course data updated for course ${courseId}`, {
-            courseTitle: updatedCourse.title,
-            timestamp: new Date().toISOString()
-          });
-          
           callbacks.onCourseDataUpdated(updatedCourse);
         } else {
           // Course is not in activeCourses (filtered out or archived)
-          console.log(`[TreeEffectsService] Course ${courseId} not in active courses`, {
-            timestamp: new Date().toISOString()
-          });
           callbacks.onCourseCleared();
         }
       } else {
-        console.log(`[TreeEffectsService] No active courses available`, {
-          courseId,
-          timestamp: new Date().toISOString()
-        });
         callbacks.onCourseCleared();
       }
     });
@@ -146,25 +111,8 @@ export class TreeEffectsService {
       const node = this.nodeSelectionService.selectedNode();
       const source = this.nodeSelectionService.selectionSource();
       
-      console.log('[TreeEffectsService] External selection effect triggered', {
-        courseId,
-        nodeId: node?.nodeId,
-        nodeType: node?.nodeType,
-        source,
-        timestamp: new Date().toISOString()
-      });
-      
       // Only process selections from sources other than the tree
       if (source !== 'tree' && node) {
-        console.log(`[TreeEffectsService] Processing external selection for course ${courseId}`, {
-          nodeId: node.nodeId,
-          nodeType: node.nodeType,
-          nodeCourseId: node.courseId,
-          treeCourseId: courseId,
-          source,
-          timestamp: new Date().toISOString()
-        });
-        
         callbacks.onExternalSelection(node);
       }
     });
@@ -180,15 +128,6 @@ export class TreeEffectsService {
       const movedInfo = this.courseDataService.nodeMoved();
       const deletedInfo = this.courseDataService.nodeDeleted();
       
-      console.log('[TreeEffectsService] Node lifecycle effect triggered', {
-        courseId,
-        hasAdded: !!addedInfo,
-        hasEdited: !!editedInfo,
-        hasMoved: !!movedInfo,
-        hasDeleted: !!deletedInfo,
-        timestamp: new Date().toISOString()
-      });
-      
       // Check if any changes affect this course
       const affectsThisCourse = 
         (addedInfo && this.isNodeInCourse(addedInfo.node, courseId)) ||
@@ -197,31 +136,9 @@ export class TreeEffectsService {
         (deletedInfo && this.isNodeInCourse(deletedInfo.node, courseId));
       
       if (affectsThisCourse) {
-        // Check if change came from this tree component
-        const isInternalTreeChange = 
-          (movedInfo && movedInfo.changeSource === 'tree' && movedInfo.node.courseId === courseId) ||
-          (editedInfo && editedInfo.source === 'tree' && editedInfo.node.courseId === courseId);
-        
-        const changeSource = movedInfo?.changeSource || editedInfo?.source || addedInfo?.source || deletedInfo?.source;
-        const nodeType = movedInfo?.node.nodeType || editedInfo?.node.nodeType || addedInfo?.node.nodeType || deletedInfo?.node.nodeType;
-        
-        if (isInternalTreeChange) {
-          console.log(`[TreeEffectsService] Internal tree change detected - syncing data only`, {
-            courseId,
-            changeSource,
-            nodeType,
-            timestamp: new Date().toISOString()
-          });
-          callbacks.onInternalTreeChange();
-        } else {
-          console.log(`[TreeEffectsService] External change detected - rebuilding tree`, {
-            courseId,
-            changeSource,
-            nodeType,
-            timestamp: new Date().toISOString()
-          });
-          callbacks.onExternalTreeChange();
-        }
+        // FIXED: All tree changes (internal or external) are handled the same way
+        // Whether change came from tree drag/drop or from LessonPanel, the tree needs to sync data
+        callbacks.onInternalTreeChange();
       }
     });
   }
@@ -243,12 +160,6 @@ export class TreeEffectsService {
     const effects = this.activeEffects.get(effectKey);
     
     if (effects) {
-      console.log('[TreeEffectsService] Destroying effects for course', {
-        courseId,
-        effectCount: effects.length,
-        timestamp: new Date().toISOString()
-      });
-      
       effects.forEach(effectRef => {
         try {
           effectRef.destroy();
@@ -265,17 +176,7 @@ export class TreeEffectsService {
    * Destroy all active effects
    */
   destroyAllEffects(): void {
-    console.log('[TreeEffectsService] Destroying all effects', {
-      activeCoursesCount: this.activeEffects.size,
-      timestamp: new Date().toISOString()
-    });
-    
     for (const [courseKey, effects] of this.activeEffects.entries()) {
-      console.log(`[TreeEffectsService] Destroying effects for ${courseKey}`, {
-        effectCount: effects.length,
-        timestamp: new Date().toISOString()
-      });
-      
       effects.forEach(effectRef => {
         try {
           effectRef.destroy();

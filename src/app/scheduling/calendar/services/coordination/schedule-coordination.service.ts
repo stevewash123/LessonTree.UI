@@ -8,6 +8,9 @@ import { Observable, of, throwError } from 'rxjs';
 import { switchMap, tap, catchError, map } from 'rxjs/operators';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ToastrService } from 'ngx-toastr';
+import { effect } from '@angular/core'; // Add to imports
+import { CourseDataService } from '../../../../shared/services/course-data.service'; // Add to imports
+import { LessonDetail } from '../../../../models/lesson'; // Add to imports
 
 import { ScheduleStateService } from '../state/schedule-state.service';
 import { ScheduleGenerationService } from '../business/schedule-generation.service';
@@ -22,17 +25,86 @@ import { Schedule, ScheduleCreateResource } from '../../../../models/schedule';
 })
 export class ScheduleCoordinationService {
 
-  constructor(
-    private scheduleStateService: ScheduleStateService,
-    private scheduleGenerationService: ScheduleGenerationService,
-    private schedulePersistenceService: SchedulePersistenceService,
-    private scheduleValidationService: ScheduleValidationService,
-    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
-    private scheduleConfigApi: ScheduleConfigurationApiService,
-    private snackBar: MatSnackBar,
-    private toastr: ToastrService
-  ) {
-    console.log('[ScheduleCoordinationService] Initialized for schedule workflow orchestration');
+    constructor(
+        private scheduleStateService: ScheduleStateService,
+        private scheduleGenerationService: ScheduleGenerationService,
+        private schedulePersistenceService: SchedulePersistenceService,
+        private scheduleValidationService: ScheduleValidationService,
+        private scheduleConfigurationStateService: ScheduleConfigurationStateService,
+        private scheduleConfigApi: ScheduleConfigurationApiService,
+        private courseDataService: CourseDataService, // Add this dependency
+        private snackBar: MatSnackBar,
+        private toastr: ToastrService
+      ) {
+        console.log('[ScheduleCoordinationService] Initialized for schedule workflow orchestration');
+        
+        // Listen for lesson creation events
+        effect(() => {
+            const nodeAddedEvent = this.courseDataService.nodeAdded();
+            
+            if (nodeAddedEvent?.node.nodeType === 'Lesson' && nodeAddedEvent.source === 'infopanel') {
+              console.log('[ScheduleCoordinationService] Lesson created, checking for schedule integration');
+              this.reactToLessonCreation(nodeAddedEvent.node as LessonDetail);
+            }
+          });
+      }
+
+      // === LESSON CREATION INTEGRATION ===
+
+  /**
+   * React to lesson creation by updating schedule if configuration exists
+   */
+  private reactToLessonCreation(lesson: LessonDetail): void {
+    console.log('[ScheduleCoordinationService] Processing lesson creation reaction', {
+      lessonTitle: lesson.title,
+      lessonId: lesson.id,
+      courseId: lesson.courseId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Check if we have an active schedule configuration
+    const activeConfig = this.scheduleConfigurationStateService.getActiveConfiguration();
+    if (!activeConfig) {
+      console.log('[ScheduleCoordinationService] No active configuration - skipping schedule integration');
+      return;
+    }
+
+    // Check if the lesson's course is assigned to any periods in the configuration
+    const isLessonCourseAssigned = activeConfig.periodAssignments?.some(
+      assignment => assignment.courseId === lesson.courseId
+    );
+
+    if (!isLessonCourseAssigned) {
+      console.log('[ScheduleCoordinationService] Lesson course not assigned to any periods - skipping schedule integration');
+      return;
+    }
+
+    // Check if we have an active schedule to update
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    if (!currentSchedule) {
+      console.log('[ScheduleCoordinationService] No active schedule - skipping integration');
+      return;
+    }
+
+    console.log('[ScheduleCoordinationService] Lesson course is assigned and schedule exists - regenerating schedule');
+    
+    // Regenerate schedule to include new lesson with automatic shifting
+    this.regenerateSchedule().subscribe({
+      next: () => {
+        this.toastr.success(
+          `Schedule updated with new lesson "${lesson.title}"`, 
+          'Schedule Integration'
+        );
+        console.log('[ScheduleCoordinationService] Successfully integrated new lesson into schedule');
+      },
+      error: (error) => {
+        console.error('[ScheduleCoordinationService] Failed to integrate lesson into schedule:', error);
+        this.toastr.warning(
+          `New lesson "${lesson.title}" created but schedule update failed`, 
+          'Schedule Integration Warning'
+        );
+      }
+    });
   }
 
   // === COMPLETE SCHEDULE WORKFLOWS ===
@@ -109,40 +181,6 @@ export class ScheduleCoordinationService {
     );
   }
 
-  /**
-   * Create new schedule and generate events workflow
-   * Moved from SchedulePersistenceService
-   */
-//   createNewSchedule(title: string, scheduleConfigurationId: number): Observable<void> {
-//     console.log('[ScheduleCoordinationService] Creating new schedule workflow');
-    
-//     const createResource: ScheduleCreateResource = {
-//       title,
-//       scheduleConfigurationId,
-//       scheduleEvents: []
-//     };
-
-//     return this.schedulePersistenceService.createNewSchedule(createResource).pipe(
-//       switchMap(() => {
-//         // Generate events for the new schedule
-//         return this.generateAndSetSchedule();
-//       }),
-//       tap(() => {
-//         this.snackBar.open('New schedule created', 'Close', { duration: 3000 });
-//         console.log('[ScheduleCoordinationService] Created new schedule successfully');
-//       }),
-//       catchError((error: any) => {
-//         this.toastr.error('Failed to create new schedule', 'Error');
-//         console.error('[ScheduleCoordinationService] Failed to create new schedule:', error);
-//         return throwError(() => error);
-//       })
-//     );
-//   }
-
-  /**
-   * Load active schedule with configuration
-   * Enhanced from SchedulePersistenceService
-   */
   loadActiveScheduleWithConfiguration(): Observable<boolean> {
     console.log('[ScheduleCoordinationService] Loading active schedule with configuration');
     

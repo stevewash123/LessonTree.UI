@@ -336,19 +336,7 @@ export class ApiService {
             catchError(error => this.handleError(error))
         );
     }
-    
-    updateLessonSortOrder(lessonId: number, sortOrder: number): Observable<void> {
-        const body = { lessonId, sortOrder };
-        console.log('ApiService: PUT updateLessonSortOrder', {
-            url: `${this.baseUrl}/lesson/${lessonId}/sortOrder`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<void>(`${this.baseUrl}/lesson/${lessonId}/sortOrder`, body).pipe(
-            catchError(error => this.handleError(error))
-        );
-    }
-
+                
     /** Delete a Course */
     deleteCourse(courseId: number): Observable<void> {
         return this.delete<void>(`course/${courseId}`);
@@ -369,18 +357,36 @@ export class ApiService {
         return this.delete<void>(`lesson/${lessonId}`);
     }
 
-    /** Move a lesson to a new subtopic or topic */
-    moveLesson(lessonId: number, newSubTopicId?: number, newTopicId?: number): Observable<any> {
-        const body = { lessonId, newSubTopicId, newTopicId };
-        console.log('ApiService: POST moveLesson', {
-            url: `${this.baseUrl}/lesson/move`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.post<any>(`${this.baseUrl}/lesson/move`, body).pipe(
-            catchError(error => this.handleError(error))
-        );
-    }
+    moveLesson(
+        lessonId: number,
+        targetSubTopicId?: number,
+        targetTopicId?: number,
+        relativeToId?: number,
+        position?: 'before' | 'after',
+        relativeToType?: 'Lesson' | 'SubTopic'
+      ): Observable<any> {
+        const payload: any = {
+          lessonId,
+          newSubTopicId: targetSubTopicId,
+          newTopicId: targetTopicId
+        };
+      
+        // Add positioning parameters if provided
+        if (relativeToId !== undefined) {
+          payload.relativeToId = relativeToId;
+          payload.position = position;
+          payload.relativeToType = relativeToType;
+        }
+      
+        console.log('[ApiService] Moving lesson:', payload);
+        return this.post('Lesson/move', payload);
+      }
+      
+      // REMOVE this method (if it exists):
+      /*
+      updateLessonSortOrder(lessonId: number, sortOrder: number): Observable<any> {
+        // ... remove this entire method
+      }
 
     /** Move a subtopic to a new topic */
     moveSubTopic(subTopicId: number, newTopicId: number): Observable<any> {

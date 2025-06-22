@@ -23,7 +23,7 @@ import { ToolbarControlsService } from '../shared/services/toolbar-controls.serv
 import { CourseFilterDialogComponent } from '../lesson-tree/course-filter/course-filter-dialog.component';
 import { LayoutMode } from '../lesson-tree-container/layout-mode.service';
 import { ScheduleConfigComponent } from '../scheduling/schedule-config/schedule-config.component';
-import { DragMode } from '../lesson-tree/services/node-operations.service';
+import { DragMode } from '../lesson-tree/services/node-drag-mode.service';
 
 @Component({
     selector: 'app-home',

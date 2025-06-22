@@ -36,6 +36,7 @@ import { TreeDataService } from '../services/tree-data.service';
 })
 export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit { 
     @Input() courseId!: number;
+    private instanceId = Math.random().toString(36).substr(2, 9); // Add unique ID
     course: Course | null = null;
 
     @ViewChild('treeview') syncFuncTree!: TreeViewComponent;
@@ -77,14 +78,15 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     ngOnInit() {
+        console.log(`🌲 [TreeWrapper-${this.instanceId}] Initializing for courseId: ${this.courseId}`);
+
         if (!this.courseId) return;
         
         const callbacks: TreeEffectCallbacks = {
-            onCourseDataUpdated: (course) => this.handleCourseDataUpdated(course),
+            onCourseDataUpdated: (course) => this.handleCourseDataChange(course),
             onCourseCleared: () => this.handleCourseCleared(),
             onExternalSelection: (node) => this.handleExternalSelection(node),
             onInternalTreeChange: () => this.handleInternalTreeChange(),
-            onExternalTreeChange: () => this.handleExternalTreeChange()
         };
         
         const result = this.treeEffectsService.setupEffects(this.courseId, callbacks);
@@ -104,14 +106,83 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     ngAfterViewInit() {
         this.isViewInitialized = true;
         if (this.course) {
+            console.log(`🔄 [TreeWrapper-${this.instanceId}] ngAfterViewInit called for courseId: ${this.courseId}`);
+
+            // CORRECT: Only use full dataBind() on initial load
             this.updateTreeData();
         }
     }
 
-    private handleCourseDataUpdated(course: Course): void {
+    private handleCourseDataChange(course: Course | null): void {
+        if (!course) return;
+        
         this.course = course;
         if (this.isViewInitialized) {
-            this.updateTreeData();
+            // Check what type of change occurred to decide between incremental vs full sync
+            const addedInfo = this.courseDataService.nodeAdded();
+            
+            if (addedInfo && this.isRecentLessonAdd(addedInfo)) {
+                // Use incremental update for recent lesson additions
+                console.log(`🌱 [TreeWrapper-${this.instanceId}] Using incremental update for lesson: ${addedInfo.node.title}`);
+                this.handleLessonAdded(addedInfo.node);
+            } else {
+                // Use full sync for other changes (topic additions, major structural changes, etc.)
+                console.log(`🔄 [TreeWrapper-${this.instanceId}] Using full sync for structural change`);
+                this.syncDataOnly();
+            }
+        }
+    }
+    
+    private isRecentLessonAdd(addedInfo: any): boolean {
+        if (!addedInfo || !addedInfo.node) return false;
+        
+        // Check if it's a lesson
+        const isLesson = addedInfo.node.nodeType === 'Lesson' || 
+                        addedInfo.entityType === 'Lesson' ||
+                        addedInfo.node.lessonId !== undefined;
+        
+        if (!isLesson) return false;
+        
+        // Check if it's recent (within last 100ms to catch the current operation)
+        const now = Date.now();
+        const addedTime = new Date(addedInfo.timestamp || addedInfo.node.timestamp || now).getTime();
+        const isRecent = (now - addedTime) < 100;
+        
+        console.log(`🔍 [TreeWrapper] Lesson add check:`, {
+            isLesson,
+            isRecent,
+            timeDiff: now - addedTime,
+            addedInfo
+        });
+        
+        return isLesson && isRecent;
+    }
+    
+    private handleLessonAdded(lessonNode: any): void {
+        if (!this.syncFuncTree || !this.isViewInitialized) return;
+        
+        // Determine parent node ID
+        const parentNodeId = this.determineParentNodeId(lessonNode);
+        
+        if (parentNodeId === null) {
+            console.warn(`[TreeWrapper] Could not determine parent for lesson, falling back to full sync`);
+            this.syncDataOnly();
+            return;
+        }
+        
+        // TypeScript now knows parentNodeId is definitely a string here
+        const result = this.treeSyncService.addLessonNode(
+            lessonNode,
+            this.syncFuncTree,
+            parentNodeId, // No .toString() needed since it's already a string
+            this.courseId
+        );
+        
+        if (!result.success) {
+            console.error(`[TreeWrapper] Incremental add failed, falling back to full sync:`, result.error);
+            this.syncDataOnly();
+        } else {
+            console.log(`✅ [TreeWrapper] Successfully added lesson incrementally:`, lessonNode.title);
         }
     }
     
@@ -123,23 +194,59 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
     
     private handleInternalTreeChange(): void {
-        if (this.isViewInitialized) {
+        if (!this.isViewInitialized) return;
+        
+        // Check what type of change occurred
+        const addedInfo = this.courseDataService.nodeAdded();
+        
+        if (addedInfo && addedInfo.node.nodeType === 'Lesson') {
+            // Use incremental update for lesson additions
+            const parentNodeId = this.determineParentNodeId(addedInfo.node);
+            const result = this.treeSyncService.addLessonNode(
+                addedInfo.node, 
+                this.syncFuncTree, 
+                parentNodeId, 
+                this.courseId
+            );
+            
+            if (!result.success) {
+                console.error(`[TreeWrapper] Incremental add failed, falling back to full sync:`, result.error);
+                this.syncDataOnly(); // Fallback to full sync
+            }
+        } else {
+            // For other changes, use full sync
             this.syncDataOnly();
         }
     }
     
-    private handleExternalTreeChange(): void {
-        if (this.isViewInitialized) {
-            this.updateTreeData();
-        } else {
-            const updatedCourse = this.courseDataService.getCourseById(this.courseId);
-            if (updatedCourse) {
-                this.course = updatedCourse;
-            }
+    private determineParentNodeId(lessonNode: any): string {
+        // Try SubTopic first, then Topic
+        if (lessonNode.subTopicId) {
+            return `subtopic_${lessonNode.subTopicId}`;
         }
+        
+        if (lessonNode.topicId) {
+            return `topic_${lessonNode.topicId}`;
+        }
+        
+        // Look in the lesson data for parent info (different casing)
+        if (lessonNode.SubTopicId) {
+            return `subtopic_${lessonNode.SubTopicId}`;
+        }
+        
+        if (lessonNode.TopicId) {
+            return `topic_${lessonNode.TopicId}`;
+        }
+        
+        // If we can't determine the parent, throw an error
+        console.error('[TreeWrapper] Could not determine parent node ID for lesson:', lessonNode);
+        throw new Error(`Could not determine parent node ID for lesson: ${lessonNode.title || lessonNode.id || 'unknown'}`);
+
     }
 
     private syncDataOnly(): void {
+        console.log(`🔄 [TreeWrapper-${this.instanceId}] syncDataOnly called for courseId: ${this.courseId}`);
+
         if (!this.courseId || !this.isViewInitialized) return;
         
         const updatedCourse = this.courseDataService.getCourseById(this.courseId);
@@ -148,6 +255,14 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
             const result = this.treeSyncService.syncDataOnly(updatedCourse, this.syncFuncTree, this.courseId);
             if (!result.success) {
                 console.error(`[TreeWrapper] Sync failed:`, result.error);
+            } else {
+                // Update local treeData reference to match what's in SyncFusion
+                this.treeData = (this.syncFuncTree.fields as any)?.dataSource || [];
+                console.log('[TreeWrapper] Data synced successfully (no rebind)', {
+                    courseId: this.courseId,
+                    nodeCount: this.treeData.length,
+                    timestamp: new Date().toISOString()
+                });
             }
         }
     }
@@ -160,17 +275,17 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         }
     }
     
+    // CORRECT: Only use updateTreeData (with dataBind) for initial load and major structural changes
     private updateTreeData(): void {
         if (!this.isViewInitialized) return;
     
         this.treeSyncService.updateTreeData(this.course, this.syncFuncTree, this.courseId)
             .then(result => {
                 if (result.success && this.syncFuncTree?.fields) {
-                    // FIX: Update local treeData properly
                     this.treeData = (this.syncFuncTree.fields as any).dataSource || [];
                     this.treeFields = this.syncFuncTree.fields;
                     
-                    console.log('[TreeWrapper] Tree data updated successfully', {
+                    console.log('[TreeWrapper] Tree data bound successfully (initial load)', {
                         courseId: this.courseId,
                         localTreeDataLength: this.treeData.length,
                         timestamp: new Date().toISOString()
@@ -182,18 +297,15 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     public onDataBound(): void {
-        // Debug: Check what data we actually have
         const syncFusionData = (this.syncFuncTree?.fields as any)?.dataSource || [];
         
         console.log('[TreeWrapper] onDataBound called', {
             courseId: this.courseId,
             localTreeDataLength: this.treeData.length,
             syncFusionDataLength: syncFusionData.length,
-            syncFusionData: syncFusionData,
             timestamp: new Date().toISOString()
         });
         
-        // Pass the correct data to TreeSyncService
         this.treeSyncService.handleDataBound(syncFusionData, this.course?.id);
     }
 
@@ -235,6 +347,8 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     public onNodeDragStop(args: any): void {
+        const x = JSON.stringify(args, null, 2);
+        console.log('FULL DRAG ARGS:', x);
         if (!this.isViewInitialized) {
             args.cancel = true;
             return;

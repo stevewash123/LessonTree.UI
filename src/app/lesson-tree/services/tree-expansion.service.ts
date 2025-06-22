@@ -22,9 +22,7 @@ export interface ExpansionResult {
 export class TreeExpansionService {
 
   constructor(private treeDataService: TreeDataService) {
-    console.log('[TreeExpansionService] Service initialized', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[TreeExpansionService] Service initialized');
   }
 
   /**
@@ -61,14 +59,6 @@ export class TreeExpansionService {
     }
     // Course nodes don't need expansion path
     
-    console.log('[TreeExpansionService] Found node path with proper nodeIds:', {
-      nodeType: targetNode.nodeType,
-      nodeId: targetNode.nodeId,
-      path,
-      courseId,
-      timestamp: new Date().toISOString()
-    });
-    
     return path;
   }
 
@@ -89,12 +79,6 @@ export class TreeExpansionService {
       };
     }
     
-    console.log('[TreeExpansionService] Expanding node path:', {
-      pathNodeIds,
-      courseId,
-      timestamp: new Date().toISOString()
-    });
-    
     const expandedNodes: string[] = [];
 
     try {
@@ -103,52 +87,23 @@ export class TreeExpansionService {
         const nodeInTree = this.treeDataService.findNodeById(treeData, nodeId);
         
         if (nodeInTree && nodeInTree.hasChildren) {
-          console.log('[TreeExpansionService] Expanding node:', {
-            nodeId: nodeInTree.id,
-            nodeType: nodeInTree.nodeType,
-            hasChildren: nodeInTree.hasChildren,
-            timestamp: new Date().toISOString()
-          });
-          
           // Use SyncFusion's expandAll method for specific node
           syncFuncTree.expandAll([nodeId]);
           expandedNodes.push(nodeId);
           
           // Small delay to allow SyncFusion to process the expansion
           await new Promise(resolve => setTimeout(resolve, 50));
-        } else if (nodeInTree && !nodeInTree.hasChildren) {
-          console.log('[TreeExpansionService] Skipping expansion for leaf node:', {
-            nodeId: nodeInTree.id,
-            nodeType: nodeInTree.nodeType,
-            timestamp: new Date().toISOString()
-          });
-        } else {
-          console.warn('[TreeExpansionService] Node not found for expansion:', {
-            nodeId,
-            courseId,
-            timestamp: new Date().toISOString()
-          });
+        } else if (!nodeInTree) {
+          console.warn('[TreeExpansionService] Node not found for expansion:', nodeId);
         }
       }
-      
-      console.log('[TreeExpansionService] Node path expansion completed', {
-        expandedCount: expandedNodes.length,
-        expandedNodes,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
       
       return {
         success: true,
         expandedNodes
       };
     } catch (error) {
-      console.error('[TreeExpansionService] Error expanding node path:', error, {
-        pathNodeIds,
-        expandedNodes,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
+      console.error('[TreeExpansionService] Error expanding node path:', error);
       
       return {
         success: false,
@@ -176,22 +131,11 @@ export class TreeExpansionService {
       };
     }
     
-    console.log(`[TreeExpansionService] Handling external selection for node: ${node.nodeId}`, { 
-      nodeType: node.nodeType,
-      courseId,
-      timestamp: new Date().toISOString() 
-    });
-    
     // Step 1: Find the target node in the tree
     const nodeInTree = this.treeDataService.findNodeById(treeData, node.nodeId);
     
     if (!nodeInTree) {
-      console.warn(`[TreeExpansionService] External node not found in tree`, { 
-        nodeId: node.nodeId, 
-        nodeType: node.nodeType,
-        courseId,
-        timestamp: new Date().toISOString() 
-      });
+      console.warn(`[TreeExpansionService] External node not found in tree:`, node.nodeId);
       
       return {
         success: false,
@@ -210,23 +154,10 @@ export class TreeExpansionService {
     };
 
     if (expansionPath.length > 0) {
-      console.log(`[TreeExpansionService] Expanding path to make node visible`, {
-        nodeId: node.nodeId,
-        expansionPath,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
-      
       expansionResult = await this.expandNodePath(expansionPath, syncFuncTree, treeData, courseId);
       
       if (!expansionResult.success) {
-        console.warn(`[TreeExpansionService] Failed to expand path for external selection`, {
-          nodeId: node.nodeId,
-          expansionPath,
-          error: expansionResult.error,
-          courseId,
-          timestamp: new Date().toISOString()
-        });
+        console.warn(`[TreeExpansionService] Failed to expand path for external selection:`, expansionResult.error);
         // Continue anyway - maybe the node is already visible
       }
     }
@@ -239,14 +170,6 @@ export class TreeExpansionService {
           
           // Step 5: Ensure the selected node is visible in viewport
           syncFuncTree.ensureVisible(nodeInTree.id);
-          
-          console.log(`[TreeExpansionService] External selection completed successfully`, { 
-            nodeId: node.nodeId,
-            treeNodeId: nodeInTree.id,
-            expandedNodes: expansionResult.expandedNodes,
-            courseId,
-            timestamp: new Date().toISOString() 
-          });
 
           resolve({
             success: true,
@@ -254,11 +177,7 @@ export class TreeExpansionService {
             targetNodeId: nodeInTree.id
           });
         } catch (err) {
-          console.error(`[TreeExpansionService] Error completing external selection:`, err, { 
-            nodeId: node.nodeId,
-            courseId,
-            timestamp: new Date().toISOString() 
-          });
+          console.error(`[TreeExpansionService] Error completing external selection:`, err);
 
           resolve({
             success: false,

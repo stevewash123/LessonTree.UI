@@ -72,9 +72,7 @@ export class NodeSelectionService {
   });
 
   constructor() {
-    console.log('[NodeSelectionService] Initialized with signals', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[NodeSelectionService] Initialized with signals');
   }
 
   // Select a node with source tracking
@@ -83,12 +81,6 @@ export class NodeSelectionService {
     
     // Don't update if selecting the same node from the same source
     if (previousNode === node && this._selectionSource() === source) {
-      console.log('[NodeSelectionService] Ignoring duplicate selection', {
-        nodeId: node?.nodeId,
-        nodeType: node?.nodeType,
-        source,
-        timestamp: new Date().toISOString()
-      });
       return;
     }
 
@@ -112,27 +104,10 @@ export class NodeSelectionService {
     }
     
     this._selectionHistory.set(updatedHistory);
-
-    console.log('[NodeSelectionService] Node selected', {
-      nodeId: node?.nodeId,
-      nodeType: node?.nodeType,
-      courseId: node?.courseId,
-      source,
-      previousNodeId: previousNode?.nodeId,
-      previousNodeType: previousNode?.nodeType,
-      timestamp: new Date().toISOString()
-    });
   }
 
   // Clear selection
   clearSelection(source: SelectionSource = 'programmatic'): void {
-    console.log('[NodeSelectionService] Clearing selection', {
-      previousNodeId: this._selectedNode()?.nodeId,
-      previousNodeType: this._selectedNode()?.nodeType,
-      source,
-      timestamp: new Date().toISOString()
-    });
-    
     this.selectNode(null, source);
   }
 
@@ -205,9 +180,7 @@ export class NodeSelectionService {
       courseId = currentNode.courseId;
     } else if (nodeType !== 'Course') {
       // If we're selecting a non-Course node but have no context, this might be an error
-      console.warn('[NodeSelectionService] Selecting non-Course node without course context', {
-        id, nodeType, timestamp: new Date().toISOString()
-      });
+      console.warn('[NodeSelectionService] Selecting non-Course node without course context');
     }
     
     // For Course selections, use the course's own ID
@@ -230,13 +203,6 @@ export class NodeSelectionService {
       userId: 0,
       sortOrder: 0
     };
-  
-    console.log('[NodeSelectionService] Selecting by raw ID', {
-      id, nodeType, courseId, 
-      formattedNodeId,
-      source,
-      timestamp: new Date().toISOString()
-    });
   
     this.selectNode(node, source);
   }
@@ -272,12 +238,6 @@ export class NodeSelectionService {
       userId: 0,
       sortOrder: 0
     };
-  
-    console.log('[NodeSelectionService] Selecting by nodeId', {
-      nodeId, nodeType, id, courseId,
-      source,
-      timestamp: new Date().toISOString()
-    });
   
     this.selectNode(node, source);
   }
@@ -323,20 +283,11 @@ export class NodeSelectionService {
 
   // Clear selection history
   clearHistory(): void {
-    console.log('[NodeSelectionService] Clearing selection history', {
-      previousHistoryLength: this._selectionHistory().length,
-      timestamp: new Date().toISOString()
-    });
-    
     this._selectionHistory.set([]);
   }
 
   // Reset service state
   reset(): void {
-    console.log('[NodeSelectionService] Resetting service state', {
-      timestamp: new Date().toISOString()
-    });
-    
     this._selectedNode.set(null);
     this._selectionSource.set('programmatic');
     this._selectionHistory.set([]);

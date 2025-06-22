@@ -14,15 +14,14 @@ import { Course } from '../../models/course';
   providedIn: 'root'
 })
 export class CourseManagementService {
-  private readonly nodeSelectionService = inject(NodeSelectionService);
   
-  constructor(
-    private courseDataService: CourseDataService,
-    private apiService: ApiService
-  ) {
-    console.log('[CourseManagementService] Initialized for course management operations');
-  }
-
+    constructor(
+        private courseDataService: CourseDataService,
+        private apiService: ApiService,
+        private nodeSelectionService: NodeSelectionService
+      ) {
+        console.log('[CourseManagementService] Initialized for course management operations');
+      }
   // === COURSE AVAILABILITY AND SELECTION ===
 
   /**
@@ -32,21 +31,14 @@ export class CourseManagementService {
     const activeCourses = this.courseDataService.activeCourses();
     
     if (activeCourses.length === 0) {
-      console.warn('[CourseManagementService] No active courses available for default selection', { 
-        timestamp: new Date().toISOString() 
-      });
+      console.warn('[CourseManagementService] No active courses available for default selection');
       return null;
     }
 
     const firstCourse = activeCourses[0];
-    console.log('[CourseManagementService] Found first available course', {
-      courseId: firstCourse.id,
-      courseTitle: firstCourse.title,
-      timestamp: new Date().toISOString()
-    });
-
     return firstCourse;
   }
+
 
   /**
    * Select the first available course programmatically
@@ -55,18 +47,9 @@ export class CourseManagementService {
     const firstCourse = this.getFirstAvailableCourse();
     
     if (!firstCourse) {
-      console.warn('[CourseManagementService] Cannot select first course - no courses available', { 
-        timestamp: new Date().toISOString() 
-      });
+      console.warn('[CourseManagementService] Cannot select first course - no courses available');
       return false;
     }
-
-    console.log('[CourseManagementService] Selecting first available course', {
-      courseId: firstCourse.id,
-      courseTitle: firstCourse.title,
-      source,
-      timestamp: new Date().toISOString()
-    });
 
     this.nodeSelectionService.selectById(firstCourse.id, 'Course', source);
     return true;
@@ -93,16 +76,12 @@ export class CourseManagementService {
     const course = this.courseDataService.getCourseById(courseId);
     
     if (!course) {
-      console.warn('[CourseManagementService] Course not found', {
-        courseId,
-        availableCourses: this.courseDataService.activeCourses().map(c => c.id),
-        timestamp: new Date().toISOString()
-      });
+      console.warn('[CourseManagementService] Course not found:', courseId);
     }
 
     return course;
   }
-
+  
   /**
    * Validate course selection context for calendar operations
    */
@@ -152,13 +131,6 @@ export class CourseManagementService {
     autoSelectFirst: boolean = true,
     selectionSource: 'calendar' | 'programmatic' = 'programmatic'
   ): Observable<Course[]> {
-    console.log('[CourseManagementService] Loading courses with auto-selection', {
-      courseFilter,
-      visibilityFilter,
-      autoSelectFirst,
-      selectionSource,
-      timestamp: new Date().toISOString()
-    });
 
     return this.loadCourses(courseFilter, visibilityFilter).pipe(
       tap(courses => {
@@ -167,19 +139,7 @@ export class CourseManagementService {
           const hasSelection = this.nodeSelectionService.hasSelection();
           
           if (!hasSelection) {
-            console.log('[CourseManagementService] Auto-selecting first course after load', {
-              coursesLoaded: courses.length,
-              hasSelection,
-              timestamp: new Date().toISOString()
-            });
-            
             this.selectFirstAvailableCourse(selectionSource);
-          } else {
-            console.log('[CourseManagementService] Skipping auto-selection - node already selected', {
-              selectedNodeType: this.nodeSelectionService.selectedNodeType(),
-              selectedNodeId: this.nodeSelectionService.selectedNodeId(),
-              timestamp: new Date().toISOString()
-            });
           }
         }
       })
@@ -195,19 +155,10 @@ export class CourseManagementService {
     courseFilter: 'active' | 'archived' | 'both' = 'active',
     visibilityFilter: 'private' | 'team' = 'private'
   ): Observable<Course[]> {
-    console.log('[CourseManagementService] Loading courses', {
-      courseFilter,
-      visibilityFilter,
-      timestamp: new Date().toISOString()
-    });
 
     return this.apiService.getCourses(courseFilter, visibilityFilter).pipe(
       tap(courses => {
         this.courseDataService.setCourses(courses, 'initialization');
-        console.log('[CourseManagementService] Courses loaded successfully:', 
-          courses.map(c => ({ id: c.id, title: c.title })),
-          { timestamp: new Date().toISOString() }
-        );
       })
     );
   }
