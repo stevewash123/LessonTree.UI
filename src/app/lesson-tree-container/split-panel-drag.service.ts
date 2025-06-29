@@ -149,31 +149,7 @@ export class SplitPanelDragService {
     
     this.resetDragState();
   }
-
-  // Check if a specific split-panel is being dragged
-  isSplitPanelBeingDragged(splitPanelType: SplitPanelType): boolean {
-    const result = this._isDragging() && this._draggedPanel() === splitPanelType;
-    
-    // Only log occasionally to reduce noise
-    if (Math.random() < 0.01) { // 1% of calls
-      console.log(`🔍 [SplitPanelDragService] IS BEING DRAGGED: ${splitPanelType} = ${result}`, { 
-        timestamp: new Date().toISOString() 
-      });
-    }
-    
-    return result;
-  }
-
-  // Check if a specific split-panel is a valid drop target
-  isSplitPanelDropTarget(splitPanelType: SplitPanelType): boolean {
-    const result = this._isDragging() && 
-                   this._draggedPanel() !== null && 
-                   this._draggedPanel() !== splitPanelType && 
-                   this._dragOverPanel() === splitPanelType;    
-    
-    return result;
-  }
-
+  
   private resetDragState(): void {
     this._isDragging.set(false);
     this._draggedPanel.set(null);

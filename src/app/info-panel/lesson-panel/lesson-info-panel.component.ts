@@ -13,7 +13,7 @@ import { Standard } from '../../models/standard';
 import { LessonStandardsComponent } from './lesson-standard/lesson-standards.component';
 import { PanelStateService } from '../panel-state.service';
 import { ToastrService } from 'ngx-toastr';
-import { CourseCrudService } from '../../lesson-tree/services/course-crud.service';
+import { CourseCrudService } from '../../lesson-tree/services/course-operations/course-crud.service';
 
 @Component({
   selector: 'lesson-info-panel',

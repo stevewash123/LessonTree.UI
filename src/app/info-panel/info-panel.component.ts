@@ -5,14 +5,14 @@
 import { Component, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { CourseDataService } from '../shared/services/course-data.service';
 import { parseId } from '../shared/utils/type-conversion.utils';
-import { NodeSelectionService } from '../lesson-tree/services/node-selection.service';
+import { NodeSelectionService, NodeType } from '../lesson-tree/services/node-operations/node-selection.service';
 import { Course } from '../models/course';
+import { CourseDataService } from '../lesson-tree/services/course-data/course-data.service';
 import { LessonDetail, Lesson } from '../models/lesson';
 import { SubTopic } from '../models/subTopic';
 import { Topic } from '../models/topic';
-import { TreeData, NodeType } from '../models/tree-node';
+import { TreeData } from '../models/tree-node';
 import { CoursePanelComponent } from './course-panel/course-panel.component';
 import { LessonInfoPanelComponent } from './lesson-panel/lesson-info-panel.component';
 import { PanelStateService } from './panel-state.service';

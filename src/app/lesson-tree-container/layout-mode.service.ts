@@ -1,8 +1,10 @@
-// RESPONSIBILITY: Manages container view modes and split-panel ordering configurations
+// **COMPLETE FILE** - Enhanced layout-mode.service.ts with InfoPanel auto-switching
+// RESPONSIBILITY: Manages container view modes, split-panel ordering, and automatic InfoPanel visibility
 // DOES NOT: Handle drag operations or component rendering logic
-// CALLED BY: LessonTreeContainerComponent, split-panel drag handlers
+// CALLED BY: LessonTreeContainerComponent, split-panel drag handlers, InfoPanel components
 
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, effect, inject } from '@angular/core';
+import { PanelStateService } from '../info-panel/panel-state.service';
 
 // Define the available view modes
 export type LayoutMode = 'tree-details' | 'tree-calendar' | 'calendar-details';
@@ -30,6 +32,9 @@ export interface LayoutModeConfigurations {
   providedIn: 'root'
 })
 export class LayoutModeService {
+  // Injected services
+  private panelStateService = inject(PanelStateService);
+
   // Available view mode options
   readonly layoutModeOptions: LayoutModeOption[] = [
     { value: 'tree-details', label: 'Tree-Details' },
@@ -40,6 +45,10 @@ export class LayoutModeService {
   // Current view mode signal
   private readonly _layoutMode = signal<LayoutMode>('tree-details');
   readonly layoutMode = this._layoutMode.asReadonly();
+  
+  // Track the mode before auto-switching for restoration
+  private readonly _previousMode = signal<LayoutMode | null>(null);
+  readonly previousMode = this._previousMode.asReadonly();
   
   // Panel configurations for each view mode
   private readonly _splitPanelConfigurations = signal<LayoutModeConfigurations>({
@@ -60,21 +69,106 @@ export class LayoutModeService {
     return this._splitPanelConfigurations()[currentMode];
   });
   
+  // Check if details panel is currently visible
+  readonly isDetailsVisible = computed(() => {
+    const config = this.currentSplitPanelConfig();
+    return config.left === 'details' || config.right === 'details';
+  });
+  
   // For calendar-details mode, we also need to track sidebar visibility
   private readonly _sidebarVisible = signal<boolean>(true);
   readonly sidebarVisible = this._sidebarVisible.asReadonly();
 
   constructor() {
-    console.log('[LayoutModeService] Initialized', { timestamp: new Date().toISOString() });
+    console.log('[LayoutModeService] Initialized with InfoPanel auto-switching', { timestamp: new Date().toISOString() });
     
     // Load saved configurations from localStorage if available
     this.loadSplitPanelConfigurations();
+    
+    // Setup automatic mode switching for InfoPanel visibility
+    this.setupInfoPanelAutoSwitching();
   }
 
-  // Set the view mode
+  /**
+   * Automatic InfoPanel visibility management
+   * Switches to a details-visible mode when InfoPanel enters edit/add mode
+   * Accommodates future calendar-based lesson additions
+   */
+  private setupInfoPanelAutoSwitching(): void {
+    effect(() => {
+      const panelMode = this.panelStateService.panelMode();
+      const currentLayoutMode = this._layoutMode();
+      const isDetailsCurrentlyVisible = this.isDetailsVisible();
+      
+      console.log(`[LayoutModeService] InfoPanel mode effect triggered`, {
+        panelMode,
+        currentLayoutMode,
+        isDetailsVisible: isDetailsCurrentlyVisible,
+        timestamp: new Date().toISOString()
+      });
+
+      // If InfoPanel enters edit/add mode and details panel is not visible
+      if ((panelMode === 'edit' || panelMode === 'add') && !isDetailsCurrentlyVisible) {
+        // Store current mode for potential restoration
+        this._previousMode.set(currentLayoutMode);
+        
+        // Choose appropriate details-visible mode based on current context
+        const targetMode = this.determineTargetDetailsMode(currentLayoutMode);
+        
+        console.log(`[LayoutModeService] Auto-switching to show details panel`, {
+          from: currentLayoutMode,
+          to: targetMode,
+          reason: `InfoPanel entered ${panelMode} mode`,
+          timestamp: new Date().toISOString()
+        });
+        
+        this._layoutMode.set(targetMode);
+      }
+      // If InfoPanel exits edit/add mode and we had auto-switched
+      else if (panelMode === 'view' && this._previousMode() !== null) {
+        const previousMode = this._previousMode();
+        
+        console.log(`[LayoutModeService] Restoring previous mode after InfoPanel editing`, {
+          restoringTo: previousMode,
+          timestamp: new Date().toISOString()
+        });
+        
+        if (previousMode) {
+          this._layoutMode.set(previousMode);
+        }
+        this._previousMode.set(null);
+      }
+    });
+  }
+
+  /**
+   * Determines the best details-visible mode based on current context
+   * Future enhancement: Could consider calendar context for lesson additions from calendar
+   */
+  private determineTargetDetailsMode(currentMode: LayoutMode): LayoutMode {
+    // If currently in tree-calendar mode, prefer tree-details to maintain tree context
+    // This supports the current workflow where lessons are added from the tree
+    if (currentMode === 'tree-calendar') {
+      return 'tree-details';
+    }
+    
+    // If currently in calendar-details, details is already visible (shouldn't reach here)
+    if (currentMode === 'calendar-details') {
+      return 'calendar-details';
+    }
+    
+    // Default fallback - tree-details mode
+    // Future enhancement: When calendar-based lesson addition is implemented,
+    // this could check if the lesson addition was initiated from calendar context
+    // and return 'calendar-details' in that case
+    return 'tree-details';
+  }
+
+  // Set the view mode (manual user action - clears previous mode tracking)
   setViewMode(mode: LayoutMode): void {
-    console.log(`[LayoutModeService] Setting view mode to ${mode}`, { timestamp: new Date().toISOString() });
+    console.log(`[LayoutModeService] Manual view mode change to ${mode}`, { timestamp: new Date().toISOString() });
     this._layoutMode.set(mode);
+    this._previousMode.set(null); // Clear auto-switch tracking on manual change
   }
 
   // Swap split-panels for the current view mode

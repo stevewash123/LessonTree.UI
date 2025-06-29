@@ -1,6 +1,6 @@
 <div class="split-panel-header" 
-     [class.dragging]="splitPanelDragService.isSplitPanelBeingDragged(splitPanelType)"
-     [class.drop-target]="splitPanelDragService.isSplitPanelDropTarget(splitPanelType)"
+     [class.dragging]="isDragging()"
+     [class.drop-target]="isDropTarget()"
      draggable="true"
      (dragstart)="onDragStart($event)"
      (dragover)="onDragOver($event)"
@@ -19,7 +19,7 @@
     </div>
   }
   
-  @if (splitPanelDragService.isSplitPanelDropTarget(splitPanelType)) {
+  @if (isDropTarget()) {
     <div class="drop-indicator" [attr.draggable]="false">
       <mat-icon [attr.draggable]="false">swap_horiz</mat-icon>
       <span [attr.draggable]="false">Drop to swap split panels</span>

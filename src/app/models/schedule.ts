@@ -4,6 +4,7 @@
 // CALLED BY: Calendar services, schedule components
 
 import { ScheduleEvent } from "./schedule-event.model";
+import {SpecialDay} from './specialDay.model';
 
 export interface Schedule {
     id: number;
@@ -13,6 +14,7 @@ export interface Schedule {
     isLocked: boolean;
     createdDate: Date;
     scheduleEvents: ScheduleEvent[]; // Event data only
+    specialDays: SpecialDay[]; // User-created special days
 }
 
 export interface ScheduleCreateResource {

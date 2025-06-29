@@ -6,17 +6,17 @@
 import { CommonModule } from "@angular/common";
 import { Component, ViewChild, inject, computed } from "@angular/core";
 import { InfoPanelComponent } from "../info-panel/info-panel.component";
+import { SplitComponent, SplitAreaComponent } from 'angular-split';
+import { SplitPanelHeaderComponent } from "./split-panel-header.component";
 import { PanelStateService } from "../info-panel/panel-state.service";
 import { CourseListComponent } from "../lesson-tree/course-list/course-list.component";
-import { NodeSelectionService } from "../lesson-tree/services/node-selection.service";
-import { LessonCalendarComponent } from "../scheduling/calendar/components/lesson-calendar.component";
-import { CourseDataService } from "../shared/services/course-data.service";
+import { CourseDataService } from "../lesson-tree/services/course-data/course-data.service";
+import { NodeSelectionService } from "../lesson-tree/services/node-operations/node-selection.service";
 import { ToolbarControlsService } from "../shared/services/toolbar-controls.service";
 import { UserService } from "../user-config/user.service";
 import { LayoutModeService, SplitPanelType } from "./layout-mode.service";
 import { SplitPanelDragService } from "./split-panel-drag.service";
-import { SplitComponent, SplitAreaComponent } from 'angular-split';
-import { SplitPanelHeaderComponent } from "./split-panel-header.component";
+import {LessonCalendarComponent} from '../calendar/components/lesson-calendar.component';
 
 
 @Component({
@@ -55,10 +55,10 @@ export class LessonTreeContainerComponent {
   readonly panelTitles = computed(() => {
     const selectedNodeType = this.nodeSelectionService.selectedNodeType();
     const detailsTitle = selectedNodeType ? `${selectedNodeType} Details` : 'Details';
-    
+
     const titles: Record<SplitPanelType, string> = {
       'tree': 'Course Tree',
-      'calendar': 'Lesson Calendar', 
+      'calendar': 'Lesson Calendar',
       'details': detailsTitle
     };
     return titles;
@@ -74,7 +74,7 @@ export class LessonTreeContainerComponent {
 
   constructor() {
     console.log(`[LessonTreeContainer] Component initialized`, { timestamp: new Date().toISOString() });
-    
+
     // Subscribe to course filter changes from toolbar
     this.setupCourseFilterSubscription();
   }
@@ -88,13 +88,13 @@ export class LessonTreeContainerComponent {
   private setupCourseFilterSubscription(): void {
     // Subscribe to filter state changes and apply them to CourseListComponent
     const filterState = this.toolbarControls.courseFilterState;
-    
+
     // Create an effect to respond to filter changes
     // This will automatically apply filters when the toolbar controls change them
     setTimeout(() => {
       const currentState = filterState();
       console.log('[LessonTreeContainer] Initial course filter state:', currentState);
-      
+
       // Apply initial filter state if CourseListComponent is available
       if (this.courseListComponent) {
         this.courseListComponent.setLocalFilters(
@@ -111,7 +111,7 @@ export class LessonTreeContainerComponent {
     console.log('[LessonTreeContainer] Split panel swap requested', { timestamp: new Date().toISOString() });
     this.viewModeService.swapSplitPanels();
   }
-  
+
   onDragEnd(event: any): void {
     console.log('[LessonTreeContainer] Split drag end event:', event, { timestamp: new Date().toISOString() });
     // Sizes are handled by the split component automatically, no need to store them

@@ -22,8 +22,8 @@ import { UserConfigComponent } from '../user-config/user-config.component';
 import { ToolbarControlsService } from '../shared/services/toolbar-controls.service';
 import { CourseFilterDialogComponent } from '../lesson-tree/course-filter/course-filter-dialog.component';
 import { LayoutMode } from '../lesson-tree-container/layout-mode.service';
-import { ScheduleConfigComponent } from '../scheduling/schedule-config/schedule-config.component';
-import { DragMode } from '../lesson-tree/services/node-drag-mode.service';
+import { DragMode } from '../lesson-tree/services/tree-interactions/node-drag-mode.service';
+import {ScheduleConfigComponent} from '../schedule-config/schedule-config.component';
 
 @Component({
     selector: 'app-home',
@@ -48,7 +48,7 @@ import { DragMode } from '../lesson-tree/services/node-drag-mode.service';
 export class HomeComponent implements AfterViewInit {
     @ViewChild('toolbar') toolbar!: ElementRef;
     toolbarHeight: number | undefined;
-    
+
     private dialog = inject(MatDialog);
     public toolbarControls = inject(ToolbarControlsService);
 
@@ -58,14 +58,14 @@ export class HomeComponent implements AfterViewInit {
 
     // Local form state for the disclosure widget
     searchTerm = '';
-  
+
     constructor(public authService: AuthService) { }
-  
+
     ngAfterViewInit() {
         if(this.toolbar && this.toolbar.nativeElement){
             this.toolbarHeight = this.toolbar.nativeElement.offsetHeight;
         }
-        
+
         // Initialize search term from service
         this.searchTerm = this.toolbarControls.courseFilterState().searchTerm;
     }
@@ -146,6 +146,7 @@ export class HomeComponent implements AfterViewInit {
     }
 
     openScheduleConfig() {
+
         const dialogRef = this.dialog.open(ScheduleConfigComponent, {
             width: '1000px',  // Changed from '800px'
             maxWidth: '95vw',
@@ -153,14 +154,14 @@ export class HomeComponent implements AfterViewInit {
             disableClose: false,
             autoFocus: true
         });
-    
+
         dialogRef.afterClosed().subscribe(result => {
             if (result) {
                 console.log('Schedule configuration saved:', result);
             }
         });
     }
-  
+
     logout() {
         this.authService.logout();
     }

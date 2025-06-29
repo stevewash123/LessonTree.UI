@@ -6,16 +6,16 @@ import { Component, OnInit, signal, computed } from '@angular/core';
 import { ToastrService } from 'ngx-toastr';
 import { MatCardModule } from '@angular/material/card';
 import { MatListModule } from '@angular/material/list';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonModule } from '@angular/material/button';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { SyncfusionModule } from '../../shared/modules/syncfusion.module';
-import { CommonModule } from '@angular/common';
-import { PanelStateService } from '../../info-panel/panel-state.service';
-import { CourseCrudService } from '../services/course-crud.service';
-import { CourseDataService } from '../../shared/services/course-data.service';
 import { Course } from '../../models/course';
 import TreeWrapperComponent from '../tree-wrapper/tree-wrapper.component';
+import { CommonModule } from '@angular/common';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { PanelStateService } from '../../info-panel/panel-state.service';
+import { SyncfusionModule } from '../../shared/modules/syncfusion.module';
+import { CourseDataService } from '../services/course-data/course-data.service';
+import { CourseCrudService } from '../services/course-operations/course-crud.service';
 
 @Component({
   selector: 'course-list',

@@ -1,8 +1,9 @@
+// **COMPLETE FILE** - Replace split-panel-header.component.ts
 // RESPONSIBILITY: Provides draggable header for split-panels with visual feedback
 // DOES NOT: Handle split-panel swapping logic or view mode management
 // CALLED BY: Split-panel components that need drag reordering functionality
 
-import { Component, Input, Output, EventEmitter } from '@angular/core';
+import { Component, Input, Output, EventEmitter, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -23,6 +24,19 @@ export class SplitPanelHeaderComponent {
   @Input() showActions = false;
   
   @Output() splitPanelSwap = new EventEmitter<void>();
+
+  // FIXED: Use computed signals instead of method calls in template
+  readonly isDragging = computed(() => 
+    this.splitPanelDragService.isDragging() && 
+    this.splitPanelDragService.draggedPanel() === this.splitPanelType
+  );
+
+  readonly isDropTarget = computed(() => 
+    this.splitPanelDragService.isDragging() && 
+    this.splitPanelDragService.draggedPanel() !== null && 
+    this.splitPanelDragService.draggedPanel() !== this.splitPanelType && 
+    this.splitPanelDragService.dragOverPanel() === this.splitPanelType
+  );
 
   constructor(public splitPanelDragService: SplitPanelDragService) {}
 
