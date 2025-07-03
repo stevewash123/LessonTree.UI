@@ -1,43 +1,92 @@
-// RESPONSIBILITY: Manages InfoPanel mode state and provides templates for new nodes with proper Lesson/LessonDetail separation.
-// DOES NOT: Handle actual CRUD operations or node data persistence.
-// CALLED BY: InfoPanel components, TreeWrapper (for add operations)
+// **COMPLETE FILE** - PanelStateService with Dual Signal/Observable Pattern
+// RESPONSIBILITY: Centralized panel state management with cross-component event coordination
+// DOES NOT: Create complex templates - pure state management with event emission
+// CALLED BY: InfoPanel components for mode coordination
 
-import { Injectable, signal, computed } from '@angular/core';
-import { TreeData } from '../models/tree-node';
-import { NodeType } from '../models/tree-node';
+import { computed, Injectable, signal } from '@angular/core';
+import { Subject, Observable } from 'rxjs';
 import { Course } from '../models/course';
 import { Topic } from '../models/topic';
 import { SubTopic } from '../models/subTopic';
-import { Lesson, LessonDetail } from '../models/lesson';
+import { Lesson } from '../models/lesson';
 
 export type PanelMode = 'view' | 'edit' | 'add';
+export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
 
-export interface AddModeContext {
+// ✅ Observable event interfaces
+export interface PanelModeChangeEvent {
+  previousMode: PanelMode;
+  newMode: PanelMode;
+  trigger: 'user-action' | 'programmatic' | 'reset';
+  nodeType?: NodeType;
+  entityId?: number;
+  timestamp: Date;
+}
+
+export interface AddModeInitiatedEvent {
   nodeType: NodeType;
-  parentNode: TreeData | null;
-  courseId: number | undefined;
+  parentNode: Course | Topic | SubTopic | null;
+  courseId: number | null;
   template: any;
+  timestamp: Date;
+}
+
+export interface EditModeInitiatedEvent {
+  entity: Course | Topic | SubTopic | Lesson;
+  entityType: NodeType;
+  entityId: number;
+  courseId: number | null;
+  timestamp: Date;
+}
+
+export interface PanelStateResetEvent {
+  previousMode: PanelMode;
+  resetType: 'to-view' | 'clear-all';
+  timestamp: Date;
+}
+
+export interface TemplateCreatedEvent {
+  nodeType: NodeType;
+  template: any;
+  courseId: number | null;
+  parentNode: Course | Topic | SubTopic | null;
+  timestamp: Date;
 }
 
 @Injectable({
   providedIn: 'root'
 })
 export class PanelStateService {
-  // Private signals for internal state
+
+  // ✅ Observable events for cross-component coordination
+  private readonly _panelModeChanged$ = new Subject<PanelModeChangeEvent>();
+  private readonly _addModeInitiated$ = new Subject<AddModeInitiatedEvent>();
+  private readonly _editModeInitiated$ = new Subject<EditModeInitiatedEvent>();
+  private readonly _panelStateReset$ = new Subject<PanelStateResetEvent>();
+  private readonly _templateCreated$ = new Subject<TemplateCreatedEvent>();
+
+  // Public observables for business logic subscriptions
+  readonly panelModeChanged$ = this._panelModeChanged$.asObservable();
+  readonly addModeInitiated$ = this._addModeInitiated$.asObservable();
+  readonly editModeInitiated$ = this._editModeInitiated$.asObservable();
+  readonly panelStateReset$ = this._panelStateReset$.asObservable();
+  readonly templateCreated$ = this._templateCreated$.asObservable();
+
+  // ✅ Signal state for reactive UI
   private readonly _panelMode = signal<PanelMode>('view');
   private readonly _addNodeType = signal<NodeType | null>(null);
-  private readonly _parentNode = signal<TreeData | null>(null);
-  private readonly _courseId = signal<number | undefined>(undefined);
+  private readonly _parentNode = signal<Course | Topic | SubTopic | null>(null);
+  private readonly _courseId = signal<number | null>(null);
   private readonly _nodeTemplate = signal<any | null>(null);
-  
-  // Public readonly signals
+
+  // Public readonly signals for reactive UI
   readonly panelMode = this._panelMode.asReadonly();
   readonly addNodeType = this._addNodeType.asReadonly();
   readonly parentNode = this._parentNode.asReadonly();
   readonly courseId = this._courseId.asReadonly();
   readonly nodeTemplate = this._nodeTemplate.asReadonly();
-  
-  // Computed signals for derived state
+
+  // Computed signals for derived state (keep as signals for reactive UI)
   readonly isOverlayActive = computed(() => {
     const mode = this._panelMode();
     return mode === 'edit' || mode === 'add';
@@ -47,14 +96,16 @@ export class PanelStateService {
   readonly isEditMode = computed(() => this._panelMode() === 'edit');
   readonly isAddMode = computed(() => this._panelMode() === 'add');
 
-  readonly addModeContext = computed((): AddModeContext | null => {
+  readonly addModeContext = computed((): {
+    nodeType: NodeType | null;
+    parentNode: Course | Topic | SubTopic | null;
+    courseId: number | null;
+    template: any | null;
+  } | null => {
     if (this._panelMode() !== 'add') return null;
-    
-    const nodeType = this._addNodeType();
-    if (!nodeType) return null;
 
     return {
-      nodeType,
+      nodeType: this._addNodeType(),
       parentNode: this._parentNode(),
       courseId: this._courseId(),
       template: this._nodeTemplate()
@@ -63,274 +114,312 @@ export class PanelStateService {
 
   readonly hasValidAddContext = computed(() => {
     const context = this.addModeContext();
-    return context !== null && context.template !== null;
+    return context !== null &&
+      context.nodeType !== null &&
+      context.courseId !== null;
   });
-  
+
   constructor() {
-    console.log('[PanelStateService] Initialized with proper Lesson/LessonDetail separation', { 
-      timestamp: new Date().toISOString() 
-    });
+    console.log('[PanelStateService] Initialized with dual Signal/Observable pattern');
   }
-  
-  // Set the panel mode
+
+  // ✅ ENHANCED: Set panel mode with Observable event emission
   setMode(mode: PanelMode): void {
-    console.log(`[PanelStateService] Setting mode to ${mode}`, { 
-      previousMode: this._panelMode(),
-      timestamp: new Date().toISOString() 
-    });
-    
-    if (mode === 'view' && this._panelMode() !== 'view') {
-      // Clear add/edit state when returning to view mode
-      this.resetAddEditState();
-    }
-    
-    this._panelMode.set(mode);
-  }
-  
-  // Initiate add mode with all needed context
-  initiateAddMode(nodeType: NodeType, parentNode: TreeData | null, courseId?: number): void {
-    console.log(`[PanelStateService] Initiating add mode for ${nodeType}`, {
-      parentNodeId: parentNode?.nodeId || 'none',
-      parentNodeType: parentNode?.nodeType || 'none',
-      courseId: courseId || 'derived',
+    const previousMode = this._panelMode();
+
+    console.log(`[PanelStateService] Setting mode to ${mode}`, {
+      previousMode,
       timestamp: new Date().toISOString()
     });
-    
-    try {
-      // Validate and derive courseId if needed
-      const resolvedCourseId = this.resolveCourseId(nodeType, parentNode, courseId);
-      
-      // Validate parent node for the requested node type
-      this.validateParentNode(nodeType, parentNode);
-      
-      // Create template for the new node
-      const template = this.createNodeTemplate(nodeType, parentNode, resolvedCourseId);
-      
-      // Set all state atomically
-      this._addNodeType.set(nodeType);
-      this._parentNode.set(parentNode);
-      this._courseId.set(resolvedCourseId);
-      this._nodeTemplate.set(template);
-      this._panelMode.set('add');
-      
-      console.log(`[PanelStateService] Add mode initiated successfully`, {
-        nodeType,
-        resolvedCourseId,
-        templateType: template?.nodeType || 'unknown',
-        timestamp: new Date().toISOString()
-      });
-      
-    } catch (error) {
-      console.error('[PanelStateService] Failed to initiate add mode:', error, {
-        nodeType,
-        parentNodeId: parentNode?.nodeId,
-        courseId,
-        timestamp: new Date().toISOString()
-      });
-      
-      // Reset to view mode on error
-      this.setMode('view');
-      throw error;
+
+    // ✅ Update signal state
+    this._panelMode.set(mode);
+
+    // ✅ Emit Observable event for cross-component coordination
+    this._panelModeChanged$.next({
+      previousMode,
+      newMode: mode,
+      trigger: 'user-action',
+      timestamp: new Date()
+    });
+  }
+
+  // ✅ ENHANCED: Initiate add mode with Observable event emission
+  initiateAddMode(nodeType: NodeType, parentNode: Course | Topic | SubTopic | null = null, courseId?: number): void {
+    const previousMode = this._panelMode();
+
+    console.log(`[PanelStateService] Initiating add mode for ${nodeType}`, {
+      previousMode,
+      hasParentNode: !!parentNode,
+      providedCourseId: courseId,
+      timestamp: new Date().toISOString()
+    });
+
+    const resolvedCourseId = courseId || this.extractCourseId(parentNode);
+
+    if (!resolvedCourseId) {
+      console.error('[PanelStateService] Cannot determine course ID for add operation');
+      return;
+    }
+
+    // Create basic template
+    const template = this.createBasicTemplate(nodeType, resolvedCourseId, parentNode);
+
+    // ✅ Update signal state
+    this._addNodeType.set(nodeType);
+    this._parentNode.set(parentNode);
+    this._courseId.set(resolvedCourseId);
+    this._nodeTemplate.set(template);
+    this._panelMode.set('add');
+
+    // ✅ Emit Observable events for cross-component coordination
+
+    // 1. Panel mode changed event
+    this._panelModeChanged$.next({
+      previousMode,
+      newMode: 'add',
+      trigger: 'programmatic',
+      nodeType,
+      timestamp: new Date()
+    });
+
+    // 2. Add mode initiated event
+    this._addModeInitiated$.next({
+      nodeType,
+      parentNode,
+      courseId: resolvedCourseId,
+      template,
+      timestamp: new Date()
+    });
+
+    // 3. Template created event
+    this._templateCreated$.next({
+      nodeType,
+      template,
+      courseId: resolvedCourseId,
+      parentNode,
+      timestamp: new Date()
+    });
+
+    console.log(`[PanelStateService] Add mode initiated successfully`, {
+      nodeType,
+      courseId: resolvedCourseId,
+      templateCreated: !!template,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  private extractCourseId(parentNode: Course | Topic | SubTopic | null): number | null {
+    if (!parentNode) return null;
+
+    if ('courseId' in parentNode && typeof parentNode.courseId === 'number') {
+      return parentNode.courseId;
+    } else if ('id' in parentNode && typeof parentNode.id === 'number') {
+      // If parentNode is Course itself
+      return parentNode.id;
+    }
+
+    return null;
+  }
+
+  // ✅ ENHANCED: Create basic template with improved debugging
+  private createBasicTemplate(nodeType: NodeType, courseId: number, parentNode: Course | Topic | SubTopic | null): any {
+    console.log(`[PanelStateService] Creating template for ${nodeType}`, {
+      courseId,
+      hasParentNode: !!parentNode,
+      parentNodeType: parentNode?.nodeType,
+      timestamp: new Date().toISOString()
+    });
+
+    const baseTemplate = {
+      id: 0,
+      title: '',
+      description: '',
+      archived: false,
+      visibility: 'Private',
+      courseId,
+      nodeType
+    };
+
+    switch (nodeType) {
+      case 'Course':
+        return baseTemplate;
+
+      case 'Topic':
+        return {
+          ...baseTemplate,
+          courseId
+        };
+
+      case 'SubTopic':
+        return {
+          ...baseTemplate,
+          courseId,
+          topicId: parentNode?.id,
+          isDefault: false
+        };
+
+      case 'Lesson':
+        return {
+          ...baseTemplate,
+          courseId,
+          topicId: parentNode?.nodeType === 'Topic' ? parentNode.id : undefined,
+          subTopicId: parentNode?.nodeType === 'SubTopic' ? parentNode.id : undefined,
+          objective: '',
+          methods: '',
+          assessment: '',
+          notes: [],
+          attachments: [],
+          standards: []
+        };
+
+      default:
+        return baseTemplate;
     }
   }
-  
-  // Reset add/edit specific state
-  private resetAddEditState(): void {
-    console.log(`[PanelStateService] Resetting add/edit state`, { 
-      timestamp: new Date().toISOString() 
+
+  // ✅ ENHANCED: Set add mode with Observable event emission (legacy method)
+  setAddMode(nodeType: NodeType, parentNode: Course | Topic | SubTopic | null = null): void {
+    console.log(`[PanelStateService] setAddMode called (legacy method)`, {
+      nodeType,
+      hasParentNode: !!parentNode,
+      parentNodeType: parentNode?.nodeType
     });
-    
+
+    // Debug parentNode properties
+    if (parentNode) {
+      console.log(`[PanelStateService] parentNode properties:`, Object.keys(parentNode));
+      console.log(`[PanelStateService] parentNode courseId:`, (parentNode as any).courseId);
+      console.log(`[PanelStateService] parentNode id:`, (parentNode as any).id);
+    }
+
+    const resolvedCourseId = this.extractCourseId(parentNode);
+
+    // Use the enhanced initiateAddMode method
+    this.initiateAddMode(nodeType, parentNode, resolvedCourseId || undefined);
+  }
+
+  // ✅ ENHANCED: Set edit mode with Observable event emission
+  setEditMode(entity: Course | Topic | SubTopic | Lesson): void {
+    const previousMode = this._panelMode();
+    const entityType = entity.nodeType as NodeType;
+
+    console.log(`[PanelStateService] Setting edit mode`, {
+      previousMode,
+      entityType,
+      entityId: entity.id,
+      timestamp: new Date().toISOString()
+    });
+
+    // Debug entity properties
+    console.log(`[PanelStateService] entity properties:`, Object.keys(entity));
+
+    const resolvedCourseId = this.extractCourseId(entity as any);
+
+    // ✅ Update signal state
+    this._panelMode.set('edit');
     this._addNodeType.set(null);
     this._parentNode.set(null);
-    this._courseId.set(undefined);
-    this._nodeTemplate.set(null);
-  }
+    this._courseId.set(resolvedCourseId);
 
-  // Resolve courseId based on context
-  private resolveCourseId(nodeType: NodeType, parentNode: TreeData | null, explicitCourseId?: number): number | undefined {
-    // For Course nodes, no courseId needed
-    if (nodeType === 'Course') {
-      return undefined;
-    }
+    // ✅ Emit Observable events for cross-component coordination
 
-    // Use explicit courseId if provided
-    if (explicitCourseId !== undefined) {
-      return explicitCourseId;
-    }
-
-    // Derive from parent node
-    if (parentNode) {
-      if (parentNode.nodeType === 'Course') {
-        return parentNode.id;
-      }
-      return parentNode.courseId;
-    }
-
-    // No courseId could be resolved for non-Course node
-    throw new Error(`Course ID required for creating ${nodeType} but none provided or derivable`);
-  }
-
-  // Validate parent node for the requested node type
-  private validateParentNode(nodeType: NodeType, parentNode: TreeData | null): void {
-    switch (nodeType) {
-      case 'Course':
-        // Courses don't need a parent
-        break;
-        
-      case 'Topic':
-        // Topics can be created without a parent (will be added to course)
-        break;
-        
-      case 'SubTopic':
-        if (!parentNode || parentNode.nodeType !== 'Topic') {
-          throw new Error('SubTopic requires a Topic parent');
-        }
-        break;
-        
-      case 'Lesson':
-        if (!parentNode || (parentNode.nodeType !== 'Topic' && parentNode.nodeType !== 'SubTopic')) {
-          throw new Error('Lesson requires a Topic or SubTopic parent');
-        }
-        break;
-        
-      default:
-        throw new Error(`Unknown node type: ${nodeType}`);
-    }
-  }
-  
-  // Create a template for a new node based on type - FIXED: Proper Lesson/LessonDetail separation
-  private createNodeTemplate(nodeType: NodeType, parentNode: TreeData | null, courseId?: number): any {
-    console.log(`[PanelStateService] Creating template for ${nodeType}`, { 
-      courseId,
-      parentNodeType: parentNode?.nodeType,
-      timestamp: new Date().toISOString() 
+    // 1. Panel mode changed event
+    this._panelModeChanged$.next({
+      previousMode,
+      newMode: 'edit',
+      trigger: 'user-action',
+      nodeType: entityType,
+      entityId: entity.id,
+      timestamp: new Date()
     });
-    
-    const timestamp = Date.now();
-    
-    switch (nodeType) {
-      case 'Course':
-        return this.createCourseTemplate(timestamp);
-        
-      case 'Topic':
-        return this.createTopicTemplate(timestamp, courseId!);
-                
-      case 'SubTopic':
-        return this.createSubTopicTemplate(timestamp, parentNode as Topic);
-        
-      case 'Lesson':
-        // FIXED: Create LessonDetail for InfoPanel editing, not basic Lesson
-        return this.createLessonDetailTemplate(timestamp, parentNode as Topic | SubTopic);
-        
-      default:
-        throw new Error(`Cannot create template for unknown node type: ${nodeType}`);
-    }
-  }
 
-  private createCourseTemplate(timestamp: number): Course {
-    return {
-      id: 0,
-      nodeId: `course_new_${timestamp}`,
-      courseId: 0, // Will be set after creation
-      title: '',
-      description: '',
-      hasChildren: false,
-      archived: false,
-      visibility: 'Private',
-      userId: 0,
-      sortOrder: 0,
-      nodeType: 'Course',
-      topics: []
-    } as Course;
-  }
-
-  private createTopicTemplate(timestamp: number, courseId: number): Topic {
-    return {
-      id: 0,
-      nodeId: `topic_new_${timestamp}`,
-      courseId,
-      title: '',
-      description: '',
-      hasChildren: false,
-      archived: false,
-      visibility: 'Private',
-      userId: 0,
-      subTopics: [],
-      lessons: [],
-      nodeType: 'Topic',
-      sortOrder: 0
-    } as Topic;
-  }
-
-  private createSubTopicTemplate(timestamp: number, parentTopic: Topic): SubTopic {
-    return {
-      id: 0,
-      nodeId: `subtopic_new_${timestamp}`,
-      topicId: parentTopic.id,
-      courseId: parentTopic.courseId,
-      title: '',
-      description: '',
-      lessons: [],
-      hasChildren: false,
-      archived: false,
-      visibility: 'Private',
-      userId: 0,
-      nodeType: 'SubTopic',
-      sortOrder: 0
-    } as SubTopic;
-  }
-
-  // FIXED: Create LessonDetail template for InfoPanel components
-  private createLessonDetailTemplate(timestamp: number, parent: Topic | SubTopic): LessonDetail {
-    return {
-      id: 0,
-      nodeId: `lesson_new_${timestamp}`,
-      courseId: parent.courseId,
-      subTopicId: parent.nodeType === 'SubTopic' ? (parent as SubTopic).id : undefined,
-      topicId: parent.nodeType === 'Topic' ? (parent as Topic).id : undefined,
-      title: '',
-      level: '',
-      objective: '',
-      materials: '',
-      classTime: '',
-      methods: '',
-      specialNeeds: '',
-      assessment: '',
-      standards: [],
-      attachments: [],
-      visibility: 'Private',
-      archived: false,
-      userId: 0,
-      notes: [],
-      nodeType: 'Lesson',
-      sortOrder: 0,
-      description: '',
-      hasChildren: false
-    } as LessonDetail;
-  }
-
-  // Utility methods for external consumers
-  clearState(): void {
-    console.log('[PanelStateService] Clearing all state', { 
-      timestamp: new Date().toISOString() 
+    // 2. Edit mode initiated event
+    this._editModeInitiated$.next({
+      entity,
+      entityType,
+      entityId: entity.id,
+      courseId: resolvedCourseId,
+      timestamp: new Date()
     });
-    
-    this._panelMode.set('view');
-    this.resetAddEditState();
-  }
 
-  // Get current state for debugging
-  getStateSnapshot() {
-    return {
-      panelMode: this._panelMode(),
-      addNodeType: this._addNodeType(),
-      parentNode: this._parentNode(),
-      courseId: this._courseId(),
-      hasTemplate: this._nodeTemplate() !== null,
-      templateType: this._nodeTemplate()?.nodeType || 'none',
-      isOverlayActive: this.isOverlayActive(),
-      hasValidAddContext: this.hasValidAddContext(),
+    console.log(`[PanelStateService] Edit mode initiated successfully`, {
+      entityType,
+      entityId: entity.id,
+      courseId: resolvedCourseId,
       timestamp: new Date().toISOString()
-    };
+    });
+  }
+
+  // ✅ ENHANCED: Reset to view mode with Observable event emission
+  resetToView(): void {
+    const previousMode = this._panelMode();
+
+    console.log(`[PanelStateService] Resetting to view mode`, {
+      previousMode,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ Update signal state
+    this._panelMode.set('view');
+    this._addNodeType.set(null);
+    this._parentNode.set(null);
+
+    // ✅ Emit Observable events
+    this._panelModeChanged$.next({
+      previousMode,
+      newMode: 'view',
+      trigger: 'reset',
+      timestamp: new Date()
+    });
+
+    this._panelStateReset$.next({
+      previousMode,
+      resetType: 'to-view',
+      timestamp: new Date()
+    });
+  }
+
+  // ✅ ENHANCED: Clear all state with Observable event emission
+  clearState(): void {
+    const previousMode = this._panelMode();
+
+    console.log(`[PanelStateService] Clearing all state`, {
+      previousMode,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ Update signal state
+    this._panelMode.set('view');
+    this._addNodeType.set(null);
+    this._parentNode.set(null);
+    this._courseId.set(null);
+    this._nodeTemplate.set(null);
+
+    // ✅ Emit Observable events
+    if (previousMode !== 'view') {
+      this._panelModeChanged$.next({
+        previousMode,
+        newMode: 'view',
+        trigger: 'reset',
+        timestamp: new Date()
+      });
+    }
+
+    this._panelStateReset$.next({
+      previousMode,
+      resetType: 'clear-all',
+      timestamp: new Date()
+    });
+  }
+
+  // === CLEANUP ===
+  ngOnDestroy(): void {
+    this._panelModeChanged$.complete();
+    this._addModeInitiated$.complete();
+    this._editModeInitiated$.complete();
+    this._panelStateReset$.complete();
+    this._templateCreated$.complete();
+    console.log('[PanelStateService] All Observable subjects completed');
   }
 }

@@ -1,9 +1,12 @@
-// RESPONSIBILITY: Orchestrates user interactions with calendar events and coordinates side effects.
+// **COMPLETE FILE** - CalendarInteractionService with Observable Events
+// RESPONSIBILITY: Orchestrates user interactions with calendar events and coordinates cross-component side effects.
 // DOES NOT: Handle reactive state effects or calendar configuration - pure interaction orchestration.
 // CALLED BY: LessonCalendarComponent for all user interaction handling.
+
 import { Injectable } from '@angular/core';
 import { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import { ToastrService } from 'ngx-toastr';
+import { Subject, Observable } from 'rxjs';
 import { ScheduleApiService } from '../api/schedule-api.service';
 import { ScheduleStateService } from '../state/schedule-state.service';
 import { CalendarEventService } from './calendar-event.service';
@@ -11,10 +14,56 @@ import {NodeSelectionService} from '../../../lesson-tree/services/node-operation
 import {CourseDataService} from '../../../lesson-tree/services/course-data/course-data.service';
 import {ScheduleEvent} from '../../../models/schedule-event.model';
 
+// ✅ NEW: Observable event interfaces for cross-component coordination
+export interface LessonSelectionEvent {
+  lessonId: number | null;
+  lessonTitle: string | null;
+  courseId: number | null;
+  date: Date;
+  period: number;
+  source: 'calendar-click';
+  timestamp: Date;
+}
+
+export interface EventInteractionEvent {
+  interactionType: 'click' | 'drop' | 'context-menu';
+  eventId: string | number;
+  eventType: string | null;
+  lessonId: number | null;
+  date: Date;
+  period: number;
+  success: boolean;
+  source: 'calendar-interaction';
+  timestamp: Date;
+}
+
+export interface LessonMoveEvent {
+  lessonId: number;
+  lessonTitle: string;
+  oldDate: Date | null;
+  newDate: Date;
+  oldPeriod: number | null;
+  newPeriod: number;
+  moveType: 'drag-drop' | 'manual';
+  source: 'calendar-interaction';
+  timestamp: Date;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class CalendarInteractionService {
+
+  // ✅ NEW: Observable events for cross-component coordination
+  private readonly _lessonSelected$ = new Subject<LessonSelectionEvent>();
+  private readonly _eventInteraction$ = new Subject<EventInteractionEvent>();
+  private readonly _lessonMoved$ = new Subject<LessonMoveEvent>();
+
+  // Public observables for business logic subscriptions
+  readonly lessonSelected$ = this._lessonSelected$.asObservable();
+  readonly eventInteraction$ = this._eventInteraction$.asObservable();
+  readonly lessonMoved$ = this._lessonMoved$.asObservable();
+
   constructor(
     private calendarEventService: CalendarEventService,
     private lessonCalendarService: ScheduleApiService,
@@ -23,53 +72,204 @@ export class CalendarInteractionService {
     private courseDataService: CourseDataService,
     private toastr: ToastrService
   ) {
-    console.log('[CalendarInteractionService] Initialized for user interaction orchestration');
+    console.log('[CalendarInteractionService] Initialized with Observable events for cross-component coordination');
   }
 
-  // Orchestrate event click handling with all side effects
+  // ✅ ENHANCED: Orchestrate event click handling with Observable event emission
   public handleEventClick(arg: any): any {
     console.log('[CalendarInteractionService] Handling event click:', arg);
-    // Return the event data for processing
-    return {
-      success: true,
-      eventData: arg.event.extendedProps || {},
+
+    const extendedProps = arg.event.extendedProps || {};
+    const scheduleEvent = extendedProps['scheduleEvent'];
+    const lessonId = scheduleEvent?.lessonId || extendedProps['lessonId'];
+    const eventType = scheduleEvent?.eventType || extendedProps['eventType'];
+
+    const success = true;
+    const interactionResult = {
+      success,
+      eventData: extendedProps,
       eventId: arg.event.id
     };
+
+    // ✅ NEW: Emit event interaction Observable for business logic
+    this._eventInteraction$.next({
+      interactionType: 'click',
+      eventId: arg.event.id,
+      eventType: eventType,
+      lessonId: lessonId,
+      date: new Date(arg.event.start),
+      period: extendedProps['period'] || 0,
+      success,
+      source: 'calendar-interaction',
+      timestamp: new Date()
+    });
+
+    // ✅ NEW: Emit lesson selection event if this is a lesson
+    if (lessonId && eventType === 'Lesson') {
+      const lesson = this.findLessonById(lessonId);
+
+      this._lessonSelected$.next({
+        lessonId: lessonId,
+        lessonTitle: lesson?.title || scheduleEvent?.lessonTitle || 'Unknown Lesson',
+        courseId: scheduleEvent?.courseId || extendedProps['courseId'],
+        date: new Date(arg.event.start),
+        period: extendedProps['period'] || 0,
+        source: 'calendar-click',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [CalendarInteractionService] EMITTED lessonSelected event (Observable)', {
+        lessonId: lessonId,
+        lessonTitle: lesson?.title || 'Unknown',
+        courseId: scheduleEvent?.courseId,
+        period: extendedProps['period'],
+        source: 'calendar-click'
+      });
+    }
+
+    console.log('🚨 [CalendarInteractionService] EMITTED eventInteraction event (Observable)', {
+      interactionType: 'click',
+      eventId: arg.event.id,
+      eventType: eventType,
+      success,
+      source: 'calendar-interaction'
+    });
+
+    return interactionResult;
   }
 
-  // Handle event drop - internal interaction logic
+  // ✅ ENHANCED: Handle event drop with Observable event emission
   public handleEventDrop(arg: any): any {
     console.log('[CalendarInteractionService] Handling event drop:', arg);
-    // Return the drop result for processing
-    return {
-      success: true,
-      eventData: arg.event.extendedProps || {},
+
+    const extendedProps = arg.event.extendedProps || {};
+    const scheduleEvent = extendedProps['scheduleEvent'];
+    const lessonId = scheduleEvent?.lessonId || extendedProps['lessonId'];
+    const eventType = scheduleEvent?.eventType || extendedProps['eventType'];
+
+    const success = true;
+    const dropResult = {
+      success,
+      eventData: extendedProps,
       newDate: arg.event.start,
       oldDate: arg.oldEvent?.start
     };
+
+    // ✅ NEW: Emit event interaction Observable
+    this._eventInteraction$.next({
+      interactionType: 'drop',
+      eventId: arg.event.id,
+      eventType: eventType,
+      lessonId: lessonId,
+      date: new Date(arg.event.start),
+      period: extendedProps['period'] || 0,
+      success,
+      source: 'calendar-interaction',
+      timestamp: new Date()
+    });
+
+    // ✅ NEW: Emit lesson move event if this is a lesson
+    if (lessonId && eventType === 'Lesson') {
+      const lesson = this.findLessonById(lessonId);
+
+      this._lessonMoved$.next({
+        lessonId: lessonId,
+        lessonTitle: lesson?.title || scheduleEvent?.lessonTitle || 'Unknown Lesson',
+        oldDate: arg.oldEvent?.start || null,
+        newDate: new Date(arg.event.start),
+        oldPeriod: null, // Could be extracted from oldEvent if needed
+        newPeriod: extendedProps['period'] || 0,
+        moveType: 'drag-drop',
+        source: 'calendar-interaction',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [CalendarInteractionService] EMITTED lessonMoved event (Observable)', {
+        lessonId: lessonId,
+        lessonTitle: lesson?.title || 'Unknown',
+        oldDate: arg.oldEvent?.start,
+        newDate: arg.event.start,
+        moveType: 'drag-drop',
+        source: 'calendar-interaction'
+      });
+    }
+
+    console.log('🚨 [CalendarInteractionService] EMITTED eventInteraction event (Observable)', {
+      interactionType: 'drop',
+      eventId: arg.event.id,
+      eventType: eventType,
+      success,
+      source: 'calendar-interaction'
+    });
+
+    return dropResult;
   }
 
-  // Handle lesson moves initiated from calendar
+  // ✅ ENHANCED: Handle lesson moves with Observable event emission
   handleLessonMove(lessonId: number, newDate: Date, period: number): void {
     console.log('[CalendarInteractionService] handleLessonMove');
 
     // Find lesson and notify about the move
     const lesson = this.findLessonById(lessonId);
     if (lesson) {
-      // For now, just show success message - node move notification will be added later
+      // ✅ NEW: Emit lesson move Observable event
+      this._lessonMoved$.next({
+        lessonId: lessonId,
+        lessonTitle: lesson.title || 'Unknown Lesson',
+        oldDate: null, // Not available in this context
+        newDate: newDate,
+        oldPeriod: null, // Not available in this context
+        newPeriod: period,
+        moveType: 'manual',
+        source: 'calendar-interaction',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [CalendarInteractionService] EMITTED lessonMoved event (Observable)', {
+        lessonId: lessonId,
+        lessonTitle: lesson.title,
+        newDate: newDate.toLocaleDateString(),
+        newPeriod: period,
+        moveType: 'manual',
+        source: 'calendar-interaction'
+      });
+
       this.toastr.info(`Lesson moved to ${newDate.toLocaleDateString()} Period ${period}`, 'Success');
     }
   }
 
-  // Handle context menu interactions
+  // ✅ ENHANCED: Handle context menu interactions with Observable event emission
   handleContextMenu(info: any, jsEvent: MouseEvent): void {
     console.log('[CalendarInteractionService] handleContextMenu');
 
-    const eventType = info.event.extendedProps?.eventType;
-    const period = info.event.extendedProps?.period;
+    const extendedProps = info.event?.extendedProps || {};
+    const scheduleEvent = extendedProps['scheduleEvent'];
+    const eventType = scheduleEvent?.eventType || extendedProps['eventType'];
+    const period = scheduleEvent?.period || extendedProps['period'];
+    const lessonId = scheduleEvent?.lessonId || extendedProps['lessonId'];
 
-    // Future: Could open different context menus based on event type
-    // For now, just prevent default browser context menu
+    // ✅ NEW: Emit context menu interaction Observable event
+    this._eventInteraction$.next({
+      interactionType: 'context-menu',
+      eventId: info.event?.id || 'unknown',
+      eventType: eventType,
+      lessonId: lessonId,
+      date: new Date(info.event?.start || new Date()),
+      period: period || 0,
+      success: true,
+      source: 'calendar-interaction',
+      timestamp: new Date()
+    });
+
+    console.log('🚨 [CalendarInteractionService] EMITTED eventInteraction event (Observable)', {
+      interactionType: 'context-menu',
+      eventType: eventType,
+      period: period,
+      success: true,
+      source: 'calendar-interaction'
+    });
+
+    // Prevent default browser context menu
     jsEvent.preventDefault();
     jsEvent.stopPropagation();
   }
@@ -153,5 +353,15 @@ export class CalendarInteractionService {
       hasSelection: this.nodeSelectionService.hasSelection(),
       selectionSource: this.nodeSelectionService.selectionSource()
     };
+  }
+
+  // === CLEANUP ===
+
+  // ✅ NEW: Cleanup method with Observable completion
+  ngOnDestroy(): void {
+    this._lessonSelected$.complete();
+    this._eventInteraction$.complete();
+    this._lessonMoved$.complete();
+    console.log('[CalendarInteractionService] All Observable subjects completed on destroy');
   }
 }

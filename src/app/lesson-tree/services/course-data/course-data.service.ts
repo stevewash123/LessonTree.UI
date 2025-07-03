@@ -250,8 +250,8 @@ export class CourseDataService {
     // Update storage first
     this.mutationService.addEntity(entity);
 
-    // ✅ NEW: Emit Observable event (proper pattern for one-time events)
-    this.signalService.emitNodeAddedEvent(entity, source, operationType);
+    // ✅ UPDATED: Use entity-based method names
+    this.signalService.emitEntityAdded(entity, source, operationType);
 
     // 🔄 LEGACY: Also emit signal for backward compatibility during migration
     this.signalService.emitNodeAdded(entity, source, operationType);
@@ -271,8 +271,8 @@ export class CourseDataService {
     // Update storage first
     this.mutationService.updateEntity(entity);
 
-    // ✅ NEW: Emit Observable event
-    this.signalService.emitNodeEditedEvent(entity, source, 'USER_EDIT' as OperationType);
+    // ✅ UPDATED: Use entity-based method names
+    this.signalService.emitEntityEdited(entity, source, 'USER_EDIT' as OperationType);
 
     // 🔄 LEGACY: Also emit signal for backward compatibility
     this.signalService.emitNodeEdited(entity, source, 'USER_EDIT' as OperationType);
@@ -292,8 +292,8 @@ export class CourseDataService {
     // Update storage first
     this.mutationService.removeEntity(entity);
 
-    // ✅ NEW: Emit Observable event
-    this.signalService.emitNodeDeletedEvent(entity, source, 'USER_DELETE' as OperationType);
+    // ✅ UPDATED: Use entity-based method names
+    this.signalService.emitEntityDeleted(entity, source, 'USER_DELETE' as OperationType);
 
     // 🔄 LEGACY: Also emit signal for backward compatibility
     this.signalService.emitNodeDeleted(entity, source, 'USER_DELETE' as OperationType);

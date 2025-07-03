@@ -243,7 +243,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     const { operationType, node } = event;
 
     // Check if we should use incremental update
-    if (this.shouldUseIncrementalUpdate(operationType, node.nodeType)) {
+    if (this.shouldUseIncrementalUpdate(operationType as OperationType, node.nodeType)) {
       console.log(`🌱 [TreeWrapper-${this.instanceId}] Using incremental update:`, {
         operationType,
         nodeType: node.nodeType,
@@ -256,7 +256,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     console.log(`🔄 [TreeWrapper-${this.instanceId}] Using full sync:`, {
       operationType,
       nodeType: node.nodeType,
-      reason: this.getFullSyncReason(operationType, node.nodeType)
+      reason: this.getFullSyncReason(operationType as OperationType, node.nodeType)
     });
     return 'full_sync';
   }

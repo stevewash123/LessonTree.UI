@@ -14,18 +14,18 @@ import { CourseDataStorageService } from './course-data-storage.service';
   providedIn: 'root'
 })
 export class CourseTreeMutationService {
-  
+
   constructor(private readonly storageService: CourseDataStorageService) {
     console.log('[CourseTreeMutationService] Tree mutation service initialized');
   }
 
   // === GENERIC MUTATION HELPERS ===
-  
+
   /**
    * Generic helper to find and update any entity in the courses tree
    */
   mutateTree<T extends TreeData>(
-    entity: T, 
+    entity: T,
     operation: 'add' | 'update' | 'remove'
   ): void {
     const currentCourses = this.storageService.getCurrentCourses();
@@ -37,14 +37,14 @@ export class CourseTreeMutationService {
    * Process the courses array, routing to appropriate handler based on entity type
    */
   private processCoursesArray<T extends TreeData>(
-    courses: Course[], 
-    entity: T, 
+    courses: Course[],
+    entity: T,
     operation: 'add' | 'update' | 'remove'
   ): Course[] {
     if (entity.nodeType === 'Course') {
       return this.mutateCourseArray(courses, entity as Course, operation);
     }
-    
+
     return courses.map((course: Course) => {
       if (course.id === entity.courseId) {
         return this.mutateCourse(course, entity, operation);
@@ -72,19 +72,19 @@ export class CourseTreeMutationService {
    */
   private mutateCourse<T extends TreeData>(course: Course, entity: T, operation: 'add' | 'update' | 'remove'): Course {
     const newCourse = { ...course };
-    
+
     if (entity.nodeType === 'Topic') {
       newCourse.topics = this.mutateTopicArray(newCourse.topics || [], entity as Topic, operation);
       return newCourse;
     }
-    
+
     if (entity.nodeType === 'SubTopic' || entity.nodeType === 'Lesson') {
-      newCourse.topics = (newCourse.topics || []).map((topic: Topic) => 
+      newCourse.topics = (newCourse.topics || []).map((topic: Topic) =>
         this.mutateTopic(topic, entity, operation)
       );
       return newCourse;
     }
-    
+
     return newCourse;
   }
 
@@ -107,7 +107,7 @@ export class CourseTreeMutationService {
    */
   private mutateTopic<T extends TreeData>(topic: Topic, entity: T, operation: 'add' | 'update' | 'remove'): Topic {
     const newTopic = { ...topic };
-    
+
     if (entity.nodeType === 'SubTopic') {
       const subTopic = entity as unknown as SubTopic;
       if (subTopic.topicId === topic.id) {
@@ -115,26 +115,26 @@ export class CourseTreeMutationService {
       }
       return newTopic;
     }
-    
+
     if (entity.nodeType === 'Lesson') {
       // FIXED: Accept both Lesson and LessonDetail, but store as Lesson
       const lesson = entity as unknown as Lesson | LessonDetail;
-      
+
       // Lesson belongs directly to this topic
       if (lesson.topicId === topic.id && !lesson.subTopicId) {
         const basicLesson = this.toLessonBasic(lesson);
         newTopic.lessons = this.mutateLessonArray(newTopic.lessons || [], basicLesson, operation);
         return newTopic;
       }
-      
+
       // Lesson belongs to a subtopic within this topic
       if (lesson.subTopicId) {
-        newTopic.subTopics = (newTopic.subTopics || []).map((subTopic: SubTopic) => 
+        newTopic.subTopics = (newTopic.subTopics || []).map((subTopic: SubTopic) =>
           this.mutateSubTopic(subTopic, lesson, operation)
         );
       }
     }
-    
+
     return newTopic;
   }
 
@@ -206,7 +206,7 @@ export class CourseTreeMutationService {
   addEntity<T extends TreeData>(entity: T): void {
     console.log('[CourseTreeMutationService] Adding entity', {
       entityType: entity.nodeType,
-      entityId: entity.nodeId,
+      entityId: entity.id,  // ✅ Use entity.id (EntityFramework primary key)
       timestamp: new Date().toISOString()
     });
     this.mutateTree(entity, 'add');
@@ -215,7 +215,7 @@ export class CourseTreeMutationService {
   updateEntity<T extends TreeData>(entity: T): void {
     console.log('[CourseTreeMutationService] Updating entity', {
       entityType: entity.nodeType,
-      entityId: entity.nodeId,
+      entityId: entity.id,  // ✅ Use entity.id (EntityFramework primary key)
       timestamp: new Date().toISOString()
     });
     this.mutateTree(entity, 'update');
@@ -224,7 +224,7 @@ export class CourseTreeMutationService {
   removeEntity<T extends TreeData>(entity: T): void {
     console.log('[CourseTreeMutationService] Removing entity', {
       entityType: entity.nodeType,
-      entityId: entity.nodeId,
+      entityId: entity.id,  // ✅ Use entity.id (EntityFramework primary key)
       timestamp: new Date().toISOString()
     });
     this.mutateTree(entity, 'remove');

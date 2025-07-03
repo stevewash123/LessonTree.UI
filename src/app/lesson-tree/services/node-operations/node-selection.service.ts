@@ -1,7 +1,10 @@
+// **COMPLETE FILE** - NodeSelectionService with Dual Signal/Observable Pattern
 // RESPONSIBILITY: Tracks selected tree nodes across all components with source tracking and history.
 // DOES NOT: Handle node data or API operations - only selection state management.
 // CALLED BY: TreeWrapper, Calendar, InfoPanel, PanelStateService
+
 import { computed, Injectable, signal } from '@angular/core';
+import { Subject, Observable } from 'rxjs';
 import { TreeData } from '../../../models/tree-node';
 
 export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
@@ -13,29 +16,73 @@ export interface SelectionEvent {
   timestamp: Date;
 }
 
+// ✅ Observable event interfaces
+export interface NodeSelectionChangeEvent {
+  previousNode: TreeData | null;
+  newNode: TreeData | null;
+  source: SelectionSource;
+  changeType: 'select' | 'clear' | 'switch';
+  timestamp: Date;
+}
+
+export interface SelectionSourceChangeEvent {
+  node: TreeData | null;
+  previousSource: SelectionSource;
+  newSource: SelectionSource;
+  timestamp: Date;
+}
+
+export interface CrossComponentNavigationEvent {
+  fromComponent: SelectionSource;
+  toComponent: SelectionSource;
+  node: TreeData | null;
+  navigationReason: 'user-click' | 'programmatic' | 'coordination';
+  timestamp: Date;
+}
+
+export interface SelectionHistoryEvent {
+  action: 'added' | 'cleared';
+  historyLength: number;
+  recentSelection: SelectionEvent | null;
+  timestamp: Date;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class NodeSelectionService {
-  // Private signals for internal state
+
+  // ✅ Observable events for cross-component coordination
+  private readonly _nodeSelectionChanged$ = new Subject<NodeSelectionChangeEvent>();
+  private readonly _selectionSourceChanged$ = new Subject<SelectionSourceChangeEvent>();
+  private readonly _crossComponentNavigation$ = new Subject<CrossComponentNavigationEvent>();
+  private readonly _selectionHistoryChanged$ = new Subject<SelectionHistoryEvent>();
+
+  // Public observables for business logic subscriptions
+  readonly nodeSelectionChanged$ = this._nodeSelectionChanged$.asObservable();
+  readonly selectionSourceChanged$ = this._selectionSourceChanged$.asObservable();
+  readonly crossComponentNavigation$ = this._crossComponentNavigation$.asObservable();
+  readonly selectionHistoryChanged$ = this._selectionHistoryChanged$.asObservable();
+
+  // ✅ Signal state for reactive UI
   private readonly _selectedNode = signal<TreeData | null>(null);
   private readonly _selectionSource = signal<SelectionSource>('programmatic');
   private readonly _selectionHistory = signal<SelectionEvent[]>([]);
 
-  // Public readonly signals
+  // Public readonly signals for reactive UI
   readonly selectedNode = this._selectedNode.asReadonly();
   readonly selectionSource = this._selectionSource.asReadonly();
   readonly selectionHistory = this._selectionHistory.asReadonly();
 
-  // Computed signals for derived state
+  // Computed signals for derived state (keep as signals for reactive UI)
   readonly hasSelection = computed(() => this._selectedNode() !== null);
   readonly selectedNodeType = computed(() => this._selectedNode()?.nodeType || null);
   readonly selectedNodeId = computed(() => this._selectedNode()?.nodeId || null);
   readonly isSelectedNodeType = computed(() => (type: NodeType) => this._selectedNode()?.nodeType === type);
-  
+
   // Course context computed signal - extracts courseId from any selected node
   readonly activeCourseId = computed(() => this._selectedNode()?.courseId ?? null);
-  
+
   // Individual node type computed signals for specific type checking
   readonly selectedTopic = computed(() => {
     const node = this._selectedNode();
@@ -52,7 +99,7 @@ export class NodeSelectionService {
     return node?.nodeType === 'Lesson' ? node : null;
   });
 
-  // Selection count by type
+  // Selection count by type (keep as computed signal for reactive statistics)
   readonly selectionStats = computed(() => {
     const history = this._selectionHistory();
     const stats = {
@@ -72,19 +119,30 @@ export class NodeSelectionService {
   });
 
   constructor() {
-    console.log('[NodeSelectionService] Initialized with signals');
+    console.log('[NodeSelectionService] Initialized with dual Signal/Observable pattern');
   }
 
-  // Select a node with source tracking
+  // ✅ ENHANCED: Select a node with Observable event emission
   selectNode(node: TreeData | null, source: SelectionSource = 'programmatic'): void {
     const previousNode = this._selectedNode();
-    
+    const previousSource = this._selectionSource();
+
     // Don't update if selecting the same node from the same source
-    if (previousNode === node && this._selectionSource() === source) {
+    if (previousNode === node && previousSource === source) {
       return;
     }
 
-    // Update signals
+    // Determine change type
+    let changeType: 'select' | 'clear' | 'switch';
+    if (node === null) {
+      changeType = 'clear';
+    } else if (previousNode === null) {
+      changeType = 'select';
+    } else {
+      changeType = 'switch';
+    }
+
+    // ✅ Update signal state
     this._selectedNode.set(node);
     this._selectionSource.set(source);
 
@@ -94,21 +152,71 @@ export class NodeSelectionService {
       source,
       timestamp: new Date()
     };
-    
+
     const currentHistory = this._selectionHistory();
     const updatedHistory = [...currentHistory, selectionEvent];
-    
+
     // Keep only last 50 selections for performance
     if (updatedHistory.length > 50) {
       updatedHistory.shift();
     }
-    
+
     this._selectionHistory.set(updatedHistory);
+
+    // ✅ Emit Observable events for business logic coordination
+
+    // 1. Node selection changed event
+    this._nodeSelectionChanged$.next({
+      previousNode,
+      newNode: node,
+      source,
+      changeType,
+      timestamp: new Date()
+    });
+
+    // 2. Selection source changed event (if source changed)
+    if (previousSource !== source) {
+      this._selectionSourceChanged$.next({
+        node,
+        previousSource,
+        newSource: source,
+        timestamp: new Date()
+      });
+
+      // 3. Cross-component navigation event (if both sources are component-based)
+      if (this.isComponentSource(previousSource) && this.isComponentSource(source)) {
+        this._crossComponentNavigation$.next({
+          fromComponent: previousSource,
+          toComponent: source,
+          node,
+          navigationReason: 'user-click',
+          timestamp: new Date()
+        });
+      }
+    }
+
+    // 4. Selection history changed event
+    this._selectionHistoryChanged$.next({
+      action: 'added',
+      historyLength: updatedHistory.length,
+      recentSelection: selectionEvent,
+      timestamp: new Date()
+    });
   }
 
-  // Clear selection
+  // ✅ ENHANCED: Clear selection with Observable event emission
   clearSelection(source: SelectionSource = 'programmatic'): void {
-    this.selectNode(null, source);
+    const previousNode = this._selectedNode();
+
+    if (previousNode !== null) {
+      // Use selectNode to handle all the event emission logic
+      this.selectNode(null, source);
+    }
+  }
+
+  // Helper method to determine if source is a component (not programmatic)
+  private isComponentSource(source: SelectionSource): boolean {
+    return source === 'tree' || source === 'calendar' || source === 'infopanel';
   }
 
   /**
@@ -139,15 +247,15 @@ export class NodeSelectionService {
       console.warn('[NodeSelectionService] Invalid nodeId format:', nodeId);
       return null;
     }
-    
+
     const [typeStr, idStr] = parts;
     const id = parseInt(idStr, 10);
-    
+
     if (isNaN(id)) {
       console.warn('[NodeSelectionService] Invalid ID in nodeId:', nodeId);
       return null;
     }
-    
+
     let nodeType: NodeType;
     switch (typeStr.toLowerCase()) {
       case 'course':
@@ -166,14 +274,14 @@ export class NodeSelectionService {
         console.warn('[NodeSelectionService] Unknown node type in nodeId:', nodeId);
         return null;
     }
-    
+
     return { nodeType, id };
   }
 
   // Select by raw database ID with nodeType (used by Calendar, etc.)
   selectById(id: number, nodeType: NodeType, source: SelectionSource = 'programmatic'): void {
     let courseId = 0; // Default for new courses or no selection
-    
+
     // Try to get courseId from current selection context
     const currentNode = this._selectedNode();
     if (currentNode) {
@@ -182,15 +290,15 @@ export class NodeSelectionService {
       // If we're selecting a non-Course node but have no context, this might be an error
       console.warn('[NodeSelectionService] Selecting non-Course node without course context');
     }
-    
+
     // For Course selections, use the course's own ID
     if (nodeType === 'Course') {
       courseId = id;
     }
-  
+
     // Format nodeId properly for tree compatibility
     const formattedNodeId = this.formatNodeId(id, nodeType);
-    
+
     const node: TreeData = {
       id: id,
       courseId: courseId,
@@ -203,7 +311,7 @@ export class NodeSelectionService {
       userId: 0,
       sortOrder: 0
     };
-  
+
     this.selectNode(node, source);
   }
 
@@ -214,9 +322,9 @@ export class NodeSelectionService {
       console.error('[NodeSelectionService] Cannot select - invalid nodeId format:', nodeId);
       return;
     }
-    
+
     const { nodeType, id } = parsed;
-    
+
     // Get courseId from context or parse from nodeId
     let courseId = 0;
     const currentNode = this._selectedNode();
@@ -225,7 +333,7 @@ export class NodeSelectionService {
     } else if (nodeType === 'Course') {
       courseId = id;
     }
-    
+
     const node: TreeData = {
       id: id,
       courseId: courseId,
@@ -238,25 +346,25 @@ export class NodeSelectionService {
       userId: 0,
       sortOrder: 0
     };
-  
+
     this.selectNode(node, source);
   }
-  
+
   // Check if a specific node is selected
   isNodeSelected(node: TreeData): boolean {
     const selected = this._selectedNode();
-    return selected !== null && 
-           selected.nodeId === node.nodeId && 
-           selected.nodeType === node.nodeType;
+    return selected !== null &&
+      selected.nodeId === node.nodeId &&
+      selected.nodeType === node.nodeType;
   }
 
   // Check if a node with specific raw ID and type is selected
   isSelected(id: number, nodeType: NodeType): boolean {
     const selected = this._selectedNode();
     const formattedNodeId = this.formatNodeId(id, nodeType);
-    return selected !== null && 
-           selected.nodeId === formattedNodeId && 
-           selected.nodeType === nodeType;
+    return selected !== null &&
+      selected.nodeId === formattedNodeId &&
+      selected.nodeType === nodeType;
   }
 
   // Check if a node with specific formatted nodeId is selected
@@ -281,16 +389,51 @@ export class NodeSelectionService {
       .reverse(); // Most recent first
   }
 
-  // Clear selection history
+  // ✅ ENHANCED: Clear selection history with Observable event emission
   clearHistory(): void {
+    const previousLength = this._selectionHistory().length;
     this._selectionHistory.set([]);
+
+    // ✅ Emit history changed event
+    if (previousLength > 0) {
+      this._selectionHistoryChanged$.next({
+        action: 'cleared',
+        historyLength: 0,
+        recentSelection: null,
+        timestamp: new Date()
+      });
+    }
   }
 
-  // Reset service state
+  // ✅ ENHANCED: Reset service state with Observable events
   reset(): void {
+    const hadSelection = this._selectedNode() !== null;
+    const hadHistory = this._selectionHistory().length > 0;
+
+    // ✅ Update signal state
     this._selectedNode.set(null);
     this._selectionSource.set('programmatic');
     this._selectionHistory.set([]);
+
+    // ✅ Emit Observable events if state actually changed
+    if (hadSelection) {
+      this._nodeSelectionChanged$.next({
+        previousNode: this._selectedNode(),
+        newNode: null,
+        source: 'programmatic',
+        changeType: 'clear',
+        timestamp: new Date()
+      });
+    }
+
+    if (hadHistory) {
+      this._selectionHistoryChanged$.next({
+        action: 'cleared',
+        historyLength: 0,
+        recentSelection: null,
+        timestamp: new Date()
+      });
+    }
   }
 
   // Utility method to get selection context info
@@ -298,7 +441,7 @@ export class NodeSelectionService {
     const node = this._selectedNode();
     const source = this._selectionSource();
     const stats = this.selectionStats();
-    
+
     return {
       hasSelection: this.hasSelection(),
       selectedNode: node,
@@ -309,5 +452,14 @@ export class NodeSelectionService {
       selectionStats: stats,
       timestamp: new Date().toISOString()
     };
+  }
+
+  // === CLEANUP ===
+  ngOnDestroy(): void {
+    this._nodeSelectionChanged$.complete();
+    this._selectionSourceChanged$.complete();
+    this._crossComponentNavigation$.complete();
+    this._selectionHistoryChanged$.complete();
+    console.log('[NodeSelectionService] All Observable subjects completed');
   }
 }

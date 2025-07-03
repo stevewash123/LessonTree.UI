@@ -1,8 +1,10 @@
-﻿// RESPONSIBILITY: Manages lesson sequence continuation after shifts or interruptions
+﻿// **COMPLETE FILE** - LessonSequenceService with Observable Events
+// RESPONSIBILITY: Manages lesson sequence continuation with cross-component event coordination
 // DOES NOT: Create events directly, sequence lessons, or calculate dates - delegates to existing services
 // CALLED BY: SpecialDayManagementService and other services needing sequence continuation
 
-import { Injectable, effect } from '@angular/core';
+import { Injectable } from '@angular/core';
+import { Subject, Subscription, Observable } from 'rxjs';
 import { addDays, format } from 'date-fns';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { PeriodAssignment, PeriodCourseAssignment } from '../../../models/period-assignment';
@@ -12,6 +14,58 @@ import { ScheduleEventFactoryService } from './schedule-event-factory.service';
 import { CourseDataService } from '../../../lesson-tree/services/course-data/course-data.service';
 import { TeachingDayCalculationService } from './teaching-day-calculations.service';
 import { CourseSignalService } from '../../../lesson-tree/services/course-data/course-signal.service';
+
+// ✅ NEW: Observable event interfaces for cross-component coordination
+export interface SequenceContinuationEvent {
+  operationType: 'sequence-continued' | 'sequence-completed' | 'sequence-failed' | 'no-sequences-needed';
+  afterDate: Date;
+  periodsProcessed: number;
+  eventsCreated: number;
+  coursePeriods: Array<{
+    courseId: number;
+    courseTitle: string;
+    period: number;
+    eventsAdded: number;
+    lessonsRemaining: number;
+    lastLessonIndex: number;
+  }>;
+  totalLessonsInScope: number;
+  success: boolean;
+  errors: string[];
+  warnings: string[];
+  source: 'lesson-sequence';
+  timestamp: Date;
+}
+
+export interface SequenceAnalysisEvent {
+  analysisType: 'continuation-points-found' | 'course-data-refreshed' | 'sequence-state-analyzed';
+  courseCount: number;
+  periodCount: number;
+  totalLessonsAnalyzed: number;
+  continuationPointsFound: number;
+  coursePeriodDetails: Array<{
+    courseId: number;
+    courseTitle: string;
+    period: number;
+    totalLessons: number;
+    assignedLessons: number;
+    needsContinuation: boolean;
+  }>;
+  source: 'lesson-sequence';
+  timestamp: Date;
+}
+
+export interface SequenceCompletionEvent {
+  completionType: 'period-sequence-completed' | 'all-sequences-completed' | 'sequence-exhausted';
+  courseId: number;
+  courseTitle: string;
+  period: number;
+  totalEventsCreated: number;
+  finalLessonIndex: number;
+  hasMoreLessons: boolean;
+  source: 'lesson-sequence';
+  timestamp: Date;
+}
 
 interface ContinuationPoint {
   period: number;
@@ -26,6 +80,18 @@ interface ContinuationPoint {
 })
 export class LessonSequenceService {
 
+  // ✅ NEW: Observable events for cross-component coordination
+  private readonly _sequenceContinuation$ = new Subject<SequenceContinuationEvent>();
+  private readonly _sequenceAnalysis$ = new Subject<SequenceAnalysisEvent>();
+  private readonly _sequenceCompletion$ = new Subject<SequenceCompletionEvent>();
+
+  // Public observables for business logic subscriptions
+  readonly sequenceContinuation$ = this._sequenceContinuation$.asObservable();
+  readonly sequenceAnalysis$ = this._sequenceAnalysis$.asObservable();
+  readonly sequenceCompletion$ = this._sequenceCompletion$.asObservable();
+
+  private subscriptions: Subscription[] = []; // ✅ Best Practice: Track subscriptions
+
   constructor(
     private scheduleStateService: ScheduleStateService,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService,
@@ -34,77 +100,271 @@ export class LessonSequenceService {
     private teachingDayCalculation: TeachingDayCalculationService,
     private courseSignalService: CourseSignalService
   ) {
-    console.log('[LessonSequenceService] Initialized for lesson sequence continuation');
-    effect(() => {
-      const nodeAdded = this.courseSignalService.nodeAdded();
-      if (nodeAdded?.node.nodeType === 'Lesson') {
-        console.log('[LessonSequenceService] Detected new lesson added:', nodeAdded.node.title);
-        // Course data will be fresh for next sequence operation
-      }
-    });
+    console.log('[LessonSequenceService] Initialized with Observable events for lesson sequence coordination');
+
+    // ✅ Best Practice: Observable subscription for fresh lesson events
+    this.setupLessonEventSubscription();
   }
 
   /**
-   * Continue lesson sequences for all course periods after the specified date
+   * ✅ Setup Observable subscription for lesson added events
+   */
+  private setupLessonEventSubscription(): void {
+    const lessonAddedSub = this.courseSignalService.nodeAdded$.subscribe(event => {
+      if (event.node.nodeType === 'Lesson') {
+        console.log('[LessonSequenceService] RECEIVED lesson added EVENT (Observable):', {
+          lessonTitle: event.node.title,
+          lessonId: event.node.nodeId,
+          courseId: event.node.courseId,
+          source: event.source,
+          operationType: event.operationType,
+          timestamp: event.timestamp.toISOString(),
+          pattern: 'Observable - emit once, consume once',
+          freshData: 'Course data will be fresh for next sequence operation'
+        });
+      }
+    });
+
+    this.subscriptions.push(lessonAddedSub);
+  }
+
+  /**
+   * ✅ ENHANCED: Continue lesson sequences with comprehensive Observable event emission
    * Finds where each period left off and resumes lesson assignment
    */
   continueSequencesAfterDate(afterDate: Date): void {
     console.log(`[LessonSequenceService] Continuing lesson sequences after ${format(afterDate, 'yyyy-MM-dd')}`);
 
-    // **ENHANCED: Force course data refresh to ensure we have latest lessons**
-    console.log('[DEBUG] Refreshing course data before sequence continuation');
+    const errors: string[] = [];
+    const warnings: string[] = [];
 
-    const currentSchedule = this.scheduleStateService.getSchedule();
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    try {
+      // **ENHANCED: Force course data refresh to ensure we have latest lessons**
+      console.log('[DEBUG] Refreshing course data before sequence continuation');
 
-    if (!currentSchedule?.scheduleEvents || !activeConfig) {
-      console.error('[LessonSequenceService] Cannot continue sequences: No schedule or configuration available');
-      return;
-    }
+      const currentSchedule = this.scheduleStateService.getSchedule();
+      const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
 
-    // Find continuation points for all course periods
-    const continuationPoints = this.findContinuationPoints(currentSchedule.scheduleEvents, afterDate, activeConfig);
+      if (!currentSchedule?.scheduleEvents || !activeConfig) {
+        errors.push('Cannot continue sequences: No schedule or configuration available');
 
-    console.log(`[DEBUG] Found ${continuationPoints.length} periods needing continuation:`,
-      continuationPoints.map(cp => `Period ${cp.period} Course ${cp.courseId} from lesson ${cp.lastAssignedLessonIndex + 1}`));
+        // ✅ NEW: Emit sequence failed event
+        this._sequenceContinuation$.next({
+          operationType: 'sequence-failed',
+          afterDate,
+          periodsProcessed: 0,
+          eventsCreated: 0,
+          coursePeriods: [],
+          totalLessonsInScope: 0,
+          success: false,
+          errors,
+          warnings,
+          source: 'lesson-sequence',
+          timestamp: new Date()
+        });
 
-    if (continuationPoints.length === 0) {
-      console.log('[LessonSequenceService] No course periods need lesson continuation');
-      return;
-    }
+        console.log('🚨 [LessonSequenceService] EMITTED sequenceContinuation event:', 'sequence-failed');
+        return;
+      }
 
-    // Continue each course period sequence
-    for (const point of continuationPoints) {
-      // **ENHANCED: Add detailed course state logging**
-      const course = this.courseDataService.getCourseById(point.courseId);
-      const allLessons = course ? this.courseDataService.collectLessonsFromCourse(course) : [];
+      // ✅ NEW: Emit course data refresh analysis
+      const allCourses = this.courseDataService.getCourses();
+      const totalLessonsInScope = allCourses.reduce((total: number, course: any) => {
+        const lessons = this.courseDataService.collectLessonsFromCourse(course);
+        return total + lessons.length;
+      }, 0);
 
-      console.log('[DEBUG ENHANCED COURSE STATE]', {
-        courseId: point.courseId,
-        courseTitle: course?.title,
-        topicsCount: course?.topics?.length,
-        totalLessonsInCourse: allLessons.length,
-        lessonTitles: allLessons.map(l => `${l.title}(ID:${l.id})`),
-        lastAssignedIndex: point.lastAssignedLessonIndex,
-        nextLessonToAssign: allLessons[point.lastAssignedLessonIndex + 1]?.title || 'None available'
+      this._sequenceAnalysis$.next({
+        analysisType: 'course-data-refreshed',
+        courseCount: allCourses.length,
+        periodCount: 0, // Will be updated when we find period assignments
+        totalLessonsAnalyzed: totalLessonsInScope,
+        continuationPointsFound: 0, // Will be updated
+        coursePeriodDetails: [], // Will be populated
+        source: 'lesson-sequence',
+        timestamp: new Date()
       });
 
-      this.continueSequenceForPeriod(point, activeConfig);
-    }
+      // Find continuation points for all course periods
+      const continuationPoints = this.findContinuationPoints(currentSchedule.scheduleEvents, afterDate, activeConfig);
 
-    this.scheduleStateService.markAsChanged();
+      console.log(`[DEBUG] Found ${continuationPoints.length} periods needing continuation:`,
+        continuationPoints.map(cp => `Period ${cp.period} Course ${cp.courseId} from lesson ${cp.lastAssignedLessonIndex + 1}`));
+
+      // ✅ NEW: Emit continuation points analysis
+      const coursePeriodDetails = continuationPoints.map(cp => {
+        const course = this.courseDataService.getCourseById(cp.courseId);
+        const allLessons = course ? this.courseDataService.collectLessonsFromCourse(course) : [];
+        return {
+          courseId: cp.courseId,
+          courseTitle: course?.title || 'Unknown Course',
+          period: cp.period,
+          totalLessons: allLessons.length,
+          assignedLessons: cp.lastAssignedLessonIndex + 1,
+          needsContinuation: cp.lastAssignedLessonIndex < allLessons.length - 1
+        };
+      });
+
+      this._sequenceAnalysis$.next({
+        analysisType: 'continuation-points-found',
+        courseCount: allCourses.length,
+        periodCount: continuationPoints.length,
+        totalLessonsAnalyzed: totalLessonsInScope,
+        continuationPointsFound: continuationPoints.length,
+        coursePeriodDetails,
+        source: 'lesson-sequence',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [LessonSequenceService] EMITTED sequenceAnalysis event:', 'continuation-points-found');
+
+      if (continuationPoints.length === 0) {
+        console.log('[LessonSequenceService] No course periods need lesson continuation');
+
+        // ✅ NEW: Emit no sequences needed event
+        this._sequenceContinuation$.next({
+          operationType: 'no-sequences-needed',
+          afterDate,
+          periodsProcessed: 0,
+          eventsCreated: 0,
+          coursePeriods: [],
+          totalLessonsInScope,
+          success: true,
+          errors: [],
+          warnings: ['No course periods require lesson continuation'],
+          source: 'lesson-sequence',
+          timestamp: new Date()
+        });
+
+        console.log('🚨 [LessonSequenceService] EMITTED sequenceContinuation event:', 'no-sequences-needed');
+        return;
+      }
+
+      // Continue each course period sequence and track results
+      let totalEventsCreated = 0;
+      const processedCoursePeriods: Array<{
+        courseId: number;
+        courseTitle: string;
+        period: number;
+        eventsAdded: number;
+        lessonsRemaining: number;
+        lastLessonIndex: number;
+      }> = [];
+
+      for (const point of continuationPoints) {
+        // **ENHANCED: Add detailed course state logging**
+        const course = this.courseDataService.getCourseById(point.courseId);
+        const allLessons = course ? this.courseDataService.collectLessonsFromCourse(course) : [];
+
+        console.log('[DEBUG ENHANCED COURSE STATE]', {
+          courseId: point.courseId,
+          courseTitle: course?.title,
+          topicsCount: course?.topics?.length,
+          totalLessonsInCourse: allLessons.length,
+          lessonTitles: allLessons.map(l => `${l.title}(ID:${l.id})`),
+          lastAssignedIndex: point.lastAssignedLessonIndex,
+          nextLessonToAssign: allLessons[point.lastAssignedLessonIndex + 1]?.title || 'None available'
+        });
+
+        const eventsAdded = this.continueSequenceForPeriod(point, activeConfig);
+        totalEventsCreated += eventsAdded;
+
+        // Track processed period details
+        processedCoursePeriods.push({
+          courseId: point.courseId,
+          courseTitle: course?.title || 'Unknown Course',
+          period: point.period,
+          eventsAdded,
+          lessonsRemaining: Math.max(0, allLessons.length - (point.lastAssignedLessonIndex + 1 + eventsAdded)),
+          lastLessonIndex: point.lastAssignedLessonIndex + eventsAdded
+        });
+
+        // ✅ NEW: Emit completion event for each period
+        this._sequenceCompletion$.next({
+          completionType: 'period-sequence-completed',
+          courseId: point.courseId,
+          courseTitle: course?.title || 'Unknown Course',
+          period: point.period,
+          totalEventsCreated: eventsAdded,
+          finalLessonIndex: point.lastAssignedLessonIndex + eventsAdded,
+          hasMoreLessons: (point.lastAssignedLessonIndex + eventsAdded) < allLessons.length - 1,
+          source: 'lesson-sequence',
+          timestamp: new Date()
+        });
+
+        console.log('🚨 [LessonSequenceService] EMITTED sequenceCompletion event:', 'period-sequence-completed');
+      }
+
+      this.scheduleStateService.markAsChanged();
+
+      // ✅ NEW: Emit sequence continuation completed event
+      this._sequenceContinuation$.next({
+        operationType: 'sequence-continued',
+        afterDate,
+        periodsProcessed: continuationPoints.length,
+        eventsCreated: totalEventsCreated,
+        coursePeriods: processedCoursePeriods,
+        totalLessonsInScope,
+        success: true,
+        errors,
+        warnings,
+        source: 'lesson-sequence',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [LessonSequenceService] EMITTED sequenceContinuation event:', 'sequence-continued');
+
+      // ✅ NEW: Emit all sequences completed if applicable
+      const hasMoreSequences = processedCoursePeriods.some(cp => cp.lessonsRemaining > 0);
+      if (!hasMoreSequences) {
+        this._sequenceCompletion$.next({
+          completionType: 'all-sequences-completed',
+          courseId: 0, // All courses
+          courseTitle: 'All Courses',
+          period: 0, // All periods
+          totalEventsCreated: totalEventsCreated,
+          finalLessonIndex: -1, // Not applicable
+          hasMoreLessons: false,
+          source: 'lesson-sequence',
+          timestamp: new Date()
+        });
+
+        console.log('🚨 [LessonSequenceService] EMITTED sequenceCompletion event:', 'all-sequences-completed');
+      }
+
+    } catch (error: any) {
+      console.error('[LessonSequenceService] Error in continueSequencesAfterDate:', error);
+      errors.push(`Sequence continuation failed: ${error.message}`);
+
+      // ✅ NEW: Emit sequence failed event
+      this._sequenceContinuation$.next({
+        operationType: 'sequence-failed',
+        afterDate,
+        periodsProcessed: 0,
+        eventsCreated: 0,
+        coursePeriods: [],
+        totalLessonsInScope: 0,
+        success: false,
+        errors,
+        warnings,
+        source: 'lesson-sequence',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [LessonSequenceService] EMITTED sequenceContinuation event:', 'sequence-failed');
+    }
   }
 
   /**
-   * Continue sequence for a specific period/course combination
+   * ✅ ENHANCED: Continue sequence for specific period with return value for tracking
    */
-  private continueSequenceForPeriod(continuationPoint: ContinuationPoint, activeConfig: any): void {
+  private continueSequenceForPeriod(continuationPoint: ContinuationPoint, activeConfig: any): number {
     console.log(`[LessonSequenceService] Continuing sequence for Period ${continuationPoint.period}, Course ${continuationPoint.courseId} from lesson index ${continuationPoint.lastAssignedLessonIndex + 1}`);
 
     const course = this.courseDataService.getCourseById(continuationPoint.courseId);
     if (!course) {
       console.warn(`[LessonSequenceService] Course ${continuationPoint.courseId} not found`);
-      return;
+      return 0;
     }
 
     // Get lesson sequence using existing CourseDataService logic
@@ -113,7 +373,22 @@ export class LessonSequenceService {
 
     if (remainingLessonsCount <= 0) {
       console.log(`[LessonSequenceService] No remaining lessons for Period ${continuationPoint.period}, Course ${continuationPoint.courseId}`);
-      return;
+
+      // ✅ NEW: Emit sequence exhausted event
+      this._sequenceCompletion$.next({
+        completionType: 'sequence-exhausted',
+        courseId: continuationPoint.courseId,
+        courseTitle: course.title,
+        period: continuationPoint.period,
+        totalEventsCreated: 0,
+        finalLessonIndex: continuationPoint.lastAssignedLessonIndex,
+        hasMoreLessons: false,
+        source: 'lesson-sequence',
+        timestamp: new Date()
+      });
+
+      console.log('🚨 [LessonSequenceService] EMITTED sequenceCompletion event:', 'sequence-exhausted');
+      return 0;
     }
 
     // Create period course assignment for factory service
@@ -152,6 +427,8 @@ export class LessonSequenceService {
     console.log(`[DEBUG] Continuing from lesson index ${continuationPoint.lastAssignedLessonIndex + 1}, ${remainingLessonsCount} lessons remaining`);
 
     console.log(`[LessonSequenceService] Added ${newEvents.length} continuation events for Period ${continuationPoint.period}, Course ${continuationPoint.courseId}`);
+
+    return newEvents.length;
   }
 
   /**
@@ -410,5 +687,21 @@ export class LessonSequenceService {
    */
   private generateNegativeEventId(): number {
     return -(Date.now() + Math.floor(Math.random() * 1000));
+  }
+
+  // === CLEANUP ===
+
+  // ✅ NEW: Complete Observable cleanup following established pattern
+  ngOnDestroy(): void {
+    // Complete Observable subjects
+    this._sequenceContinuation$.complete();
+    this._sequenceAnalysis$.complete();
+    this._sequenceCompletion$.complete();
+
+    // Unsubscribe from existing subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions = [];
+
+    console.log('[LessonSequenceService] All Observable subjects completed and subscriptions cleaned up');
   }
 }

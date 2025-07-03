@@ -1,8 +1,10 @@
-// **COMPLETE FILE** - Cleaned calendar-coordination.service.ts
+// **COMPLETE FILE** - CalendarCoordinationService with Dual Signal/Observable Pattern
 // RESPONSIBILITY: Coordinates schedule state reactions and delegates to appropriate services for calendar component.
 // DOES NOT: Handle UI interactions, direct API calls, or template logic - pure reactive coordination service.
 // CALLED BY: LessonCalendarComponent for managing reactive state coordination.
+
 import { Injectable, effect, signal, computed } from '@angular/core';
+import { Subject, Observable } from 'rxjs';
 import { CalendarOptions } from '@fullcalendar/core';
 
 import { ScheduleStateService } from '../state/schedule-state.service';
@@ -14,6 +16,33 @@ import { ScheduleConfigurationStateService } from '../state/schedule-configurati
 import { CalendarEventService } from '../ui/calendar-event.service';
 import { SchedulePersistenceService } from '../ui/schedule-persistence.service';
 import { ScheduleCoordinationService } from './schedule-coordination.service';
+import { SpecialDayManagementService } from '../business/special-day-management.service';
+
+// ✅ Observable event interfaces
+export interface CalendarRefreshEvent {
+  events: any[];
+  source: 'schedule-update' | 'configuration-change' | 'manual-refresh';
+  eventCount: number;
+  timestamp: Date;
+}
+
+export interface CalendarInitializationEvent {
+  initialized: boolean;
+  hasCallbacks: boolean;
+  timestamp: Date;
+}
+
+export interface CalendarDateUpdateEvent {
+  date: Date;
+  source: 'configuration' | 'manual';
+  timestamp: Date;
+}
+
+export interface CalendarOptionsUpdateEvent {
+  optionType: 'hiddenDays' | 'initialDate' | 'full';
+  optionValue: any;
+  timestamp: Date;
+}
 
 export interface CalendarRefreshCallbacks {
   getCalendarApi: () => any;
@@ -25,10 +54,19 @@ export interface CalendarRefreshCallbacks {
   providedIn: 'root'
 })
 export class CalendarCoordinationService {
+
+  // ✅ Observable events for one-time business processing
+  private readonly _calendarRefreshed$ = new Subject<CalendarRefreshEvent>();
+  private readonly _initializationCompleted$ = new Subject<CalendarInitializationEvent>();
+  private readonly _calendarDateUpdated$ = new Subject<CalendarDateUpdateEvent>();
+  private readonly _calendarOptionsUpdated$ = new Subject<CalendarOptionsUpdateEvent>();
+
+  // ✅ Signal state for reactive UI and computed properties
   private readonly _initialized = signal<boolean>(false);
+  private readonly _calendarEvents = signal<any[]>([]);
   private _callbacks: CalendarRefreshCallbacks | null = null;
 
-  private readonly _calendarEvents = signal<any[]>([]);
+  // Computed signals for reactive UI (keep as signals)
   readonly calendarEvents = computed(() => this._calendarEvents());
 
   constructor(
@@ -38,9 +76,10 @@ export class CalendarCoordinationService {
     private calendarEventService: CalendarEventService,
     private courseDataService: CourseDataService,
     private courseManagementService: CourseManagementService,
-    private scheduleCoordinationService: ScheduleCoordinationService
+    private scheduleCoordinationService: ScheduleCoordinationService,
+    private specialDayManagementService: SpecialDayManagementService
   ) {
-    console.log('[CalendarCoordinationService] Initialized for schedule coordination');
+    console.log('[CalendarCoordinationService] Initialized with dual Signal/Observable pattern');
   }
 
   // Initialize the coordination service with calendar refresh callbacks
@@ -50,10 +89,18 @@ export class CalendarCoordinationService {
     this._callbacks = callbacks;
     this._initialized.set(true);
 
+    // ✅ Emit initialization completed event for business logic
+    this._initializationCompleted$.next({
+      initialized: true,
+      hasCallbacks: !!callbacks,
+      timestamp: new Date()
+    });
+
     // Set up reactive effects for schedule
     this.setupScheduleDisplayEffect();
     this.setupScheduleDateEffect();
     this.setupScheduleConfigurationEffect();
+    this.setupSpecialDayEventSubscription(); // ✅ NEW: Add special day coordination
 
     // Load active schedule on initialization
     this.loadActiveSchedule();
@@ -84,17 +131,13 @@ export class CalendarCoordinationService {
 
       const displayState = this.scheduleReadyForDisplay();
 
-      // **CLEANED: Removed "Schedule display state changed" - too frequent**
-
       if (displayState.canTransform) {
         console.log('[CalendarCoordinationService] Transforming events for calendar display');
-        this.refreshCalendarEventsOnly(displayState.events);
+        this.refreshCalendarEventsOnly(displayState.events, 'schedule-update');
       } else if (displayState.hasEvents && !displayState.hasConfiguration) {
-        // **CLEANED: Removed "Schedule loaded but waiting for configuration" - expected state**
-        this.refreshCalendarEventsOnly([]); // Show empty calendar while waiting
+        this.refreshCalendarEventsOnly([], 'configuration-change');
       } else if (!displayState.hasEvents) {
-        // **CLEANED: Removed "No schedule events available" - expected state**
-        this.refreshCalendarEventsOnly([]);
+        this.refreshCalendarEventsOnly([], 'schedule-update');
       }
     });
   }
@@ -107,7 +150,7 @@ export class CalendarCoordinationService {
       const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
 
       if (activeConfig?.startDate) {
-        this.updateCalendarDate(new Date(activeConfig.startDate));
+        this.updateCalendarDate(new Date(activeConfig.startDate), 'configuration');
       }
     });
   }
@@ -123,6 +166,29 @@ export class CalendarCoordinationService {
         const teachingDaysArray = parseTeachingDaysToArray(activeConfig.teachingDays);
         const hiddenDays = this.calculateHiddenDays(teachingDaysArray);
         this.updateHiddenDays(hiddenDays);
+      }
+    });
+  }
+
+  private setupSpecialDayEventSubscription(): void {
+    this.specialDayManagementService.specialDayOperation$.subscribe(event => {
+      console.log('📅 [CalendarCoordinationService] RECEIVED specialDayOperation event (Observable)', {
+        type: event.type,
+        affectedPeriods: event.affectedPeriods,
+        date: event.date.toISOString().split('T')[0],
+        eventType: event.eventType,
+        timestamp: event.timestamp.toISOString()
+      });
+
+      // Refresh calendar display when special days are created/updated/deleted
+      if (event.type === 'created' || event.type === 'updated' || event.type === 'deleted') {
+        console.log('📅 [CalendarCoordinationService] Refreshing calendar due to special day operation');
+
+        // Force refresh of calendar events using existing method
+        const displayState = this.scheduleReadyForDisplay();
+        if (displayState.canTransform) {
+          this.refreshCalendarEventsOnly(displayState.events, 'schedule-update');
+        }
       }
     });
   }
@@ -179,20 +245,43 @@ export class CalendarCoordinationService {
     });
   }
 
-  // Refresh calendar events only - handles both populated and empty states
-  private refreshCalendarEventsOnly(scheduleEvents: ScheduleEvent[]): void {
+  // ✅ ENHANCED: Refresh calendar events with Observable event emission
+  private refreshCalendarEventsOnly(
+    scheduleEvents: ScheduleEvent[],
+    source: 'schedule-update' | 'configuration-change' | 'manual-refresh'
+  ): void {
     if (scheduleEvents.length > 0) {
       const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
       console.log(`[CalendarCoordinationService] Calendar events updated: ${events.length} events`);
+
+      // ✅ Update signal state for reactive UI
       this._calendarEvents.set(events);
+
+      // ✅ Emit Observable event for business logic processing
+      this._calendarRefreshed$.next({
+        events,
+        source,
+        eventCount: events.length,
+        timestamp: new Date()
+      });
     } else {
       console.log('[CalendarCoordinationService] Calendar events cleared');
+
+      // ✅ Update signal state
       this._calendarEvents.set([]);
+
+      // ✅ Emit Observable event
+      this._calendarRefreshed$.next({
+        events: [],
+        source,
+        eventCount: 0,
+        timestamp: new Date()
+      });
     }
   }
 
-  // Update calendar date
-  private updateCalendarDate(date: Date): void {
+  // ✅ ENHANCED: Update calendar date with Observable event emission
+  private updateCalendarDate(date: Date, source: 'configuration' | 'manual'): void {
     if (!this._callbacks) return;
 
     const currentOptions = this._callbacks.getCalendarOptions();
@@ -202,9 +291,16 @@ export class CalendarCoordinationService {
     if (calendarApi) {
       calendarApi.gotoDate(date);
     }
+
+    // ✅ Emit Observable event for business logic
+    this._calendarDateUpdated$.next({
+      date,
+      source,
+      timestamp: new Date()
+    });
   }
 
-  // Update hidden days
+  // ✅ ENHANCED: Update hidden days with Observable event emission
   private updateHiddenDays(hiddenDays: number[]): void {
     if (!this._callbacks) return;
 
@@ -215,6 +311,13 @@ export class CalendarCoordinationService {
     if (calendarApi) {
       calendarApi.setOption('hiddenDays', hiddenDays);
     }
+
+    // ✅ Emit Observable event for business logic
+    this._calendarOptionsUpdated$.next({
+      optionType: 'hiddenDays',
+      optionValue: hiddenDays,
+      timestamp: new Date()
+    });
   }
 
   // === PUBLIC API METHODS ===
@@ -223,8 +326,8 @@ export class CalendarCoordinationService {
   hasScheduleConfiguration(): boolean {
     const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
     return activeConfig !== null &&
-           activeConfig !== undefined &&
-           (activeConfig.periodAssignments?.length || 0) > 0;
+      activeConfig !== undefined &&
+      (activeConfig.periodAssignments?.length || 0) > 0;
   }
 
   // Check if schedule is available
@@ -244,40 +347,6 @@ export class CalendarCoordinationService {
     };
   }
 
-  // Refresh schedule - loads fresh schedule data
-  refreshSchedule(): void {
-    console.log('[CalendarCoordinationService] refreshSchedule');
-    this.loadActiveSchedule();
-  }
-
-  // Force regenerate schedule
-  regenerateSchedule(): void {
-    console.log('[CalendarCoordinationService] Regenerating schedule');
-
-    this.scheduleCoordinationService.regenerateSchedule().subscribe({
-      next: () => {
-        console.log('[CalendarCoordinationService] Schedule regenerated successfully');
-      },
-      error: (error: any) => {
-        console.error('[CalendarCoordinationService] Schedule regeneration failed:', error);
-      }
-    });
-  }
-
-  // Save current schedule
-  saveSchedule(): void {
-    console.log('[CalendarCoordinationService] Saving schedule');
-
-    this.scheduleCoordinationService.saveCurrentSchedule().subscribe({
-      next: () => {
-        console.log('[CalendarCoordinationService] Schedule saved successfully');
-      },
-      error: (error: any) => {
-        console.error('[CalendarCoordinationService] Schedule save failed:', error);
-      }
-    });
-  }
-
   hasCoursesAvailable(): boolean {
     return this.courseManagementService.hasCoursesAvailable();
   }
@@ -293,7 +362,6 @@ export class CalendarCoordinationService {
    * Get current course data
    */
   getCurrentCourse(): any | null {
-    // **FIXED: Use CourseManagementService validation which checks selection**
     const validation = this.courseManagementService.validateCourseSelection();
 
     if (validation.isValid && validation.course) {
@@ -305,12 +373,18 @@ export class CalendarCoordinationService {
 
   // === CLEANUP ===
 
-  // Cleanup method for component destruction
+  // ✅ ENHANCED: Cleanup method with Observable completion
   cleanup(): void {
     console.log('[CalendarCoordinationService] cleanup');
 
     this._callbacks = null;
     this._initialized.set(false);
+
+    // Complete all Observable subjects
+    this._calendarRefreshed$.complete();
+    this._initializationCompleted$.complete();
+    this._calendarDateUpdated$.complete();
+    this._calendarOptionsUpdated$.complete();
   }
 
   // Essential debug information only
@@ -325,7 +399,8 @@ export class CalendarCoordinationService {
       scheduleEventCount: scheduleInfo?.eventCount || 0,
       periodsConfigured: activeConfig?.periodAssignments?.length || 0,
       availableCoursesCount: this.courseManagementService.getActiveCourseCount(),
-      configurationTitle: activeConfig?.title || null
+      configurationTitle: activeConfig?.title || null,
+      calendarEventCount: this._calendarEvents().length
     };
   }
 

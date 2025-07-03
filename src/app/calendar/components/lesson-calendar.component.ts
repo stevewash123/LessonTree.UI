@@ -142,26 +142,6 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     this.hasUnsavedChanges = this.scheduleStateService.hasUnsavedChanges;
     this.canSaveSchedule = this.scheduleStateService.canSaveSchedule;
 
-    // Configuration change effect - simplified
-    effect(() => {
-      const config = this.scheduleConfigurationStateService.activeConfiguration();
-
-      if (config && this.calendar?.getApi) {
-        const calendarApi = this.calendar.getApi();
-
-        setTimeout(() => {
-          const newOptions = this.calendarOptions();
-
-          if (newOptions.slotMinTime) calendarApi.setOption('slotMinTime', newOptions.slotMinTime);
-          if (newOptions.slotMaxTime) calendarApi.setOption('slotMaxTime', newOptions.slotMaxTime);
-          if (newOptions.slotDuration) calendarApi.setOption('slotDuration', newOptions.slotDuration);
-          if (newOptions.hiddenDays) calendarApi.setOption('hiddenDays', newOptions.hiddenDays);
-
-          calendarApi.render();
-        }, 100);
-      }
-    });
-
     // Initialize coordination service
     this.calendarCoordination.initialize({
       getCalendarApi: () => this.calendar?.getApi(),

@@ -1,9 +1,10 @@
-// **COMPLETE FILE** - Enhanced layout-mode.service.ts with InfoPanel auto-switching
+// **COMPLETE FILE** - LayoutModeService with Dual Signal/Observable Pattern
 // RESPONSIBILITY: Manages container view modes, split-panel ordering, and automatic InfoPanel visibility
 // DOES NOT: Handle drag operations or component rendering logic
 // CALLED BY: LessonTreeContainerComponent, split-panel drag handlers, InfoPanel components
 
 import { Injectable, signal, computed, effect, inject } from '@angular/core';
+import { Subject, Observable } from 'rxjs';
 import { PanelStateService } from '../info-panel/panel-state.service';
 
 // Define the available view modes
@@ -28,10 +29,54 @@ export interface LayoutModeConfigurations {
   'calendar-details': SplitPanelConfiguration;
 }
 
+// ✅ Observable event interfaces
+export interface LayoutModeChangeEvent {
+  previousMode: LayoutMode | null;
+  newMode: LayoutMode;
+  source: 'manual' | 'auto-switch' | 'restoration';
+  reason?: string;
+  timestamp: Date;
+}
+
+export interface SidebarToggleEvent {
+  previousState: boolean;
+  newState: boolean;
+  layoutMode: LayoutMode;
+  timestamp: Date;
+}
+
+export interface AutoSwitchEvent {
+  fromMode: LayoutMode;
+  toMode: LayoutMode;
+  trigger: 'infopanel-edit' | 'infopanel-add' | 'infopanel-view';
+  panelMode: string;
+  timestamp: Date;
+}
+
+export interface SplitPanelSwapEvent {
+  layoutMode: LayoutMode;
+  previousConfig: SplitPanelConfiguration;
+  newConfig: SplitPanelConfiguration;
+  timestamp: Date;
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class LayoutModeService {
+
+  // ✅ Observable events for cross-component coordination
+  private readonly _layoutModeChanged$ = new Subject<LayoutModeChangeEvent>();
+  private readonly _sidebarToggled$ = new Subject<SidebarToggleEvent>();
+  private readonly _autoSwitchTriggered$ = new Subject<AutoSwitchEvent>();
+  private readonly _splitPanelSwapped$ = new Subject<SplitPanelSwapEvent>();
+
+  // Public observables for business logic subscriptions
+  readonly layoutModeChanged$ = this._layoutModeChanged$.asObservable();
+  readonly sidebarToggled$ = this._sidebarToggled$.asObservable();
+  readonly autoSwitchTriggered$ = this._autoSwitchTriggered$.asObservable();
+  readonly splitPanelSwapped$ = this._splitPanelSwapped$.asObservable();
+
   // Injected services
   private panelStateService = inject(PanelStateService);
 
@@ -42,14 +87,14 @@ export class LayoutModeService {
     { value: 'calendar-details', label: 'Calendar-Details' }
   ];
 
-  // Current view mode signal
+  // ✅ Signal state for reactive UI
   private readonly _layoutMode = signal<LayoutMode>('tree-details');
   readonly layoutMode = this._layoutMode.asReadonly();
-  
+
   // Track the mode before auto-switching for restoration
   private readonly _previousMode = signal<LayoutMode | null>(null);
   readonly previousMode = this._previousMode.asReadonly();
-  
+
   // Panel configurations for each view mode
   private readonly _splitPanelConfigurations = signal<LayoutModeConfigurations>({
     'tree-details': { left: 'tree', right: 'details' },
@@ -57,40 +102,42 @@ export class LayoutModeService {
     'calendar-details': { left: 'calendar', right: 'details' }
   });
   readonly splitPanelConfigurations = this._splitPanelConfigurations.asReadonly();
-  
-  // Computed signals for specific layouts
+
+  // Computed signals for specific layouts (keep as signals for reactive UI)
   readonly isTreeDetailsMode = computed(() => this._layoutMode() === 'tree-details');
   readonly isTreeCalendarMode = computed(() => this._layoutMode() === 'tree-calendar');
   readonly isCalendarDetailsMode = computed(() => this._layoutMode() === 'calendar-details');
-  
+
   // Computed signal for current split-panel configuration
   readonly currentSplitPanelConfig = computed(() => {
     const currentMode = this._layoutMode();
     return this._splitPanelConfigurations()[currentMode];
   });
-  
+
   // Check if details panel is currently visible
   readonly isDetailsVisible = computed(() => {
     const config = this.currentSplitPanelConfig();
     return config.left === 'details' || config.right === 'details';
   });
-  
+
   // For calendar-details mode, we also need to track sidebar visibility
   private readonly _sidebarVisible = signal<boolean>(true);
   readonly sidebarVisible = this._sidebarVisible.asReadonly();
 
   constructor() {
-    console.log('[LayoutModeService] Initialized with InfoPanel auto-switching', { timestamp: new Date().toISOString() });
-    
+    console.log('[LayoutModeService] Initialized with dual Signal/Observable pattern', {
+      timestamp: new Date().toISOString()
+    });
+
     // Load saved configurations from localStorage if available
     this.loadSplitPanelConfigurations();
-    
+
     // Setup automatic mode switching for InfoPanel visibility
     this.setupInfoPanelAutoSwitching();
   }
 
   /**
-   * Automatic InfoPanel visibility management
+   * ✅ ENHANCED: Automatic InfoPanel visibility management with Observable events
    * Switches to a details-visible mode when InfoPanel enters edit/add mode
    * Accommodates future calendar-based lesson additions
    */
@@ -99,7 +146,7 @@ export class LayoutModeService {
       const panelMode = this.panelStateService.panelMode();
       const currentLayoutMode = this._layoutMode();
       const isDetailsCurrentlyVisible = this.isDetailsVisible();
-      
+
       console.log(`[LayoutModeService] InfoPanel mode effect triggered`, {
         panelMode,
         currentLayoutMode,
@@ -111,30 +158,66 @@ export class LayoutModeService {
       if ((panelMode === 'edit' || panelMode === 'add') && !isDetailsCurrentlyVisible) {
         // Store current mode for potential restoration
         this._previousMode.set(currentLayoutMode);
-        
+
         // Choose appropriate details-visible mode based on current context
         const targetMode = this.determineTargetDetailsMode(currentLayoutMode);
-        
+
         console.log(`[LayoutModeService] Auto-switching to show details panel`, {
           from: currentLayoutMode,
           to: targetMode,
           reason: `InfoPanel entered ${panelMode} mode`,
           timestamp: new Date().toISOString()
         });
-        
+
+        // ✅ Update signal state
         this._layoutMode.set(targetMode);
+
+        // ✅ Emit Observable events for business logic
+        this._autoSwitchTriggered$.next({
+          fromMode: currentLayoutMode,
+          toMode: targetMode,
+          trigger: panelMode === 'edit' ? 'infopanel-edit' : 'infopanel-add',
+          panelMode,
+          timestamp: new Date()
+        });
+
+        this._layoutModeChanged$.next({
+          previousMode: currentLayoutMode,
+          newMode: targetMode,
+          source: 'auto-switch',
+          reason: `InfoPanel entered ${panelMode} mode`,
+          timestamp: new Date()
+        });
       }
       // If InfoPanel exits edit/add mode and we had auto-switched
       else if (panelMode === 'view' && this._previousMode() !== null) {
         const previousMode = this._previousMode();
-        
+
         console.log(`[LayoutModeService] Restoring previous mode after InfoPanel editing`, {
           restoringTo: previousMode,
           timestamp: new Date().toISOString()
         });
-        
+
         if (previousMode) {
+          // ✅ Update signal state
           this._layoutMode.set(previousMode);
+
+          // ✅ Emit Observable events
+          this._autoSwitchTriggered$.next({
+            fromMode: currentLayoutMode,
+            toMode: previousMode,
+            trigger: 'infopanel-view',
+            panelMode,
+            timestamp: new Date()
+          });
+
+          this._layoutModeChanged$.next({
+            previousMode: currentLayoutMode,
+            newMode: previousMode,
+            source: 'restoration',
+            reason: 'InfoPanel exited edit/add mode',
+            timestamp: new Date()
+          });
         }
         this._previousMode.set(null);
       }
@@ -151,12 +234,12 @@ export class LayoutModeService {
     if (currentMode === 'tree-calendar') {
       return 'tree-details';
     }
-    
+
     // If currently in calendar-details, details is already visible (shouldn't reach here)
     if (currentMode === 'calendar-details') {
       return 'calendar-details';
     }
-    
+
     // Default fallback - tree-details mode
     // Future enhancement: When calendar-based lesson addition is implemented,
     // this could check if the lesson addition was initiated from calendar context
@@ -164,37 +247,87 @@ export class LayoutModeService {
     return 'tree-details';
   }
 
-  // Set the view mode (manual user action - clears previous mode tracking)
+  // ✅ ENHANCED: Set the view mode with Observable event emission
   setViewMode(mode: LayoutMode): void {
-    console.log(`[LayoutModeService] Manual view mode change to ${mode}`, { timestamp: new Date().toISOString() });
+    const previousMode = this._layoutMode();
+
+    console.log(`[LayoutModeService] Manual view mode change to ${mode}`, {
+      previousMode,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ Update signal state
     this._layoutMode.set(mode);
     this._previousMode.set(null); // Clear auto-switch tracking on manual change
+
+    // ✅ Emit Observable event for business logic
+    this._layoutModeChanged$.next({
+      previousMode,
+      newMode: mode,
+      source: 'manual',
+      timestamp: new Date()
+    });
   }
 
-  // Swap split-panels for the current view mode
+  // ✅ ENHANCED: Swap split-panels with Observable event emission
   swapSplitPanels(): void {
     const currentMode = this._layoutMode();
     const currentConfig = this._splitPanelConfigurations()[currentMode];
-    
-    console.log(`[LayoutModeService] Swapping split-panels for ${currentMode}`, { 
+
+    console.log(`[LayoutModeService] Swapping split-panels for ${currentMode}`, {
       before: currentConfig,
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString()
     });
-    
+
+    const newConfig = {
+      left: currentConfig.right,
+      right: currentConfig.left
+    };
+
     const newConfigurations = {
       ...this._splitPanelConfigurations(),
-      [currentMode]: {
-        left: currentConfig.right,
-        right: currentConfig.left
-      }
+      [currentMode]: newConfig
     };
-    
+
+    // ✅ Update signal state
     this._splitPanelConfigurations.set(newConfigurations);
     this.saveSplitPanelConfigurations();
-    
-    console.log(`[LayoutModeService] Split-panels swapped`, { 
-      after: newConfigurations[currentMode],
-      timestamp: new Date().toISOString() 
+
+    // ✅ Emit Observable event for business logic
+    this._splitPanelSwapped$.next({
+      layoutMode: currentMode,
+      previousConfig: currentConfig,
+      newConfig,
+      timestamp: new Date()
+    });
+
+    console.log(`[LayoutModeService] Split-panels swapped`, {
+      after: newConfig,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // ✅ ENHANCED: Toggle sidebar with Observable event emission
+  toggleSidebar(): void {
+    const previousState = this._sidebarVisible();
+    const newState = !previousState;
+    const currentMode = this._layoutMode();
+
+    console.log(`[LayoutModeService] Toggling sidebar visibility to ${newState}`, {
+      previousState,
+      layoutMode: currentMode,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ Update signal state
+    this._sidebarVisible.set(newState);
+
+    // ✅ Emit Observable event for business logic
+    this._sidebarToggled$.next({
+      previousState,
+      newState,
+      layoutMode: currentMode,
+      timestamp: new Date()
     });
   }
 
@@ -217,33 +350,39 @@ export class LayoutModeService {
     return this.currentSplitPanelConfig().right;
   }
 
-  // Toggle sidebar visibility (for calendar-details mode)
-  toggleSidebar(): void {
-    const newValue = !this._sidebarVisible();
-    console.log(`[LayoutModeService] Toggling sidebar visibility to ${newValue}`, { timestamp: new Date().toISOString() });
-    this._sidebarVisible.set(newValue);
-  }
-
   // Reset split-panel configuration for current mode to default
   resetCurrentSplitPanelConfiguration(): void {
     const currentMode = this._layoutMode();
+    const currentConfig = this._splitPanelConfigurations()[currentMode];
     const defaultConfigurations: LayoutModeConfigurations = {
       'tree-details': { left: 'tree', right: 'details' },
       'tree-calendar': { left: 'tree', right: 'calendar' },
       'calendar-details': { left: 'calendar', right: 'details' }
     };
 
+    const defaultConfig = defaultConfigurations[currentMode];
     const newConfigurations = {
       ...this._splitPanelConfigurations(),
-      [currentMode]: defaultConfigurations[currentMode]
+      [currentMode]: defaultConfig
     };
 
+    // ✅ Update signal state
     this._splitPanelConfigurations.set(newConfigurations);
     this.saveSplitPanelConfigurations();
-    
-    console.log(`[LayoutModeService] Reset ${currentMode} to default configuration`, { 
-      config: defaultConfigurations[currentMode],
-      timestamp: new Date().toISOString() 
+
+    // ✅ Emit Observable event if configuration actually changed
+    if (JSON.stringify(currentConfig) !== JSON.stringify(defaultConfig)) {
+      this._splitPanelSwapped$.next({
+        layoutMode: currentMode,
+        previousConfig: currentConfig,
+        newConfig: defaultConfig,
+        timestamp: new Date()
+      });
+    }
+
+    console.log(`[LayoutModeService] Reset ${currentMode} to default configuration`, {
+      config: defaultConfig,
+      timestamp: new Date().toISOString()
     });
   }
 
@@ -268,5 +407,14 @@ export class LayoutModeService {
     } catch (error) {
       console.warn('[LayoutModeService] Failed to load split-panel configurations, using defaults', error);
     }
+  }
+
+  // === CLEANUP ===
+  ngOnDestroy(): void {
+    this._layoutModeChanged$.complete();
+    this._sidebarToggled$.complete();
+    this._autoSwitchTriggered$.complete();
+    this._splitPanelSwapped$.complete();
+    console.log('[LayoutModeService] All Observable subjects completed');
   }
 }
