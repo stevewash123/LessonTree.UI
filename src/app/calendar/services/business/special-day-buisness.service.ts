@@ -162,19 +162,6 @@ export class SpecialDayBusinessService {
     return scheduleEvent?.eventType ? scheduleEvent : null;
   }
 
-  getSpecialDaysForDate(date: Date): ScheduleEvent[] {
-    const currentSchedule = this.scheduleStateService.getSchedule();
-    if (!currentSchedule?.scheduleEvents) return [];
-
-    const dateStr = format(date, 'yyyy-MM-dd');
-    return currentSchedule.scheduleEvents.filter(event => {
-      const eventDateStr = format(new Date(event.date), 'yyyy-MM-dd');
-      return eventDateStr === dateStr &&
-        event.eventType &&
-        event.eventType !== 'Error';
-    });
-  }
-
   // === VALIDATION ===
 
   validateSpecialDayData(data: SpecialDayData): SpecialDayValidationResult {

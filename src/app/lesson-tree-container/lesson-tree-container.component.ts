@@ -11,12 +11,12 @@ import { SplitPanelHeaderComponent } from "./split-panel-header.component";
 import { PanelStateService } from "../info-panel/panel-state.service";
 import { CourseListComponent } from "../lesson-tree/course-list/course-list.component";
 import { CourseDataService } from "../lesson-tree/services/course-data/course-data.service";
-import { NodeSelectionService } from "../lesson-tree/services/node-operations/node-selection.service";
 import { ToolbarControlsService } from "../shared/services/toolbar-controls.service";
 import { UserService } from "../user-config/user.service";
 import { LayoutModeService, SplitPanelType } from "./layout-mode.service";
 import { SplitPanelDragService } from "./split-panel-drag.service";
 import {LessonCalendarComponent} from '../calendar/components/lesson-calendar.component';
+import {EntitySelectionService} from '../lesson-tree/services/state/entity-selection.service';
 
 
 @Component({
@@ -47,13 +47,13 @@ export class LessonTreeContainerComponent {
   private userService = inject(UserService);
   private toolbarControls = inject(ToolbarControlsService);
   public courseDataService = inject(CourseDataService);
-  public nodeSelectionService = inject(NodeSelectionService);
+  public nodeSelectionService = inject(EntitySelectionService);
   public viewModeService = inject(LayoutModeService);
   public splitPanelDragService = inject(SplitPanelDragService);
 
   // Computed panel titles for display (now dynamic for details panel)
   readonly panelTitles = computed(() => {
-    const selectedNodeType = this.nodeSelectionService.selectedNodeType();
+    const selectedNodeType = this.nodeSelectionService.selectedEntityType();
     const detailsTitle = selectedNodeType ? `${selectedNodeType} Details` : 'Details';
 
     const titles: Record<SplitPanelType, string> = {

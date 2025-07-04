@@ -5,7 +5,7 @@ export interface SubTopic extends TreeData {
     topicId: number;
     courseId: number;
     lessons: Lesson[];
-    nodeType: 'SubTopic';
+    entityType: 'SubTopic';
   }
 
 export function createSubTopicNode(subTopic: SubTopic): TreeNode {

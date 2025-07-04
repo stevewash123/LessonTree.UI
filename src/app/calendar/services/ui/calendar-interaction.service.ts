@@ -10,9 +10,9 @@ import { Subject, Observable } from 'rxjs';
 import { ScheduleApiService } from '../api/schedule-api.service';
 import { ScheduleStateService } from '../state/schedule-state.service';
 import { CalendarEventService } from './calendar-event.service';
-import {NodeSelectionService} from '../../../lesson-tree/services/node-operations/node-selection.service';
 import {CourseDataService} from '../../../lesson-tree/services/course-data/course-data.service';
 import {ScheduleEvent} from '../../../models/schedule-event.model';
+import {EntitySelectionService} from '../../../lesson-tree/services/state/entity-selection.service';
 
 // ✅ NEW: Observable event interfaces for cross-component coordination
 export interface LessonSelectionEvent {
@@ -68,7 +68,7 @@ export class CalendarInteractionService {
     private calendarEventService: CalendarEventService,
     private lessonCalendarService: ScheduleApiService,
     private scheduleStateService: ScheduleStateService,
-    private nodeSelectionService: NodeSelectionService,
+    private entitySelectionService: EntitySelectionService,
     private courseDataService: CourseDataService,
     private toastr: ToastrService
   ) {
@@ -205,110 +205,8 @@ export class CalendarInteractionService {
     return dropResult;
   }
 
-  // ✅ ENHANCED: Handle lesson moves with Observable event emission
-  handleLessonMove(lessonId: number, newDate: Date, period: number): void {
-    console.log('[CalendarInteractionService] handleLessonMove');
-
-    // Find lesson and notify about the move
-    const lesson = this.findLessonById(lessonId);
-    if (lesson) {
-      // ✅ NEW: Emit lesson move Observable event
-      this._lessonMoved$.next({
-        lessonId: lessonId,
-        lessonTitle: lesson.title || 'Unknown Lesson',
-        oldDate: null, // Not available in this context
-        newDate: newDate,
-        oldPeriod: null, // Not available in this context
-        newPeriod: period,
-        moveType: 'manual',
-        source: 'calendar-interaction',
-        timestamp: new Date()
-      });
-
-      console.log('🚨 [CalendarInteractionService] EMITTED lessonMoved event (Observable)', {
-        lessonId: lessonId,
-        lessonTitle: lesson.title,
-        newDate: newDate.toLocaleDateString(),
-        newPeriod: period,
-        moveType: 'manual',
-        source: 'calendar-interaction'
-      });
-
-      this.toastr.info(`Lesson moved to ${newDate.toLocaleDateString()} Period ${period}`, 'Success');
-    }
-  }
-
-  // ✅ ENHANCED: Handle context menu interactions with Observable event emission
-  handleContextMenu(info: any, jsEvent: MouseEvent): void {
-    console.log('[CalendarInteractionService] handleContextMenu');
-
-    const extendedProps = info.event?.extendedProps || {};
-    const scheduleEvent = extendedProps['scheduleEvent'];
-    const eventType = scheduleEvent?.eventType || extendedProps['eventType'];
-    const period = scheduleEvent?.period || extendedProps['period'];
-    const lessonId = scheduleEvent?.lessonId || extendedProps['lessonId'];
-
-    // ✅ NEW: Emit context menu interaction Observable event
-    this._eventInteraction$.next({
-      interactionType: 'context-menu',
-      eventId: info.event?.id || 'unknown',
-      eventType: eventType,
-      lessonId: lessonId,
-      date: new Date(info.event?.start || new Date()),
-      period: period || 0,
-      success: true,
-      source: 'calendar-interaction',
-      timestamp: new Date()
-    });
-
-    console.log('🚨 [CalendarInteractionService] EMITTED eventInteraction event (Observable)', {
-      interactionType: 'context-menu',
-      eventType: eventType,
-      period: period,
-      success: true,
-      source: 'calendar-interaction'
-    });
-
-    // Prevent default browser context menu
-    jsEvent.preventDefault();
-    jsEvent.stopPropagation();
-  }
-
-  // === PRIVATE HELPER METHODS ===
-
-  private handleInMemoryEventUpdate(updatedEvent: ScheduleEvent): void {
-    this.scheduleStateService.updateScheduleEvent(updatedEvent);
-    this.scheduleStateService.markAsChanged();
-
-    this.toastr.success('Event rescheduled in temporary schedule', 'Success');
-
-    // Notify about the lesson move if it's a lesson event
-    if (updatedEvent.lessonId) {
-      this.handleLessonMove(updatedEvent.lessonId, updatedEvent.date, updatedEvent.period);
-    }
-  }
-
-  private handlePersistedEventUpdate(updatedEvent: ScheduleEvent, arg: EventDropArg): void {
-    this.lessonCalendarService.updateScheduleEvent(updatedEvent).subscribe({
-      next: (apiUpdatedEvent: ScheduleEvent) => {
-        this.scheduleStateService.updateScheduleEvent(apiUpdatedEvent);
-        this.toastr.success('Event rescheduled successfully', 'Success');
-
-        // Notify about the lesson move if it's a lesson event
-        if (apiUpdatedEvent.lessonId) {
-          this.handleLessonMove(apiUpdatedEvent.lessonId, apiUpdatedEvent.date, apiUpdatedEvent.period);
-        }
-      },
-      error: (err: any) => {
-        console.error(`[CalendarInteractionService] Failed to update schedule event: ${err.message}`);
-        this.toastr.error('Failed to reschedule event', 'Error');
-        arg.revert();
-      }
-    });
-  }
-
   private findLessonById(lessonId: number): any | null {
-    const activeCourseId = this.nodeSelectionService.activeCourseId();
+    const activeCourseId = this.entitySelectionService.activeCourseId();
     if (!activeCourseId) return null;
 
     const course = this.courseDataService.getCourseById(activeCourseId);
@@ -333,29 +231,6 @@ export class CalendarInteractionService {
 
     return null;
   }
-
-  // === PUBLIC UTILITY METHODS ===
-
-  // Check if calendar interactions are available
-  canInteractWithCalendar(): boolean {
-    const activeCourseId = this.nodeSelectionService.activeCourseId();
-    const hasSchedule = this.scheduleStateService.selectedSchedule() !== null;
-
-    return !!(activeCourseId && hasSchedule);
-  }
-
-  // Get current interaction context for debugging
-  getInteractionContext() {
-    return {
-      activeCourseId: this.nodeSelectionService.activeCourseId(),
-      hasSchedule: !!this.scheduleStateService.selectedSchedule(),
-      isInMemorySchedule: this.scheduleStateService.isInMemorySchedule(),
-      hasSelection: this.nodeSelectionService.hasSelection(),
-      selectionSource: this.nodeSelectionService.selectionSource()
-    };
-  }
-
-  // === CLEANUP ===
 
   // ✅ NEW: Cleanup method with Observable completion
   ngOnDestroy(): void {

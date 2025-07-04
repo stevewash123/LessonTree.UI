@@ -6,7 +6,7 @@ export interface Topic extends TreeData {
     courseId: number;
     subTopics?: SubTopic[];
     lessons?: Lesson[];
-    nodeType: 'Topic';
+    entityType: 'Topic';
   }
 
 export function createTopicNode(topic: Topic): TreeNode {

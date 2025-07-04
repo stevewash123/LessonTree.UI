@@ -6,10 +6,11 @@
 import { Injectable, effect, EffectRef, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { Course } from '../../../models/course';
-import { TreeData } from '../../../models/tree-node';
-import { NodeSelectionService } from '../node-operations/node-selection.service';
 import { CourseDataService } from '../course-data/course-data.service';
 import { CourseSignalService } from '../course-data/course-signal.service';
+import {TreeData} from '../../../models/tree-node';
+import {EntitySelectionService} from '../state/entity-selection.service';
+import { EntitySignalPayload, EntityMoveSignalPayload } from '../course-data/course-signal.service';
 
 export interface TreeEffectCallbacks {
   onCourseDataUpdated: (course: Course) => void;
@@ -35,7 +36,7 @@ export class TreeEffectsService {
 
   constructor(
     private courseDataService: CourseDataService,
-    private nodeSelectionService: NodeSelectionService,
+    private entitySelectionService: EntitySelectionService,
     private courseSignalService: CourseSignalService
   ) {
     console.log('[TreeEffectsService] Service initialized with Observable event handling');
@@ -116,11 +117,11 @@ export class TreeEffectsService {
    */
   private setupExternalSelectionEffect(courseId: number, callbacks: TreeEffectCallbacks): EffectRef {
     return effect(() => {
-      const node = this.nodeSelectionService.selectedNode();
-      const source = this.nodeSelectionService.selectionSource();
+      const entity = this.entitySelectionService.selectedEntity();
+      const source = this.entitySelectionService.selectionSource();
 
-      if (source !== 'tree' && node) {
-        callbacks.onExternalSelection(node);
+      if (source !== 'tree' && entity) {
+        callbacks.onExternalSelection(entity);
       }
     });
   }
@@ -132,23 +133,23 @@ export class TreeEffectsService {
     const subscriptions: Subscription[] = [];
 
     // Observable subscription for nodeAdded events
-    const nodeAddedSub = this.courseSignalService.nodeAdded$.subscribe(addedEvent => {
+    const nodeAddedSub = this.courseSignalService.entityAdded$.subscribe((addedEvent: EntitySignalPayload) => {
       console.log('🌳 [TreeEffectsService] RECEIVED nodeAdded EVENT (Observable)', {
         courseId: courseId,
-        nodeType: addedEvent.node.nodeType,
-        nodeId: addedEvent.node.nodeId,
-        nodeTitle: addedEvent.node.title,
+        nodeType: addedEvent.entity.nodeType,
+        nodeId: addedEvent.entity.nodeId,
+        nodeTitle: addedEvent.entity.title,
         source: addedEvent.source,
         operationType: addedEvent.operationType,
         timestamp: addedEvent.timestamp.toISOString(),
-        affectsThisCourse: this.isNodeInCourse(addedEvent.node, courseId),
+        affectsThisCourse: this.isNodeInCourse(addedEvent.entity, courseId),
         pattern: 'Observable - emit once, consume once'
       });
 
-      if (this.isNodeInCourse(addedEvent.node, courseId)) {
+      if (this.isNodeInCourse(addedEvent.entity, courseId)) {
         console.log('🌳 [TreeEffectsService] Node addition affects course - coordination only', {
           courseId: courseId,
-          nodeTitle: addedEvent.node.title,
+          nodeTitle: addedEvent.entity.title,
           reason: 'TreeWrapper handles tree operations directly',
           action: 'effect coordination only'
         });
@@ -157,53 +158,53 @@ export class TreeEffectsService {
     subscriptions.push(nodeAddedSub);
 
     // Observable subscription for nodeEdited events
-    const nodeEditedSub = this.courseSignalService.nodeEdited$.subscribe(editedEvent => {
+    const nodeEditedSub = this.courseSignalService.entityEdited$.subscribe((editedEvent: EntitySignalPayload) => {
       console.log('🌳 [TreeEffectsService] RECEIVED nodeEdited EVENT (Observable)', {
         courseId: courseId,
-        nodeType: editedEvent.node.nodeType,
-        nodeId: editedEvent.node.nodeId,
-        nodeTitle: editedEvent.node.title,
+        nodeType: editedEvent.entity.nodeType,
+        nodeId: editedEvent.entity.nodeId,
+        nodeTitle: editedEvent.entity.title,
         source: editedEvent.source,
         operationType: editedEvent.operationType,
-        affectsThisCourse: this.isNodeInCourse(editedEvent.node, courseId)
+        affectsThisCourse: this.isNodeInCourse(editedEvent.entity, courseId)
       });
 
-      if (this.isNodeInCourse(editedEvent.node, courseId)) {
+      if (this.isNodeInCourse(editedEvent.entity, courseId)) {
         console.log('🌳 [TreeEffectsService] Node edit affects course - coordination only');
       }
     });
     subscriptions.push(nodeEditedSub);
 
     // Observable subscription for nodeDeleted events
-    const nodeDeletedSub = this.courseSignalService.nodeDeleted$.subscribe(deletedEvent => {
+    const nodeDeletedSub = this.courseSignalService.entityDeleted$.subscribe((deletedEvent: EntitySignalPayload) => {
       console.log('🌳 [TreeEffectsService] RECEIVED nodeDeleted EVENT (Observable)', {
         courseId: courseId,
-        nodeType: deletedEvent.node.nodeType,
-        nodeId: deletedEvent.node.nodeId,
-        nodeTitle: deletedEvent.node.title,
+        nodeType: deletedEvent.entity.nodeType,
+        nodeId: deletedEvent.entity.nodeId,
+        nodeTitle: deletedEvent.entity.title,
         source: deletedEvent.source,
         operationType: deletedEvent.operationType,
-        affectsThisCourse: this.isNodeInCourse(deletedEvent.node, courseId)
+        affectsThisCourse: this.isNodeInCourse(deletedEvent.entity, courseId)
       });
 
-      if (this.isNodeInCourse(deletedEvent.node, courseId)) {
+      if (this.isNodeInCourse(deletedEvent.entity, courseId)) {
         console.log('🌳 [TreeEffectsService] Node deletion affects course - coordination only');
       }
     });
     subscriptions.push(nodeDeletedSub);
 
     // Observable subscription for nodeMoved events
-    const nodeMovedSub = this.courseSignalService.nodeMoved$.subscribe(movedEvent => {
+    const nodeMovedSub = this.courseSignalService.entityMoved$.subscribe((movedEvent: EntityMoveSignalPayload) => {
       console.log('🌳 [TreeEffectsService] RECEIVED nodeMoved EVENT (Observable)', {
         courseId: courseId,
-        nodeType: movedEvent.node.nodeType,
-        nodeId: movedEvent.node.nodeId,
-        nodeTitle: movedEvent.node.title,
+        nodeType: movedEvent.entity.nodeType,
+        nodeId: movedEvent.entity.nodeId,
+        nodeTitle: movedEvent.entity.title,
         source: movedEvent.source,
-        affectsThisCourse: this.isNodeInCourse(movedEvent.node, courseId)
+        affectsThisCourse: this.isNodeInCourse(movedEvent.entity, courseId)
       });
 
-      if (this.isNodeInCourse(movedEvent.node, courseId)) {
+      if (this.isNodeInCourse(movedEvent.entity, courseId)) {
         console.log('🌳 [TreeEffectsService] Node move affects course - coordination only');
       }
     });

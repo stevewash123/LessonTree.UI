@@ -34,7 +34,7 @@ export class TreeExpansionService {
     const path: string[] = [];
     
     // For any node, we need to find its parent chain
-    if (targetNode.nodeType === 'Lesson') {
+    if (targetNode.entityType === 'Lesson') {
       const lesson = targetNode as Lesson;
       
       // Path: Course -> Topic -> [SubTopic] -> Lesson
@@ -47,13 +47,13 @@ export class TreeExpansionService {
       if (lesson.subTopicId) {
         path.push(`subtopic_${lesson.subTopicId}`); // SubTopic nodeId
       }
-    } else if (targetNode.nodeType === 'SubTopic') {
+    } else if (targetNode.entityType === 'SubTopic') {
       const subTopic = targetNode as SubTopic;
       
       // Path: Course -> Topic -> SubTopic
       path.push(`course_${courseId}`); // Course nodeId
       path.push(`topic_${subTopic.topicId}`); // Topic nodeId
-    } else if (targetNode.nodeType === 'Topic') {
+    } else if (targetNode.entityType === 'Topic') {
       // Path: Course -> Topic
       path.push(`course_${courseId}`); // Course nodeId
     }

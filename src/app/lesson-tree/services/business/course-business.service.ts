@@ -1,19 +1,18 @@
-// **COMPLETE FILE** - CourseStateCoordinationService with COMPLETE dual Signal/Observable pattern
-// RESPONSIBILITY: Course state coordination with Observable events for cross-component workflows
+// **COMPLETE FILE** - CourseStateCoordinationService - Observable Infrastructure REMOVED
+// RESPONSIBILITY: Course state coordination with clean business logic delegation
 // DOES NOT: Handle HTTP operations, user feedback, or direct API calls - delegates to CRUD service
-// CALLED BY: CourseCrudService for business logic coordination with workflow event emission
+// CALLED BY: CourseCrudService for business logic coordination and workflow management
 
 import { Injectable, OnDestroy } from '@angular/core';
-import { Observable, Subject, Subscription, tap } from 'rxjs';
+import { Observable, Subject, tap } from 'rxjs';
 import { Course } from '../../../models/course';
 import { LessonDetail } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
 import { Topic } from '../../../models/topic';
 import { CourseQueryService } from '../course-data/course-query.service';
 import { CourseDataService, OperationType, OperationMetadata } from '../course-data/course-data.service';
-import { CourseSignalService } from '../course-data/course-signal.service';
 
-// ✅ Observable event interfaces for coordination workflows
+// Required Observable event interfaces for external consumers
 export interface EntityCoordinationEvent {
   operation: 'create' | 'update' | 'delete';
   entityType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
@@ -24,15 +23,6 @@ export interface EntityCoordinationEvent {
   parentId?: number;
   parentType?: string;
   error?: Error;
-  timestamp: Date;
-}
-
-export interface SortOrderComputationEvent {
-  entityType: 'Topic' | 'SubTopic' | 'Lesson';
-  parentType: 'Course' | 'Topic' | 'SubTopic';
-  parentId: number;
-  computedSortOrder: number;
-  containerItemCount: number;
   timestamp: Date;
 }
 
@@ -62,194 +52,29 @@ export interface WorkflowCoordinationEvent {
 @Injectable({
   providedIn: 'root'
 })
-export class CourseStateCoordinationService implements OnDestroy {
+export class CourseBusinessService implements OnDestroy {
 
-  // ✅ Observable event emissions following established pattern
+  // ✅ REQUIRED: Observable event emissions for external consumers
   private readonly _coordinationCompleted$ = new Subject<EntityCoordinationEvent>();
-  private readonly _sortOrderComputed$ = new Subject<SortOrderComputationEvent>();
   private readonly _validationCompleted$ = new Subject<ValidationEvent>();
   private readonly _workflowCoordinated$ = new Subject<WorkflowCoordinationEvent>();
 
-  // Public observables
+  // Public observables for external consumption (course-crud-coordination.service.ts)
   readonly coordinationCompleted$ = this._coordinationCompleted$.asObservable();
-  readonly sortOrderComputed$ = this._sortOrderComputed$.asObservable();
   readonly validationCompleted$ = this._validationCompleted$.asObservable();
   readonly workflowCoordinated$ = this._workflowCoordinated$.asObservable();
 
-  // ✅ Subscription management for Observable consumption
-  private subscriptions = new Subscription();
-
   constructor(
     private courseQueryService: CourseQueryService,
-    private courseDataService: CourseDataService,
-    private courseSignalService: CourseSignalService
+    private courseDataService: CourseDataService
   ) {
-    console.log('[CourseStateCoordinationService] Enhanced with COMPLETE dual Signal/Observable pattern - emission AND consumption');
-    this.setupObservableConsumption();
+    console.log('[CourseStateCoordinationService] Service initialized with required Observable events for external consumers');
   }
 
-  // ✅ NEW: Complete Observable consumption setup
-  private setupObservableConsumption(): void {
-    console.log('[CourseStateCoordinationService] Setting up Observable consumption for cross-service coordination');
-
-    // ✅ Consume CourseSignalService events for workflow coordination
-    this.subscriptions.add(
-      this.courseSignalService.nodeAdded$.subscribe(event => {
-        console.log('[CourseStateCoordinationService] Received nodeAdded event - coordinating workflow', {
-          entityType: event.node.nodeType,
-          entityId: event.node.id,
-          source: event.source,
-          operationType: event.operationType
-        });
-
-        this.handleEntityAddedWorkflow(event);
-      })
-    );
-
-    this.subscriptions.add(
-      this.courseSignalService.nodeEdited$.subscribe(event => {
-        console.log('[CourseStateCoordinationService] Received nodeEdited event - coordinating workflow', {
-          entityType: event.node.nodeType,
-          entityId: event.node.id,
-          source: event.source
-        });
-
-        this.handleEntityUpdatedWorkflow(event);
-      })
-    );
-
-    this.subscriptions.add(
-      this.courseSignalService.nodeMoved$.subscribe(event => {
-        console.log('[CourseStateCoordinationService] Received nodeMoved event - coordinating workflow', {
-          entityType: event.node.nodeType,
-          entityId: event.node.id,
-          source: event.source
-        });
-
-        this.handleEntityMovedWorkflow(event);
-      })
-    );
-
-    console.log('[CourseStateCoordinationService] Observable consumption setup complete - monitoring 3 event streams');
-  }
-
-  // ✅ NEW: Workflow coordination handlers
-  private handleEntityAddedWorkflow(event: any): void {
-    try {
-      // Coordinate follow-up actions when entities are added
-      const entity = event.node;
-      const coordinationActions: string[] = [];
-
-      // Example coordination logic
-      if (entity.nodeType === 'Lesson' && event.source === 'infopanel') {
-        coordinationActions.push('validate-lesson-constraints');
-        coordinationActions.push('update-course-lesson-count');
-
-        // Perform validation
-        const isValid = this.validateParentContainers(entity.topicId, entity.subTopicId);
-        if (isValid) {
-          coordinationActions.push('validation-passed');
-        }
-      }
-
-      if (entity.nodeType === 'Topic' && event.source === 'infopanel') {
-        coordinationActions.push('validate-topic-constraints');
-        coordinationActions.push('update-course-topic-count');
-      }
-
-      // ✅ Emit workflow coordination event
-      this._workflowCoordinated$.next({
-        workflowType: 'entity-added',
-        sourceService: 'CourseSignalService',
-        coordinationAction: coordinationActions.join(', '),
-        entityDetails: {
-          entityType: entity.nodeType,
-          entityId: entity.id,
-          entityTitle: entity.title || 'Unknown'
-        },
-        success: true,
-        timestamp: new Date()
-      });
-
-      console.log('[CourseStateCoordinationService] Entity added workflow coordination completed', {
-        entityType: entity.nodeType,
-        actions: coordinationActions
-      });
-
-    } catch (error) {
-      console.error('[CourseStateCoordinationService] Error in entity added workflow:', error);
-
-      this._workflowCoordinated$.next({
-        workflowType: 'entity-added',
-        sourceService: 'CourseSignalService',
-        coordinationAction: 'error-handling',
-        entityDetails: {
-          entityType: event.node?.nodeType || 'Unknown',
-          entityId: event.node?.id || 0,
-          entityTitle: event.node?.title || 'Unknown'
-        },
-        success: false,
-        timestamp: new Date()
-      });
-    }
-  }
-
-  private handleEntityUpdatedWorkflow(event: any): void {
-    try {
-      const entity = event.node;
-      const coordinationActions = ['validate-entity-integrity', 'update-dependent-entities'];
-
-      // ✅ Emit workflow coordination event
-      this._workflowCoordinated$.next({
-        workflowType: 'entity-updated',
-        sourceService: 'CourseSignalService',
-        coordinationAction: coordinationActions.join(', '),
-        entityDetails: {
-          entityType: entity.nodeType,
-          entityId: entity.id,
-          entityTitle: entity.title || 'Unknown'
-        },
-        success: true,
-        timestamp: new Date()
-      });
-
-      console.log('[CourseStateCoordinationService] Entity updated workflow coordination completed');
-
-    } catch (error) {
-      console.error('[CourseStateCoordinationService] Error in entity updated workflow:', error);
-    }
-  }
-
-  private handleEntityMovedWorkflow(event: any): void {
-    try {
-      const entity = event.node;
-      const coordinationActions = ['recalculate-sort-orders', 'validate-new-container', 'update-entity-relationships'];
-
-      // ✅ Emit workflow coordination event
-      this._workflowCoordinated$.next({
-        workflowType: 'entity-moved',
-        sourceService: 'CourseSignalService',
-        coordinationAction: coordinationActions.join(', '),
-        entityDetails: {
-          entityType: entity.nodeType,
-          entityId: entity.id,
-          entityTitle: entity.title || 'Unknown'
-        },
-        success: true,
-        timestamp: new Date()
-      });
-
-      console.log('[CourseStateCoordinationService] Entity moved workflow coordination completed');
-
-    } catch (error) {
-      console.error('[CourseStateCoordinationService] Error in entity moved workflow:', error);
-    }
-  }
-
-  // === ENHANCED SORT ORDER COMPUTATION WITH OBSERVABLE EVENTS ===
+  // === SORT ORDER COMPUTATION ===
 
   /**
-   * ✅ Enhanced: Compute topic sort order with Observable event emission
+   * Compute topic sort order for course
    */
   computeTopicSortOrder(courseId: number): number {
     console.log(`[CourseStateCoordinationService] Computing topic sort order for course ${courseId}`);
@@ -264,36 +89,22 @@ export class CourseStateCoordinationService implements OnDestroy {
       containerItemCount = course.topics.length;
     }
 
-    // ✅ Emit sort order computation event
-    this._sortOrderComputed$.next({
-      entityType: 'Topic',
-      parentType: 'Course',
-      parentId: courseId,
-      computedSortOrder,
-      containerItemCount,
-      timestamp: new Date()
-    });
-
     console.log(`[CourseStateCoordinationService] Computed topic sort order: ${computedSortOrder} (${containerItemCount} existing topics)`);
     return computedSortOrder;
   }
 
   /**
-   * ✅ Enhanced: Compute unified sort order with Observable event emission
+   * Compute unified sort order for lessons and subtopics
    */
   computeUnifiedSortOrder(topicId?: number | null, subTopicId?: number | null): number {
     console.log(`[CourseStateCoordinationService] Computing unified sort order`, { topicId, subTopicId });
 
     let computedSortOrder = 0;
     let containerItemCount = 0;
-    let parentType: 'Topic' | 'SubTopic' = 'Topic';
-    let parentId = topicId || 0;
 
     if (subTopicId) {
       // Lesson going into a SubTopic
       const subTopic = this.courseQueryService.getSubTopicById(subTopicId);
-      parentType = 'SubTopic';
-      parentId = subTopicId;
 
       if (subTopic?.lessons) {
         const validSortOrders = subTopic.lessons
@@ -307,8 +118,6 @@ export class CourseStateCoordinationService implements OnDestroy {
     } else if (topicId) {
       // Item going directly into a Topic
       const topic = this.courseQueryService.getTopicById(topicId);
-      parentType = 'Topic';
-      parentId = topicId;
 
       if (topic) {
         const allSortOrders: number[] = [];
@@ -338,24 +147,14 @@ export class CourseStateCoordinationService implements OnDestroy {
       console.warn('[CourseStateCoordinationService] No valid parent container provided for sort order computation');
     }
 
-    // ✅ Emit sort order computation event
-    this._sortOrderComputed$.next({
-      entityType: subTopicId ? 'Lesson' : 'SubTopic',
-      parentType,
-      parentId,
-      computedSortOrder,
-      containerItemCount,
-      timestamp: new Date()
-    });
-
     console.log(`[CourseStateCoordinationService] Computed unified sort order: ${computedSortOrder} (${containerItemCount} existing items)`);
     return computedSortOrder;
   }
 
-  // === ENHANCED STATE COORDINATION METHODS WITH OBSERVABLE EVENTS ===
+  // === STATE COORDINATION METHODS ===
 
   /**
-   * ✅ Enhanced: Coordinate course creation with Observable event emission
+   * Coordinate course creation with clean delegation
    */
   coordinateCourseCreation<T>(
     apiOperation: Observable<T>,
@@ -364,7 +163,7 @@ export class CourseStateCoordinationService implements OnDestroy {
     operationType: OperationType = 'USER_ADD',
     metadata?: OperationMetadata
   ): Observable<T> {
-    console.log('[CourseStateCoordinationService] Coordinating course creation with observable events');
+    console.log('[CourseStateCoordinationService] Coordinating course creation');
 
     return apiOperation.pipe(
       tap(result => {
@@ -379,7 +178,7 @@ export class CourseStateCoordinationService implements OnDestroy {
             metadata
           );
 
-          // ✅ Emit successful coordination event
+          // ✅ REQUIRED: Emit coordination event for external consumers
           const entity = result as any;
           this._coordinationCompleted$.next({
             operation: 'create',
@@ -391,10 +190,12 @@ export class CourseStateCoordinationService implements OnDestroy {
             timestamp: new Date()
           });
 
+          console.log('[CourseStateCoordinationService] Course creation coordination completed successfully');
+
         } catch (error: any) {
           console.error('[CourseStateCoordinationService] Error during course creation coordination:', error);
 
-          // ✅ Emit failed coordination event
+          // ✅ REQUIRED: Emit failed coordination event
           this._coordinationCompleted$.next({
             operation: 'create',
             entityType: 'Course',
@@ -412,14 +213,14 @@ export class CourseStateCoordinationService implements OnDestroy {
   }
 
   /**
-   * ✅ Enhanced: Coordinate entity updates with Observable event emission
+   * Coordinate entity updates with clean delegation
    */
   coordinateEntityUpdate<T>(
     apiOperation: Observable<T>,
     successMessage: string,
     entityType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson' = 'Course'
   ): Observable<T> {
-    console.log(`[CourseStateCoordinationService] Coordinating ${entityType} update with observable events`);
+    console.log(`[CourseStateCoordinationService] Coordinating ${entityType} update`);
 
     return apiOperation.pipe(
       tap(result => {
@@ -429,7 +230,7 @@ export class CourseStateCoordinationService implements OnDestroy {
           // Storage and signal emission
           this.courseDataService.updateEntity(result as any, 'infopanel');
 
-          // ✅ Emit successful coordination event
+          // ✅ REQUIRED: Emit coordination event for external consumers
           const entity = result as any;
           this._coordinationCompleted$.next({
             operation: 'update',
@@ -442,10 +243,12 @@ export class CourseStateCoordinationService implements OnDestroy {
             timestamp: new Date()
           });
 
+          console.log(`[CourseStateCoordinationService] ${entityType} update coordination completed successfully`);
+
         } catch (error: any) {
           console.error(`[CourseStateCoordinationService] Error during ${entityType} update coordination:`, error);
 
-          // ✅ Emit failed coordination event
+          // ✅ REQUIRED: Emit failed coordination event
           this._coordinationCompleted$.next({
             operation: 'update',
             entityType,
@@ -463,7 +266,7 @@ export class CourseStateCoordinationService implements OnDestroy {
   }
 
   /**
-   * ✅ Enhanced: Coordinate entity deletion with Observable event emission
+   * Coordinate entity deletion with clean delegation
    */
   coordinateEntityDeletion<T>(
     apiOperation: Observable<T>,
@@ -471,7 +274,7 @@ export class CourseStateCoordinationService implements OnDestroy {
     successMessage: string,
     entityType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson' = 'Course'
   ): Observable<T> {
-    console.log(`[CourseStateCoordinationService] Coordinating ${entityType} deletion with observable events`);
+    console.log(`[CourseStateCoordinationService] Coordinating ${entityType} deletion`);
 
     const entityId = entityToDelete?.id || 0;
     const entityTitle = entityToDelete?.title || 'Unknown';
@@ -485,7 +288,7 @@ export class CourseStateCoordinationService implements OnDestroy {
             // Storage and signal emission
             this.courseDataService.removeEntity(entityToDelete, 'infopanel');
 
-            // ✅ Emit successful coordination event
+            // ✅ REQUIRED: Emit coordination event for external consumers
             this._coordinationCompleted$.next({
               operation: 'delete',
               entityType,
@@ -494,11 +297,13 @@ export class CourseStateCoordinationService implements OnDestroy {
               success: true,
               timestamp: new Date()
             });
+
+            console.log(`[CourseStateCoordinationService] ${entityType} deletion coordination completed successfully`);
           }
         } catch (error: any) {
           console.error(`[CourseStateCoordinationService] Error during ${entityType} deletion coordination:`, error);
 
-          // ✅ Emit failed coordination event
+          // ✅ REQUIRED: Emit failed coordination event
           this._coordinationCompleted$.next({
             operation: 'delete',
             entityType,
@@ -515,7 +320,7 @@ export class CourseStateCoordinationService implements OnDestroy {
     );
   }
 
-  // === ENTITY PREPARATION METHODS (Unchanged - Pure Functions) ===
+  // === ENTITY PREPARATION METHODS ===
 
   /**
    * Prepare course for API creation
@@ -586,7 +391,7 @@ export class CourseStateCoordinationService implements OnDestroy {
       id: apiResponse.id,
       sortOrder: computedSortOrder,
       nodeId: apiResponse.nodeId || `lesson_${apiResponse.id}`,
-      nodeType: 'Lesson',
+      entityType: 'Lesson',
       hasChildren: false,
       archived: false,
       userId: apiResponse.userId || 0,
@@ -596,32 +401,30 @@ export class CourseStateCoordinationService implements OnDestroy {
     };
   }
 
-  // === ENHANCED VALIDATION METHODS WITH OBSERVABLE EVENTS ===
+  // === VALIDATION METHODS ===
 
   /**
-   * ✅ Enhanced: Validate parent containers with Observable event emission
+   * Validate parent containers exist
    */
   validateParentContainers(topicId?: number | null, subTopicId?: number | null): boolean {
     console.log('[CourseStateCoordinationService] Validating parent containers', { topicId, subTopicId });
 
     let isValid = true;
-    let error: string | undefined;
 
     if (subTopicId) {
       const subTopic = this.courseQueryService.getSubTopicById(subTopicId);
       if (!subTopic) {
-        error = `SubTopic ${subTopicId} not found`;
+        console.error(`[CourseStateCoordinationService] SubTopic ${subTopicId} not found`);
         isValid = false;
-        console.error(`[CourseStateCoordinationService] ${error}`);
       }
 
-      // ✅ Emit validation event for SubTopic
+      // ✅ REQUIRED: Emit validation event for external consumers
       this._validationCompleted$.next({
         validationType: 'parent-container',
         entityType: 'SubTopic',
         entityId: subTopicId,
         success: !!subTopic,
-        error: subTopic ? undefined : error,
+        error: subTopic ? undefined : `SubTopic ${subTopicId} not found`,
         timestamp: new Date()
       });
     }
@@ -629,18 +432,17 @@ export class CourseStateCoordinationService implements OnDestroy {
     if (topicId) {
       const topic = this.courseQueryService.getTopicById(topicId);
       if (!topic) {
-        error = `Topic ${topicId} not found`;
+        console.error(`[CourseStateCoordinationService] Topic ${topicId} not found`);
         isValid = false;
-        console.error(`[CourseStateCoordinationService] ${error}`);
       }
 
-      // ✅ Emit validation event for Topic
+      // ✅ REQUIRED: Emit validation event for external consumers
       this._validationCompleted$.next({
         validationType: 'parent-container',
         entityType: 'Topic',
         entityId: topicId,
         success: !!topic,
-        error: topic ? undefined : error,
+        error: topic ? undefined : `Topic ${topicId} not found`,
         timestamp: new Date()
       });
     }
@@ -650,26 +452,25 @@ export class CourseStateCoordinationService implements OnDestroy {
   }
 
   /**
-   * ✅ Enhanced: Validate course exists with Observable event emission
+   * Validate course exists
    */
   validateCourse(courseId: number): boolean {
     console.log(`[CourseStateCoordinationService] Validating course ${courseId}`);
 
     const course = this.courseQueryService.getCourseById(courseId);
     const isValid = !!course;
-    const error = course ? undefined : `Course ${courseId} not found`;
 
     if (!isValid) {
-      console.error(`[CourseStateCoordinationService] ${error}`);
+      console.error(`[CourseStateCoordinationService] Course ${courseId} not found`);
     }
 
-    // ✅ Emit validation event
+    // ✅ REQUIRED: Emit validation event for external consumers
     this._validationCompleted$.next({
       validationType: 'course-exists',
       entityType: 'Course',
       entityId: courseId,
       success: isValid,
-      error,
+      error: isValid ? undefined : `Course ${courseId} not found`,
       timestamp: new Date()
     });
 
@@ -679,21 +480,14 @@ export class CourseStateCoordinationService implements OnDestroy {
 
   // === CLEANUP ===
 
-  /**
-   * ✅ Complete Observable cleanup following established pattern
-   */
   ngOnDestroy(): void {
-    console.log('[CourseStateCoordinationService] Cleaning up Observable subscriptions and subjects');
+    console.log('[CourseStateCoordinationService] Cleaning up Observable subjects');
 
-    // ✅ Clean up subscriptions
-    this.subscriptions.unsubscribe();
-
-    // ✅ Complete subjects
+    // ✅ Complete subjects for external consumers
     this._coordinationCompleted$.complete();
-    this._sortOrderComputed$.complete();
     this._validationCompleted$.complete();
     this._workflowCoordinated$.complete();
 
-    console.log('[CourseStateCoordinationService] All Observable subjects and subscriptions completed');
+    console.log('[CourseStateCoordinationService] All Observable subjects completed');
   }
 }

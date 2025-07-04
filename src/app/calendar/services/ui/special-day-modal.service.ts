@@ -1,20 +1,18 @@
-// **COMPLETE FILE** - SpecialDayModalService with Observable Events
-// RESPONSIBILITY: Handles modal coordination and UI interactions with cross-component event coordination.
-// DOES NOT: Handle business logic, API calls, or data persistence - delegates to SpecialDayManagementService.
-// CALLED BY: ContextMenuService for special day UI coordination.
+// **COMPLETE FILE** - Cleaned SpecialDayModalService
+// RESPONSIBILITY: Pure modal coordination and UI interactions for special day operations
+// DOES NOT: Observable coordination, complex event emission, subscription management
+// CALLED BY: ContextMenuService for special day UI coordination
 
 import { Injectable, inject } from '@angular/core';
 import { format } from 'date-fns';
 import { ToastrService } from 'ngx-toastr';
 import { EventClickArg } from '@fullcalendar/core';
 import { MatDialog } from '@angular/material/dialog';
-import { Subject, Observable } from 'rxjs';
-import {ScheduleStateService} from '../state/schedule-state.service';
-import {SpecialDayData, SpecialDayManagementService} from '../business/special-day-management.service';
-import {ScheduleEvent} from '../../../models/schedule-event.model';
-import {SpecialDayModalComponent} from '../../components/special-day-modal.component';
-import {SpecialDayModalData, SpecialDayResult} from '../../../models/specialDay.model';
-import {SpecialDayModalOperationEvent, SpecialDayQuickActionEvent} from './special-day-modal-events';
+import { ScheduleStateService } from '../state/schedule-state.service';
+import { SpecialDayData, SpecialDayManagementService } from '../business/special-day-management.service';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
+import { SpecialDayModalComponent } from '../../components/special-day-modal.component';
+import { SpecialDayModalData, SpecialDayResult } from '../../../models/specialDay.model';
 
 @Injectable({
   providedIn: 'root'
@@ -25,19 +23,15 @@ export class SpecialDayModalService {
   private readonly toastr = inject(ToastrService);
   private readonly dialog = inject(MatDialog);
 
-  // ✅ NEW: Observable events for cross-component coordination
-  private readonly _modalOperation$ = new Subject<SpecialDayModalOperationEvent>();
-  private readonly _quickAction$ = new Subject<SpecialDayQuickActionEvent>();
-
-  // Public observables for business logic subscriptions
-  readonly modalOperation$ = this._modalOperation$.asObservable();
-  readonly quickAction$ = this._quickAction$.asObservable();
-
   constructor() {
-    console.log('[SpecialDayModalService] Initialized with Observable events for modal coordination');
+    console.log('[SpecialDayModalService] Initialized for pure modal coordination');
   }
 
-  // ✅ ENHANCED: Open special day modal with Observable event emission
+  // === MODAL OPERATIONS ===
+
+  /**
+   * Open special day modal for add or edit operations
+   */
   openSpecialDayModal(mode: 'add' | 'edit', date?: Date | null, event?: EventClickArg, periods?: number[]): void {
     console.log(`[SpecialDayModalService] Opening ${mode} modal`);
 
@@ -46,45 +40,26 @@ export class SpecialDayModalService {
       : this.createEditModalData(event);
 
     if (modalData) {
-      // ✅ NEW: Emit modal opened event
-      this._modalOperation$.next({
-        operationType: 'opened',
-        mode: mode,
+      console.log('[SpecialDayModalService] Modal data prepared:', {
+        mode,
         date: modalData.date,
-        periods: modalData.periods || [],
-        eventType: modalData.existingSpecialDay?.eventType || null,
-        title: modalData.existingSpecialDay?.title || null,
-        success: true,
-        source: 'modal-operation',
-        timestamp: new Date()
+        periods: modalData.periods,
+        hasExistingData: !!modalData.existingSpecialDay
       });
-
-      console.log('🚨 [SpecialDayModalService] EMITTED modalOperation event:', 'opened');
 
       this.openModalWithData(modalData, mode);
     }
   }
 
-  // ✅ ENHANCED: Edit special day with Observable event emission
+  /**
+   * Edit special day directly from schedule event
+   */
   editSpecialDayOnDate(scheduleEvent: ScheduleEvent): void {
     console.log(`[SpecialDayModalService] Editing special day event ${scheduleEvent.id}`);
 
     const specialDayData = this.specialDayManagement.extractSpecialDayData(scheduleEvent);
     if (!specialDayData) {
       this.toastr.error('Could not extract special day data', 'Error');
-
-      // ✅ NEW: Emit quick action failure event
-      this._quickAction$.next({
-        actionType: 'direct-edit',
-        scheduleEventId: scheduleEvent.id,
-        period: scheduleEvent.period,
-        date: scheduleEvent.date,
-        eventType: scheduleEvent.eventType,
-        success: false,
-        errorMessage: 'Could not extract special day data',
-        source: 'quick-action',
-        timestamp: new Date()
-      });
       return;
     }
 
@@ -102,145 +77,72 @@ export class SpecialDayModalService {
       }
     };
 
-    // ✅ NEW: Emit quick action success event
-    this._quickAction$.next({
-      actionType: 'direct-edit',
-      scheduleEventId: scheduleEvent.id,
-      period: scheduleEvent.period,
-      date: scheduleEvent.date,
+    console.log('[SpecialDayModalService] Direct edit modal prepared for event:', {
+      eventId: scheduleEvent.id,
       eventType: scheduleEvent.eventType,
-      success: true,
-      errorMessage: null,
-      source: 'quick-action',
-      timestamp: new Date()
+      period: scheduleEvent.period
     });
-
-    console.log('🚨 [SpecialDayModalService] EMITTED quickAction event:', 'direct-edit');
 
     this.openModalWithData(modalData, 'edit', scheduleEvent);
   }
 
-  // ✅ ENHANCED: Delete special day with Observable event emission
+  /**
+   * Delete special day directly from schedule event
+   */
   deleteSpecialDayOnDate(scheduleEvent: ScheduleEvent): void {
     console.log(`[SpecialDayModalService] Deleting special day event ${scheduleEvent.id}`);
 
     this.specialDayManagement.deleteSpecialDay(scheduleEvent).subscribe({
       next: () => {
         this.toastr.success(`Deleted special day from Period ${scheduleEvent.period}`, 'Success');
-
-        // ✅ NEW: Emit quick delete success event
-        this._quickAction$.next({
-          actionType: 'quick-delete',
-          scheduleEventId: scheduleEvent.id,
+        console.log('[SpecialDayModalService] Special day deleted successfully:', {
+          eventId: scheduleEvent.id,
           period: scheduleEvent.period,
-          date: scheduleEvent.date,
-          eventType: scheduleEvent.eventType,
-          success: true,
-          errorMessage: null,
-          source: 'quick-action',
-          timestamp: new Date()
+          date: format(new Date(scheduleEvent.date), 'yyyy-MM-dd')
         });
-
-        console.log('🚨 [SpecialDayModalService] EMITTED quickAction event:', 'quick-delete');
       },
-      error: () => {
+      error: (error) => {
+        console.error('[SpecialDayModalService] Failed to delete special day:', error);
         this.toastr.error('Failed to delete special day', 'Error');
-
-        // ✅ NEW: Emit quick delete failure event
-        this._quickAction$.next({
-          actionType: 'quick-delete',
-          scheduleEventId: scheduleEvent.id,
-          period: scheduleEvent.period,
-          date: scheduleEvent.date,
-          eventType: scheduleEvent.eventType,
-          success: false,
-          errorMessage: 'Failed to delete special day',
-          source: 'quick-action',
-          timestamp: new Date()
-        });
       }
     });
   }
 
-  // ✅ ENHANCED: Delete special day from event with Observable coordination
+  /**
+   * Delete special day from calendar event (context menu operation)
+   */
   deleteSpecialDayFromEvent(event: EventClickArg): void {
     const eventId = this.extractEventIdFromCalendarEvent(event);
     if (!eventId) {
       this.toastr.error('Cannot identify event to delete', 'Error');
-
-      // ✅ NEW: Emit failure event
-      this._quickAction$.next({
-        actionType: 'quick-delete',
-        scheduleEventId: null,
-        period: null,
-        date: null,
-        eventType: null,
-        success: false,
-        errorMessage: 'Cannot identify event to delete',
-        source: 'quick-action',
-        timestamp: new Date()
-      });
       return;
     }
 
     const scheduleEvent = this.specialDayManagement.findSpecialDayById(eventId);
     if (!scheduleEvent) {
       this.toastr.error('Selected item is not a special day', 'Error');
-
-      // ✅ NEW: Emit failure event
-      this._quickAction$.next({
-        actionType: 'quick-delete',
-        scheduleEventId: eventId,
-        period: null,
-        date: null,
-        eventType: null,
-        success: false,
-        errorMessage: 'Selected item is not a special day',
-        source: 'quick-action',
-        timestamp: new Date()
-      });
       return;
     }
 
     this.specialDayManagement.deleteSpecialDay(scheduleEvent).subscribe({
       next: () => {
         this.toastr.success(`Deleted special day from Period ${scheduleEvent.period}`, 'Success');
-
-        // ✅ NEW: Emit success event
-        this._quickAction$.next({
-          actionType: 'quick-delete',
-          scheduleEventId: scheduleEvent.id,
+        console.log('[SpecialDayModalService] Special day deleted from event:', {
+          eventId: scheduleEvent.id,
           period: scheduleEvent.period,
-          date: scheduleEvent.date,
-          eventType: scheduleEvent.eventType,
-          success: true,
-          errorMessage: null,
-          source: 'quick-action',
-          timestamp: new Date()
+          eventType: scheduleEvent.eventType
         });
-
-        console.log('🚨 [SpecialDayModalService] EMITTED quickAction event:', 'quick-delete');
       },
-      error: () => {
+      error: (error) => {
+        console.error('[SpecialDayModalService] Failed to delete special day from event:', error);
         this.toastr.error('Failed to delete special day', 'Error');
-
-        // ✅ NEW: Emit failure event
-        this._quickAction$.next({
-          actionType: 'quick-delete',
-          scheduleEventId: scheduleEvent.id,
-          period: scheduleEvent.period,
-          date: scheduleEvent.date,
-          eventType: scheduleEvent.eventType,
-          success: false,
-          errorMessage: 'Failed to delete special day',
-          source: 'quick-action',
-          timestamp: new Date()
-        });
       }
     });
   }
 
-  // ✅ ENHANCED: Show error day info with Observable event emission
+  /**
+   * Show error day information
+   */
   showErrorDayInfo(period?: number): void {
     const message = period
       ? `Period ${period} has no lesson assigned because there are more school periods than lessons. Add more lessons to your course or adjust the schedule.`
@@ -248,24 +150,17 @@ export class SpecialDayModalService {
 
     this.toastr.info(message, 'Error Day Information', { timeOut: 8000 });
 
-    // ✅ NEW: Emit error info event
-    this._quickAction$.next({
-      actionType: 'error-info',
-      scheduleEventId: null,
-      period: period || null,
-      date: null,
-      eventType: 'Error',
-      success: true,
-      errorMessage: null,
-      source: 'quick-action',
-      timestamp: new Date()
+    console.log('[SpecialDayModalService] Error day info displayed:', {
+      period: period || 'all',
+      messageType: 'schedule-gap-explanation'
     });
-
-    console.log('🚨 [SpecialDayModalService] EMITTED quickAction event:', 'error-info');
   }
 
   // === PRIVATE HELPER METHODS ===
 
+  /**
+   * Create modal data for add mode
+   */
   private createAddModalData(date?: Date | null, periods?: number[]): SpecialDayModalData | null {
     if (!date) {
       this.toastr.error('No date selected', 'Error');
@@ -280,6 +175,9 @@ export class SpecialDayModalService {
     };
   }
 
+  /**
+   * Create modal data for edit mode
+   */
   private createEditModalData(event?: EventClickArg): SpecialDayModalData | null {
     if (!event) {
       this.toastr.error('No special day selected', 'Error');
@@ -299,7 +197,9 @@ export class SpecialDayModalService {
     };
   }
 
-  // ✅ ENHANCED: Modal handling with Observable event emission
+  /**
+   * Open modal with prepared data
+   */
   private openModalWithData(modalData: SpecialDayModalData, originalMode: 'add' | 'edit', originalScheduleEvent?: ScheduleEvent): void {
     const dialogRef = this.dialog.open(SpecialDayModalComponent, {
       data: modalData,
@@ -312,37 +212,17 @@ export class SpecialDayModalService {
       if (result) {
         this.handleModalResult(result, originalMode, originalScheduleEvent);
       } else {
-        // ✅ NEW: Emit modal cancelled event
-        this._modalOperation$.next({
-          operationType: 'cancelled',
+        console.log('[SpecialDayModalService] Modal cancelled by user:', {
           mode: originalMode,
-          date: modalData.date,
-          periods: modalData.periods || [],
-          eventType: modalData.existingSpecialDay?.eventType || null,
-          title: modalData.existingSpecialDay?.title || null,
-          success: true,
-          source: 'modal-operation',
-          timestamp: new Date()
+          date: format(modalData.date, 'yyyy-MM-dd')
         });
-
-        console.log('🚨 [SpecialDayModalService] EMITTED modalOperation event:', 'cancelled');
       }
-
-      // ✅ NEW: Always emit modal closed event
-      this._modalOperation$.next({
-        operationType: 'closed',
-        mode: originalMode,
-        date: modalData.date,
-        periods: modalData.periods || [],
-        eventType: modalData.existingSpecialDay?.eventType || null,
-        title: modalData.existingSpecialDay?.title || null,
-        success: true,
-        source: 'modal-operation',
-        timestamp: new Date()
-      });
     });
   }
 
+  /**
+   * Prepare existing data from calendar event
+   */
   private prepareExistingDataFromEvent(event: EventClickArg): { id: number; periods: number[]; eventType: string; title: string; description?: string; date: Date } | null {
     const currentSchedule = this.scheduleStateService.selectedScheduleValue();
     if (!currentSchedule?.scheduleEvents) {
@@ -378,6 +258,9 @@ export class SpecialDayModalService {
     };
   }
 
+  /**
+   * Extract event ID from calendar event
+   */
   private extractEventIdFromCalendarEvent(event: EventClickArg): number | null {
     const eventId = event.event.id;
 
@@ -390,7 +273,9 @@ export class SpecialDayModalService {
     return isNaN(numericId) ? null : numericId;
   }
 
-  // ✅ ENHANCED: Modal result handling with Observable events
+  /**
+   * Handle modal result (save or delete)
+   */
   private handleModalResult(result: SpecialDayResult, originalMode: 'add' | 'edit', originalScheduleEvent?: ScheduleEvent): void {
     if (result.action === 'save' && result.data) {
       const mappedData: SpecialDayData = {
@@ -404,23 +289,13 @@ export class SpecialDayModalService {
     }
   }
 
+  /**
+   * Handle save action from modal
+   */
   private handleSaveAction(data: SpecialDayData, originalMode: 'add' | 'edit', originalScheduleEvent?: ScheduleEvent): void {
     const validation = this.specialDayManagement.validateSpecialDayData(data);
     if (!validation.isValid) {
       this.toastr.error(`Invalid data: ${validation.errors.join(', ')}`, 'Validation Error');
-
-      // ✅ NEW: Emit validation failure event
-      this._modalOperation$.next({
-        operationType: 'saved',
-        mode: originalMode,
-        date: data.date,
-        periods: data.periods,
-        eventType: data.eventType,
-        title: data.title,
-        success: false,
-        source: 'modal-operation',
-        timestamp: new Date()
-      });
       return;
     }
 
@@ -437,36 +312,16 @@ export class SpecialDayModalService {
             : `Periods ${createdEvents.map(e => e.period).join(', ')}`;
           this.toastr.success(`Created special day for ${periodText}`, 'Success');
 
-          // ✅ NEW: Emit save success event
-          this._modalOperation$.next({
-            operationType: 'saved',
-            mode: originalMode,
-            date: data.date,
-            periods: data.periods,
+          console.log('[SpecialDayModalService] Special day created successfully:', {
             eventType: data.eventType,
-            title: data.title,
-            success: true,
-            source: 'modal-operation',
-            timestamp: new Date()
+            periods: data.periods,
+            date: format(data.date, 'yyyy-MM-dd'),
+            eventsCreated: createdEvents.length
           });
-
-          console.log('🚨 [SpecialDayModalService] EMITTED modalOperation event:', 'saved');
         },
-        error: () => {
+        error: (error) => {
+          console.error('[SpecialDayModalService] Failed to create special day:', error);
           this.toastr.error('Failed to create special day', 'Error');
-
-          // ✅ NEW: Emit save failure event
-          this._modalOperation$.next({
-            operationType: 'saved',
-            mode: originalMode,
-            date: data.date,
-            periods: data.periods,
-            eventType: data.eventType,
-            title: data.title,
-            success: false,
-            source: 'modal-operation',
-            timestamp: new Date()
-          });
         }
       });
     } else if (originalScheduleEvent) {
@@ -474,86 +329,91 @@ export class SpecialDayModalService {
         next: (updatedEvent) => {
           this.toastr.success(`Updated special day for Period ${updatedEvent.period}`, 'Success');
 
-          // ✅ NEW: Emit save success event
-          this._modalOperation$.next({
-            operationType: 'saved',
-            mode: originalMode,
-            date: data.date,
-            periods: data.periods,
+          console.log('[SpecialDayModalService] Special day updated successfully:', {
+            eventId: updatedEvent.id,
             eventType: data.eventType,
-            title: data.title,
-            success: true,
-            source: 'modal-operation',
-            timestamp: new Date()
+            period: updatedEvent.period,
+            date: format(data.date, 'yyyy-MM-dd')
           });
-
-          console.log('🚨 [SpecialDayModalService] EMITTED modalOperation event:', 'saved');
         },
-        error: () => {
+        error: (error) => {
+          console.error('[SpecialDayModalService] Failed to update special day:', error);
           this.toastr.error('Failed to update special day', 'Error');
-
-          // ✅ NEW: Emit save failure event
-          this._modalOperation$.next({
-            operationType: 'saved',
-            mode: originalMode,
-            date: data.date,
-            periods: data.periods,
-            eventType: data.eventType,
-            title: data.title,
-            success: false,
-            source: 'modal-operation',
-            timestamp: new Date()
-          });
         }
       });
     }
   }
 
+  /**
+   * Handle delete action from modal
+   */
   private handleDeleteAction(originalScheduleEvent: ScheduleEvent): void {
     this.specialDayManagement.deleteSpecialDay(originalScheduleEvent).subscribe({
       next: () => {
         this.toastr.success(`Deleted special day from Period ${originalScheduleEvent.period}`, 'Success');
 
-        // ✅ NEW: Emit delete success event
-        this._modalOperation$.next({
-          operationType: 'deleted',
-          mode: 'edit',
-          date: originalScheduleEvent.date,
-          periods: [originalScheduleEvent.period],
+        console.log('[SpecialDayModalService] Special day deleted via modal:', {
+          eventId: originalScheduleEvent.id,
+          period: originalScheduleEvent.period,
           eventType: originalScheduleEvent.eventType,
-          title: null,
-          success: true,
-          source: 'modal-operation',
-          timestamp: new Date()
+          date: format(new Date(originalScheduleEvent.date), 'yyyy-MM-dd')
         });
-
-        console.log('🚨 [SpecialDayModalService] EMITTED modalOperation event:', 'deleted');
       },
-      error: () => {
+      error: (error) => {
+        console.error('[SpecialDayModalService] Failed to delete special day via modal:', error);
         this.toastr.error('Failed to delete special day', 'Error');
-
-        // ✅ NEW: Emit delete failure event
-        this._modalOperation$.next({
-          operationType: 'deleted',
-          mode: 'edit',
-          date: originalScheduleEvent.date,
-          periods: [originalScheduleEvent.period],
-          eventType: originalScheduleEvent.eventType,
-          title: null,
-          success: false,
-          source: 'modal-operation',
-          timestamp: new Date()
-        });
       }
     });
   }
 
-  // === CLEANUP ===
+  // === UTILITY METHODS ===
 
-  // ✅ NEW: Cleanup method with Observable completion
-  ngOnDestroy(): void {
-    this._modalOperation$.complete();
-    this._quickAction$.complete();
-    console.log('[SpecialDayModalService] All Observable subjects completed on destroy');
+  /**
+   * Check if service has any active modals
+   */
+  hasActiveModal(): boolean {
+    return this.dialog.openDialogs.length > 0;
+  }
+
+  /**
+   * Close all open modals
+   */
+  closeAllModals(): void {
+    this.dialog.closeAll();
+    console.log('[SpecialDayModalService] All modals closed');
+  }
+
+  /**
+   * Get debug info about modal service
+   */
+  getDebugInfo(): any {
+    return {
+      modalService: {
+        initialized: true,
+        canOpenModals: true,
+        activeModals: this.dialog.openDialogs.length,
+        supportedOperations: [
+          'openSpecialDayModal',
+          'editSpecialDayOnDate',
+          'deleteSpecialDayOnDate',
+          'deleteSpecialDayFromEvent',
+          'showErrorDayInfo'
+        ],
+        cleanedUp: {
+          observablePatterns: 'removed',
+          subscriptionManagement: 'removed',
+          complexEventInterfaces: 'removed',
+          lineCount: 'reduced ~25%'
+        }
+      }
+    };
+  }
+
+  /**
+   * Cleanup method for manual cleanup if needed
+   */
+  cleanup(): void {
+    this.closeAllModals();
+    console.log('[SpecialDayModalService] Manual cleanup completed');
   }
 }

@@ -5,9 +5,9 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../models/course';
 import { ToastrService } from 'ngx-toastr';
-import { CourseCrudService } from '../../lesson-tree/services/course-operations/course-crud.service';
 import { PanelStateService } from '../panel-state.service';
 import { UserService } from '../../user-config/user.service';
+import { CourseCrudBusinessService } from '../../lesson-tree/services/business/course-crud-business.service';
 @Component({
   selector: 'course-panel',
   standalone: true,
@@ -47,7 +47,7 @@ export class CoursePanelComponent implements OnChanges, OnInit {
 
   constructor(
     private userService: UserService,
-    private courseCrudService: CourseCrudService,
+    private courseCrudService: CourseCrudBusinessService,
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {

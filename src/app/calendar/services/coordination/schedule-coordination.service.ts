@@ -1,24 +1,20 @@
-// **COMPLETE FILE** - ScheduleCoordinationService with dual Signal/Observable pattern
-// RESPONSIBILITY: Business logic orchestration for schedule workflows with Observable events
-// DOES NOT: Handle HTTP operations, form management, or calendar display - pure workflow coordination
-// CALLED BY: ScheduleConfigService, CalendarCoordinationService, lesson-calendar.component
+// **COMPLETE FILE** - ScheduleCoordinationService - Observable Events & Cross-Service Coordination
+// RESPONSIBILITY: Observable event management and cross-service coordination for schedule workflows
+// SCOPE: Observable patterns and event emission only (business logic in separate service)
+// RATIONALE: Event coordination separated from workflow business logic for maintainability
 
-import { Injectable } from '@angular/core';
-import { Observable, Subject, of, throwError } from 'rxjs';
-import { switchMap, tap, catchError, map } from 'rxjs/operators';
+import { Injectable, OnDestroy } from '@angular/core';
+import {Observable, of, Subject, Subscription, throwError} from 'rxjs';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ToastrService } from 'ngx-toastr';
-import { ScheduleConfigurationStateService } from '../state/schedule-configuration-state.service';
-import { SchedulePersistenceService } from '../ui/schedule-persistence.service';
-import { ScheduleStateService } from '../state/schedule-state.service';
-import { ScheduleGenerationService } from '../business/schedule-generation.service';
-import { ScheduleValidationService } from '../business/schedule-validation.service';
-import { ScheduleConfigurationApiService } from '../../../schedule-config/schedule-config-api.service';
-import { CourseDataService } from '../../../lesson-tree/services/course-data/course-data.service';
-import { LessonDetail } from '../../../models/lesson';
-import { CourseSignalService } from '../../../lesson-tree/services/course-data/course-signal.service';
 
-// ✅ Observable event interfaces following CourseCrudService pattern
+import { ScheduleWorkflowBusinessService, WorkflowResult } from '../business/schedule-workflow-business.service';
+import { CourseSignalService } from '../../../lesson-tree/services/course-data/course-signal.service';
+import { LessonDetail } from '../../../models/lesson';
+import { EntitySignalPayload } from '../../../lesson-tree/services/course-data/course-signal.service';
+import {catchError, map, tap} from 'rxjs/operators';
+
+// ✅ Observable event interfaces for cross-component coordination
 export interface ScheduleWorkflowEvent {
   operation: 'generation' | 'save' | 'load' | 'regeneration';
   success: boolean;
@@ -61,61 +57,60 @@ export interface LessonIntegrationEvent {
 @Injectable({
   providedIn: 'root'
 })
-export class ScheduleCoordinationService {
+export class ScheduleCoordinationService implements OnDestroy {
 
-  // ✅ Observable event emissions following established pattern
+  // ✅ Observable events for cross-component coordination
   private readonly _workflowCompleted$ = new Subject<ScheduleWorkflowEvent>();
   private readonly _configurationWorkflowCompleted$ = new Subject<ConfigurationWorkflowEvent>();
   private readonly _regenerationCompleted$ = new Subject<ScheduleRegenerationEvent>();
   private readonly _lessonIntegrationCompleted$ = new Subject<LessonIntegrationEvent>();
 
-  // Public observables
-  readonly workflowCompleted$ = this._workflowCompleted$.asObservable();
-  readonly configurationWorkflowCompleted$ = this._configurationWorkflowCompleted$.asObservable();
-  readonly regenerationCompleted$ = this._regenerationCompleted$.asObservable();
-  readonly lessonIntegrationCompleted$ = this._lessonIntegrationCompleted$.asObservable();
+
+  // ✅ Subscription management
+  private subscriptions: Subscription[] = [];
 
   constructor(
-    private scheduleStateService: ScheduleStateService,
-    private scheduleGenerationService: ScheduleGenerationService,
-    private schedulePersistenceService: SchedulePersistenceService,
-    private scheduleValidationService: ScheduleValidationService,
-    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
-    private scheduleConfigApi: ScheduleConfigurationApiService,
-    private courseDataService: CourseDataService,
+    private businessService: ScheduleWorkflowBusinessService,
     private courseSignalService: CourseSignalService,
     private snackBar: MatSnackBar,
     private toastr: ToastrService
   ) {
-    console.log('[ScheduleCoordinationService] Enhanced with comprehensive Observable events');
+    console.log('[ScheduleCoordinationService] Observable coordination patterns for schedule workflows');
+    this.setupCrossServiceSubscriptions();
+  }
 
-    // ✅ Observable subscription for lesson integration workflow
-    this.courseSignalService.nodeAdded$.subscribe(nodeAddedEvent => {
+  // === CROSS-SERVICE SUBSCRIPTIONS ===
+
+  private setupCrossServiceSubscriptions(): void {
+    console.log('[ScheduleCoordinationService] Setting up cross-service subscriptions');
+
+    // ✅ Subscribe to lesson added events for integration workflow
+    const lessonAddedSub = this.courseSignalService.entityAdded$.subscribe((entityAddedEvent: EntitySignalPayload) => {
       console.log('🔄 [ScheduleCoordinationService] === OBSERVABLE EVENT RECEIVED ===', {
-        eventType: 'nodeAdded',
-        nodeType: nodeAddedEvent.node.nodeType,
-        nodeId: nodeAddedEvent.node.nodeId,
-        nodeTitle: nodeAddedEvent.node.title,
-        source: nodeAddedEvent.source,
-        operationType: nodeAddedEvent.operationType,
-        timestamp: nodeAddedEvent.timestamp.toISOString()
+        eventType: 'entityAdded',
+        nodeType: entityAddedEvent.entity.nodeType,
+        nodeId: entityAddedEvent.entity.nodeId,
+        nodeTitle: entityAddedEvent.entity.title,
+        source: entityAddedEvent.source,
+        operationType: entityAddedEvent.operationType,
+        timestamp: entityAddedEvent.timestamp.toISOString()
       });
 
-      if (nodeAddedEvent.node.nodeType === 'Lesson' && nodeAddedEvent.source === 'infopanel') {
+      if (entityAddedEvent.entity.nodeType === 'Lesson' && entityAddedEvent.source === 'infopanel') {
         console.log('🎯 [ScheduleCoordinationService] PROCESSING lesson event - checking for schedule integration');
-        this.reactToLessonCreation(nodeAddedEvent.node as LessonDetail);
+        this.handleLessonCreationWithCoordination(entityAddedEvent.entity as LessonDetail);
       } else {
         console.log('🔄 [ScheduleCoordinationService] IGNORING event - not lesson from infopanel');
       }
     });
+
+    this.subscriptions.push(lessonAddedSub);
+    console.log('[ScheduleCoordinationService] Cross-service subscriptions setup complete');
   }
 
-  // === LESSON CREATION INTEGRATION ===
+  // === COORDINATED OPERATIONS ===
 
-  /**
-   * ✅ Enhanced lesson integration with Observable event emission
-   */
-  private reactToLessonCreation(lesson: LessonDetail): void {
+  private handleLessonCreationWithCoordination(lesson: LessonDetail): void {
     console.log('📋 [ScheduleCoordinationService] === LESSON INTEGRATION START ===', {
       lessonTitle: lesson.title,
       lessonId: lesson.id,
@@ -123,49 +118,18 @@ export class ScheduleCoordinationService {
       timestamp: new Date().toISOString()
     });
 
-    const activeConfig = this.scheduleConfigurationStateService.getActiveConfiguration();
-    if (!activeConfig) {
-      console.log('❌ [ScheduleCoordinationService] No active configuration - skipping schedule integration');
+    // Evaluate integration using business service
+    const decision = this.businessService.evaluateLessonIntegration(lesson);
+
+    if (!decision.shouldIntegrate) {
+      console.log(`❌ [ScheduleCoordinationService] ${decision.reason} - skipping schedule integration`);
 
       // ✅ Emit integration event with reason
       this._lessonIntegrationCompleted$.next({
         lesson,
         integrationSuccess: false,
         scheduleUpdated: false,
-        reason: 'No active configuration',
-        timestamp: new Date()
-      });
-      return;
-    }
-
-    const isLessonCourseAssigned = activeConfig.periodAssignments?.some(
-      assignment => assignment.courseId === lesson.courseId
-    );
-
-    if (!isLessonCourseAssigned) {
-      console.log('❌ [ScheduleCoordinationService] Lesson course not assigned to any periods - skipping');
-
-      // ✅ Emit integration event with reason
-      this._lessonIntegrationCompleted$.next({
-        lesson,
-        integrationSuccess: false,
-        scheduleUpdated: false,
-        reason: 'Course not assigned to any periods',
-        timestamp: new Date()
-      });
-      return;
-    }
-
-    const currentSchedule = this.scheduleStateService.getSchedule();
-    if (!currentSchedule) {
-      console.log('❌ [ScheduleCoordinationService] No active schedule - skipping integration');
-
-      // ✅ Emit integration event with reason
-      this._lessonIntegrationCompleted$.next({
-        lesson,
-        integrationSuccess: false,
-        scheduleUpdated: false,
-        reason: 'No active schedule',
+        reason: decision.reason,
         timestamp: new Date()
       });
       return;
@@ -173,271 +137,237 @@ export class ScheduleCoordinationService {
 
     console.log('✅ [ScheduleCoordinationService] All conditions met - TRIGGERING SCHEDULE REGENERATION');
 
-    this.regenerateSchedule('lesson-added', lesson.courseId, lesson.id).subscribe({
-      next: () => {
-        console.log('✅ [ScheduleCoordinationService] Schedule regeneration completed successfully');
-        this.toastr.success(
-          `Schedule updated with new lesson "${lesson.title}"`,
-          'Schedule Integration'
-        );
+    this.regenerateScheduleWithCoordination('lesson-added', lesson.courseId, lesson.id);
 
-        // ✅ Emit successful integration event
-        this._lessonIntegrationCompleted$.next({
-          lesson,
-          integrationSuccess: true,
-          scheduleUpdated: true,
-          timestamp: new Date()
-        });
+    console.log('📋 [ScheduleCoordinationService] === LESSON INTEGRATION END ===');
+  }
+
+  regenerateScheduleWithCoordination(
+    trigger: 'lesson-added' | 'manual' | 'configuration-change' = 'manual',
+    courseId?: number,
+    lessonId?: number
+  ): void {
+    console.log('[ScheduleCoordinationService] Regenerating schedule with coordination', {
+      trigger,
+      courseId,
+      lessonId
+    });
+
+    this.businessService.regenerateSchedule().subscribe({
+      next: (result: WorkflowResult) => {
+        if (result.success) {
+          this.snackBar.open('Schedule regenerated successfully', 'Close', { duration: 3000 });
+          console.log('[ScheduleCoordinationService] Schedule regenerated and saved');
+
+          // ✅ Emit successful regeneration event
+          this._regenerationCompleted$.next({
+            trigger,
+            courseId,
+            lessonId,
+            success: true,
+            eventCount: result.eventCount || 0,
+            timestamp: new Date()
+          });
+
+          // ✅ Also emit successful lesson integration if triggered by lesson
+          if (trigger === 'lesson-added' && lessonId) {
+            const lesson = { id: lessonId, courseId: courseId!, title: 'Unknown' } as LessonDetail;
+            this._lessonIntegrationCompleted$.next({
+              lesson,
+              integrationSuccess: true,
+              scheduleUpdated: true,
+              timestamp: new Date()
+            });
+
+            this.toastr.success(
+              `Schedule updated with new lesson`,
+              'Schedule Integration'
+            );
+          }
+        } else {
+          this.toastr.error('Failed to regenerate schedule', 'Error');
+          console.error('[ScheduleCoordinationService] Failed to regenerate schedule:', result.error?.message);
+
+          // ✅ Emit failed regeneration event
+          this._regenerationCompleted$.next({
+            trigger,
+            courseId,
+            lessonId,
+            success: false,
+            eventCount: 0,
+            error: result.error,
+            timestamp: new Date()
+          });
+
+          // ✅ Also emit failed lesson integration if triggered by lesson
+          if (trigger === 'lesson-added' && lessonId) {
+            const lesson = { id: lessonId, courseId: courseId!, title: 'Unknown' } as LessonDetail;
+            this._lessonIntegrationCompleted$.next({
+              lesson,
+              integrationSuccess: false,
+              scheduleUpdated: false,
+              error: result.error,
+              timestamp: new Date()
+            });
+
+            this.toastr.warning(
+              `New lesson created but schedule update failed`,
+              'Schedule Integration Warning'
+            );
+          }
+        }
       },
-      error: (error) => {
-        console.error('❌ [ScheduleCoordinationService] Schedule regeneration failed:', error);
-        this.toastr.warning(
-          `New lesson "${lesson.title}" created but schedule update failed`,
-          'Schedule Integration Warning'
-        );
+      error: (error: any) => {
+        this.toastr.error('Failed to regenerate schedule', 'Error');
+        console.error('[ScheduleCoordinationService] Regeneration failed:', error);
 
-        // ✅ Emit failed integration event
-        this._lessonIntegrationCompleted$.next({
-          lesson,
-          integrationSuccess: false,
-          scheduleUpdated: false,
+        // ✅ Emit failed regeneration event
+        this._regenerationCompleted$.next({
+          trigger,
+          courseId,
+          lessonId,
+          success: false,
+          eventCount: 0,
           error,
           timestamp: new Date()
         });
       }
     });
-
-    console.log('📋 [ScheduleCoordinationService] === LESSON INTEGRATION END ===');
   }
 
-  // === ENHANCED WORKFLOW METHODS WITH OBSERVABLE EVENTS ===
+
+  // === CLEANUP ===
+
+  ngOnDestroy(): void {
+    console.log('[ScheduleCoordinationService] Cleaning up Observable subjects and subscriptions');
+
+    // ✅ Clean up subscriptions
+    this.subscriptions.forEach(sub => sub.unsubscribe());
+    this.subscriptions = [];
+
+    // ✅ Complete Observable subjects
+    this._workflowCompleted$.complete();
+    this._configurationWorkflowCompleted$.complete();
+    this._regenerationCompleted$.complete();
+    this._lessonIntegrationCompleted$.complete();
+
+    console.log('[ScheduleCoordinationService] All Observable subjects and subscriptions completed');
+  }
+
+// === FACADE METHODS - Maintain backward compatibility ===
 
   /**
-   * ✅ Enhanced: Generate schedule with Observable event emission
+   * FACADE: Generate schedule with Observable return (delegates to business service)
    */
   generateAndSetSchedule(): Observable<void> {
-    console.log('[ScheduleCoordinationService] Generating schedule from active configuration');
+    console.log('[ScheduleCoordinationService] FACADE: generateAndSetSchedule - delegating to business service');
 
-    try {
-      const result = this.scheduleGenerationService.createSchedule();
+    const result = this.businessService.generateSchedule();
 
-      if (result.success && result.schedule) {
-        this.scheduleStateService.setSchedule(result.schedule, true);
+    if (result.success) {
+      this.snackBar.open('Schedule generated successfully', 'Close', { duration: 3000 });
 
-        if (result.warnings.length > 0) {
-          result.warnings.forEach((warning: string) => {
-            this.toastr.warning(warning, 'Schedule Warning');
-          });
-        }
-
-        console.log(`[ScheduleCoordinationService] Generated schedule with ${result.schedule.scheduleEvents?.length || 0} events`);
-
-        // ✅ Emit successful workflow event
-        this._workflowCompleted$.next({
-          operation: 'generation',
-          success: true,
-          scheduleId: result.schedule.id,
-          configurationId: result.schedule.scheduleConfigurationId,
-          eventCount: result.schedule.scheduleEvents?.length || 0,
-          timestamp: new Date()
-        });
-
-        return of(void 0);
-      } else {
-        result.errors.forEach((error: string) => {
-          this.toastr.error(error, 'Schedule Generation Error');
-          console.error('[ScheduleCoordinationService] Generation error:', error);
-        });
-
-        const errorObj = new Error(`Schedule generation failed: ${result.errors.join(', ')}`);
-
-        // ✅ Emit failed workflow event
-        this._workflowCompleted$.next({
-          operation: 'generation',
-          success: false,
-          error: errorObj,
-          timestamp: new Date()
-        });
-
-        return throwError(() => errorObj);
-      }
-    } catch (error: any) {
-      console.error('[ScheduleCoordinationService] Exception during generation:', error);
-      this.toastr.error('Schedule generation failed', 'Error');
-
-      // ✅ Emit failed workflow event
+      // ✅ Emit workflow event
       this._workflowCompleted$.next({
         operation: 'generation',
-        success: false,
-        error,
-        timestamp: new Date()
-      });
-
-      return throwError(() => error);
-    }
-  }
-
-  /**
-   * ✅ Enhanced: Save schedule with Observable event emission
-   */
-  saveCurrentSchedule(): Observable<void> {
-    console.log('[ScheduleCoordinationService] Saving current schedule');
-
-    const currentSchedule = this.scheduleStateService.getSchedule();
-    if (!currentSchedule) {
-      const errorObj = new Error('No schedule available to save');
-      this.toastr.error('No schedule to save', 'Save Error');
-
-      // ✅ Emit failed workflow event
-      this._workflowCompleted$.next({
-        operation: 'save',
-        success: false,
-        error: errorObj,
-        timestamp: new Date()
-      });
-
-      return throwError(() => errorObj);
-    }
-
-    if (!this.scheduleStateService.isInMemorySchedule()) {
-      console.log('[ScheduleCoordinationService] Schedule already saved');
-      this.snackBar.open('Schedule is already saved', 'Close', { duration: 3000 });
-
-      // ✅ Emit workflow event for "already saved"
-      this._workflowCompleted$.next({
-        operation: 'save',
         success: true,
-        scheduleId: currentSchedule.id,
-        eventCount: currentSchedule.scheduleEvents?.length || 0,
+        scheduleId: result.scheduleId,
+        configurationId: result.configurationId,
+        eventCount: result.eventCount,
         timestamp: new Date()
       });
 
       return of(void 0);
+    } else {
+      this.toastr.error(result.error?.message || 'Schedule generation failed', 'Generation Error');
+
+      // ✅ Emit workflow event
+      this._workflowCompleted$.next({
+        operation: 'generation',
+        success: false,
+        error: result.error,
+        timestamp: new Date()
+      });
+
+      return throwError(() => result.error || new Error('Schedule generation failed'));
     }
+  }
 
-    return this.schedulePersistenceService.saveCurrentSchedule().pipe(
-      tap(() => {
-        this.snackBar.open('Schedule saved successfully', 'Close', { duration: 3000 });
-        console.log('[ScheduleCoordinationService] Schedule saved successfully');
+  /**
+   * FACADE: Save schedule with Observable return (delegates to business service)
+   */
+  saveCurrentSchedule(): Observable<void> {
+    console.log('[ScheduleCoordinationService] FACADE: saveCurrentSchedule - delegating to business service');
 
-        // ✅ Emit successful workflow event
-        this._workflowCompleted$.next({
-          operation: 'save',
-          success: true,
-          scheduleId: currentSchedule.id,
-          eventCount: currentSchedule.scheduleEvents?.length || 0,
-          timestamp: new Date()
-        });
+    return this.businessService.saveSchedule().pipe(
+      tap((result: WorkflowResult) => {
+        if (result.success) {
+          this.snackBar.open('Schedule saved successfully', 'Close', { duration: 3000 });
+
+          // ✅ Emit workflow event
+          this._workflowCompleted$.next({
+            operation: 'save',
+            success: true,
+            scheduleId: result.scheduleId,
+            eventCount: result.eventCount,
+            timestamp: new Date()
+          });
+        } else {
+          this.toastr.error('Failed to save schedule', 'Save Error');
+
+          // ✅ Emit workflow event
+          this._workflowCompleted$.next({
+            operation: 'save',
+            success: false,
+            scheduleId: result.scheduleId,
+            error: result.error,
+            timestamp: new Date()
+          });
+
+          throw result.error || new Error('Failed to save schedule');
+        }
       }),
-      catchError((error: any) => {
-        this.toastr.error('Failed to save schedule', 'Save Error');
-        console.error('[ScheduleCoordinationService] Failed to save schedule:', error);
-
-        // ✅ Emit failed workflow event
-        this._workflowCompleted$.next({
-          operation: 'save',
-          success: false,
-          scheduleId: currentSchedule.id,
-          error,
-          timestamp: new Date()
-        });
-
-        return throwError(() => error);
-      })
+      map(() => void 0)
     );
   }
 
   /**
-   * ✅ Enhanced: Load schedule with Observable event emission
+   * FACADE: Load schedule with Observable return (delegates to business service)
    */
   loadActiveScheduleWithConfiguration(): Observable<boolean> {
-    console.log('[ScheduleCoordinationService] Loading active schedule with configuration');
+    console.log('[ScheduleCoordinationService] FACADE: loadActiveScheduleWithConfiguration - delegating to business service');
 
-    return this.schedulePersistenceService.loadActiveSchedule().pipe(
-      switchMap((scheduleLoaded: boolean) => {
-        if (scheduleLoaded) {
-          const currentSchedule = this.scheduleStateService.getSchedule();
-
-          // ✅ FIXED: Explicit null check and early return pattern
-          if (!currentSchedule) {
-            console.warn('[ScheduleCoordinationService] Schedule loaded but currentSchedule is null');
-            return of(false);
+    return this.businessService.loadActiveScheduleWithConfiguration().pipe(
+      tap((result: WorkflowResult) => {
+        if (result.success) {
+          if (result.message) {
+            this.snackBar.open(result.message, 'Close', { duration: 3000 });
           }
 
-          if (currentSchedule.scheduleConfigurationId) {
-            console.log(`[ScheduleCoordinationService] Loading associated configuration ID: ${currentSchedule.scheduleConfigurationId}`);
-
-            // ✅ FIXED: Capture schedule properties in local variables for null safety
-            const scheduleId = currentSchedule.id;
-            const eventCount = currentSchedule.scheduleEvents?.length || 0;
-
-            return this.scheduleConfigApi.getConfigurationById(currentSchedule.scheduleConfigurationId).pipe(
-              tap(configuration => {
-                if (configuration) {
-                  this.scheduleConfigurationStateService.setActiveConfiguration(configuration);
-                  console.log(`[ScheduleCoordinationService] Associated configuration loaded: ${configuration.title}`);
-
-                  // ✅ FIXED: Use captured variables
-                  this._workflowCompleted$.next({
-                    operation: 'load',
-                    success: true,
-                    scheduleId,
-                    configurationId: configuration.id,
-                    eventCount,
-                    timestamp: new Date()
-                  });
-                } else {
-                  console.warn(`[ScheduleCoordinationService] Configuration ID ${currentSchedule.scheduleConfigurationId} not found`);
-                }
-              }),
-              map(() => true),
-              catchError((configError: any) => {
-                console.warn('[ScheduleCoordinationService] Failed to load schedule configuration:', configError.message);
-
-                // ✅ FIXED: Use captured variables
-                this._workflowCompleted$.next({
-                  operation: 'load',
-                  success: true, // Schedule loaded even if config failed
-                  scheduleId,
-                  error: configError,
-                  timestamp: new Date()
-                });
-
-                return of(true);
-              })
-            );
-          } else {
-            console.warn('[ScheduleCoordinationService] Schedule has no associated configuration ID');
-
-            // ✅ FIXED: Use safe property access
-            this._workflowCompleted$.next({
-              operation: 'load',
-              success: true,
-              scheduleId: currentSchedule.id,
-              eventCount: currentSchedule.scheduleEvents?.length || 0,
-              timestamp: new Date()
-            });
-
-            return of(true);
-          }
+          // ✅ Emit workflow event
+          this._workflowCompleted$.next({
+            operation: 'load',
+            success: true,
+            scheduleId: result.scheduleId,
+            configurationId: result.configurationId,
+            eventCount: result.eventCount,
+            timestamp: new Date()
+          });
         } else {
-          console.log('[ScheduleCoordinationService] No existing active schedule found');
-
-          // ✅ Emit load workflow event for "no schedule"
+          // ✅ Emit workflow event for failed load
           this._workflowCompleted$.next({
             operation: 'load',
             success: false,
+            error: result.error,
             timestamp: new Date()
           });
-
-          return of(false);
         }
       }),
+      map((result: WorkflowResult) => result.success),
       catchError((error: any) => {
-        console.warn('[ScheduleCoordinationService] Failed to load active schedule:', error.message);
         this.toastr.error('Failed to load schedule', 'Loading Error');
 
-        // ✅ Emit failed load workflow event
+        // ✅ Emit workflow event
         this._workflowCompleted$.next({
           operation: 'load',
           success: false,
@@ -451,127 +381,90 @@ export class ScheduleCoordinationService {
   }
 
   /**
-   * ✅ Enhanced: Configuration workflow with Observable event emission
+   * FACADE: Execute configuration workflow with Observable return (delegates to business service)
    */
   executeConfigurationSaveWorkflow(configurationId: number): Observable<void> {
-    console.log('[ScheduleCoordinationService] Executing complete configuration save workflow');
+    console.log('[ScheduleCoordinationService] FACADE: executeConfigurationSaveWorkflow - delegating to business service');
 
     const workflowSteps: ('load' | 'generate' | 'save')[] = ['load', 'generate', 'save'];
-    const completedSteps: string[] = [];
 
-    return this.scheduleConfigApi.getConfigurationById(configurationId).pipe(
-      tap(configuration => {
-        this.scheduleConfigurationStateService.setActiveConfiguration(configuration);
-        console.log('[ScheduleCoordinationService] Configuration loaded and set as active');
-        completedSteps.push('load');
-      }),
-      switchMap(() => {
-        console.log('[ScheduleCoordinationService] Step 2: Generating schedule from configuration');
-        return this.generateAndSetSchedule();
-      }),
-      tap(() => {
-        completedSteps.push('generate');
-      }),
-      switchMap(() => {
-        console.log('[ScheduleCoordinationService] Step 3: Auto-saving generated schedule');
-        return this.saveCurrentSchedule();
-      }),
-      tap(() => {
-        completedSteps.push('save');
-        console.log('[ScheduleCoordinationService] Complete workflow finished successfully');
+    return this.businessService.executeConfigurationWorkflow(configurationId).pipe(
+      tap((result) => {
+        if (result.success) {
+          this.toastr.success('Configuration workflow completed successfully', 'Success');
 
-        // ✅ Emit successful configuration workflow event
-        this._configurationWorkflowCompleted$.next({
-          configurationId,
-          workflowSteps,
-          completedSteps,
-          success: true,
-          timestamp: new Date()
-        });
+          // ✅ Emit configuration workflow event
+          this._configurationWorkflowCompleted$.next({
+            configurationId,
+            workflowSteps,
+            completedSteps: result.completedSteps,
+            success: true,
+            timestamp: new Date()
+          });
+        } else {
+          this.toastr.error('Configuration workflow failed', 'Error');
+
+          // ✅ Emit configuration workflow event
+          this._configurationWorkflowCompleted$.next({
+            configurationId,
+            workflowSteps,
+            completedSteps: result.completedSteps,
+            success: false,
+            error: result.error,
+            timestamp: new Date()
+          });
+
+          throw result.error || new Error('Configuration workflow failed');
+        }
       }),
-      catchError((error: any) => {
-        this.toastr.error('Configuration workflow failed', 'Error');
-        console.error('[ScheduleCoordinationService] Configuration workflow failed:', error);
-
-        // ✅ Emit failed configuration workflow event
-        this._configurationWorkflowCompleted$.next({
-          configurationId,
-          workflowSteps,
-          completedSteps,
-          success: false,
-          error,
-          timestamp: new Date()
-        });
-
-        return throwError(() => error);
-      })
+      map(() => void 0)
     );
   }
 
   /**
-   * ✅ Enhanced: Regenerate schedule with Observable event emission
+   * FACADE: Regenerate schedule with Observable return (delegates to business service)
    */
   regenerateSchedule(
     trigger: 'lesson-added' | 'manual' | 'configuration-change' = 'manual',
     courseId?: number,
     lessonId?: number
   ): Observable<void> {
-    console.log('[ScheduleCoordinationService] Regenerating schedule from current configuration', {
-      trigger,
-      courseId,
-      lessonId
-    });
+    console.log('[ScheduleCoordinationService] FACADE: regenerateSchedule - delegating to business service');
 
-    return this.generateAndSetSchedule().pipe(
-      switchMap(() => {
-        return this.saveCurrentSchedule();
+    return this.businessService.regenerateSchedule().pipe(
+      tap((result: WorkflowResult) => {
+        if (result.success) {
+          this.snackBar.open('Schedule regenerated successfully', 'Close', { duration: 3000 });
+
+          // ✅ Emit regeneration event
+          this._regenerationCompleted$.next({
+            trigger,
+            courseId,
+            lessonId,
+            success: true,
+            eventCount: result.eventCount || 0,
+            timestamp: new Date()
+          });
+        } else {
+          this.toastr.error('Failed to regenerate schedule', 'Error');
+
+          // ✅ Emit regeneration event
+          this._regenerationCompleted$.next({
+            trigger,
+            courseId,
+            lessonId,
+            success: false,
+            eventCount: 0,
+            error: result.error,
+            timestamp: new Date()
+          });
+
+          throw result.error || new Error('Failed to regenerate schedule');
+        }
       }),
-      tap(() => {
-        this.snackBar.open('Schedule regenerated successfully', 'Close', { duration: 3000 });
-        console.log('[ScheduleCoordinationService] Schedule regenerated and saved');
-
-        const currentSchedule = this.scheduleStateService.getSchedule();
-
-        // ✅ Emit successful regeneration event
-        this._regenerationCompleted$.next({
-          trigger,
-          courseId,
-          lessonId,
-          success: true,
-          eventCount: currentSchedule?.scheduleEvents?.length || 0,
-          timestamp: new Date()
-        });
-      }),
-      catchError((error: any) => {
-        this.toastr.error('Failed to regenerate schedule', 'Error');
-        console.error('[ScheduleCoordinationService] Failed to regenerate schedule:', error);
-
-        // ✅ Emit failed regeneration event
-        this._regenerationCompleted$.next({
-          trigger,
-          courseId,
-          lessonId,
-          success: false,
-          eventCount: 0,
-          error,
-          timestamp: new Date()
-        });
-
-        return throwError(() => error);
-      })
+      map(() => void 0)
     );
   }
 
-  // === CLEANUP ===
 
-  /**
-   * ✅ Complete Observable cleanup following established pattern
-   */
-  ngOnDestroy(): void {
-    this._workflowCompleted$.complete();
-    this._configurationWorkflowCompleted$.complete();
-    this._regenerationCompleted$.complete();
-    this._lessonIntegrationCompleted$.complete();
-    console.log('[ScheduleCoordinationService] All Observable subjects completed');
-  }
 }

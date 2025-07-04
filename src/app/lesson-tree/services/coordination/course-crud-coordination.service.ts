@@ -8,11 +8,11 @@ import { Observable, Subject, Subscription } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 
 import { CourseCrudBusinessService } from '../business/course-crud-business.service';
-import { CourseStateCoordinationService } from '../course-operations/course-state-coordination.service';
 import { Course } from '../../../models/course';
 import { Topic } from '../../../models/topic';
 import { SubTopic } from '../../../models/subTopic';
 import { LessonDetail } from '../../../models/lesson';
+import {CourseBusinessService} from '../business/course-business.service';
 
 // ✅ Event interfaces for all entity operations
 export interface EntitySaveCompletedEvent<T> {
@@ -98,7 +98,7 @@ export class CourseCrudCoordinationService implements OnDestroy {
 
   constructor(
     private businessService: CourseCrudBusinessService,
-    private courseStateCoordination: CourseStateCoordinationService,
+    private courseBusinessService: CourseBusinessService,
     private toastr: ToastrService
   ) {
     console.log('[CourseCrudCoordinationService] Enhanced with Observable coordination patterns');
@@ -111,7 +111,7 @@ export class CourseCrudCoordinationService implements OnDestroy {
 
     // ✅ Consume CourseStateCoordinationService events
     this.subscriptions.add(
-      this.courseStateCoordination.coordinationCompleted$.subscribe((event: any) => {
+      this.courseBusinessService.coordinationCompleted$.subscribe((event: any) => {
         console.log('[CourseCrudCoordinationService] Received coordination completed event', {
           operation: event.operation,
           entityType: event.entityType,
@@ -124,7 +124,7 @@ export class CourseCrudCoordinationService implements OnDestroy {
     );
 
     this.subscriptions.add(
-      this.courseStateCoordination.validationCompleted$.subscribe((event: any) => {
+      this.courseBusinessService.validationCompleted$.subscribe((event: any) => {
         console.log('[CourseCrudCoordinationService] Received validation completed event', {
           validationType: event.validationType,
           entityType: event.entityType,
@@ -136,7 +136,7 @@ export class CourseCrudCoordinationService implements OnDestroy {
     );
 
     this.subscriptions.add(
-      this.courseStateCoordination.workflowCoordinated$.subscribe((event: any) => {
+      this.courseBusinessService.workflowCoordinated$.subscribe((event: any) => {
         console.log('[CourseCrudCoordinationService] Received workflow coordinated event', {
           workflowType: event.workflowType,
           coordinationAction: event.coordinationAction,

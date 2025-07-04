@@ -49,7 +49,7 @@ git push -uf origin main
 
 ## Integrate with your tools
 
-- [ ] [Set up project integrations](https://gitlab.com/stevewash123/lessontree-ui/-/settings/integrations)
+- [ ] [Set up project integrations](https://gitlab.com/stevewash123/lessonui/-/settings/integrations)
 
 ## Collaborate with your team
 

@@ -8,7 +8,7 @@ export interface Lesson extends TreeData {
     subTopicId?: number;
     topicId?: number;
     objective: string;
-    nodeType: 'Lesson';
+    entityType: 'Lesson';
   }
 
   interface LessonCreatePayload {

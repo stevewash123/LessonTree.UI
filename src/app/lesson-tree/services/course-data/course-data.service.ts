@@ -97,10 +97,10 @@ export class CourseDataService {
     });
 
     // Delegate signals to CourseSignalService
-    this.nodeAdded = this.signalService.nodeAdded;
-    this.nodeEdited = this.signalService.nodeEdited;
-    this.nodeDeleted = this.signalService.nodeDeleted;
-    this.nodeMoved = this.signalService.nodeMoved;
+    this.nodeAdded = this.signalService.entityAdded;
+    this.nodeEdited = this.signalService.entityEdited;
+    this.nodeDeleted = this.signalService.entityDeleted;
+    this.nodeMoved = this.signalService.entityMoved;
 
     // Initialize other delegated signals
     this.courses = this.storageService.courses;

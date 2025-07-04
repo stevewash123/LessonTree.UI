@@ -6,7 +6,6 @@ import { Component, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { parseId } from '../shared/utils/type-conversion.utils';
-import { NodeSelectionService, NodeType } from '../lesson-tree/services/node-operations/node-selection.service';
 import { Course } from '../models/course';
 import { CourseDataService } from '../lesson-tree/services/course-data/course-data.service';
 import { LessonDetail, Lesson } from '../models/lesson';
@@ -14,10 +13,11 @@ import { SubTopic } from '../models/subTopic';
 import { Topic } from '../models/topic';
 import { CoursePanelComponent } from './course-panel/course-panel.component';
 import { LessonInfoPanelComponent } from './lesson-panel/lesson-info-panel.component';
-import { PanelStateService } from './panel-state.service';
+import { EntityType, PanelStateService } from './panel-state.service';
 import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.component';
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CalendarInteractionService } from '../calendar/services/ui/calendar-interaction.service';
+import {EntitySelectionService} from '../lesson-tree/services/state/entity-selection.service';
 
 @Component({
   selector: 'info-panel',
@@ -35,11 +35,11 @@ import { CalendarInteractionService } from '../calendar/services/ui/calendar-int
 })
 export class InfoPanelComponent {
   // Expose selection signals directly to template - initialized in constructor
-  readonly selectedNode: any;
+  readonly selectedEntity: any;
   readonly hasSelection: any;
 
   constructor(
-    private nodeSelectionService: NodeSelectionService,
+    private entitySelectionService: EntitySelectionService,
     private panelStateService: PanelStateService,
     private courseDataService: CourseDataService,
     private calendarInteractionService: CalendarInteractionService
@@ -51,18 +51,18 @@ export class InfoPanelComponent {
     this.setupCalendarLessonSelectionSubscription();
 
     // Initialize readonly properties after service injection
-    this.selectedNode = this.nodeSelectionService.selectedNode;
-    this.hasSelection = this.nodeSelectionService.hasSelection;
+    this.selectedEntity = this.entitySelectionService.selectedEntity;
+    this.hasSelection = this.entitySelectionService.hasSelection;
 
     // Single effect for state change monitoring and logging
     effect(() => {
-      const selectedNode = this.selectedNode();
+      const selectedEntity = this.selectedEntity();
       const mode = this.mode;
       const hasSelection = this.hasSelection();
 
       console.log('[InfoPanel] Presentation state changed', {
-        selectedNodeId: selectedNode?.id || 'none',
-        selectedNodeType: selectedNode?.nodeType || 'none',
+        selectedNodeId: selectedEntity?.id || 'none',
+        selectedNodeType: selectedEntity?.nodeType || 'none',
         mode,
         hasSelection,
         showCourse: this.showCoursePanel(),
@@ -93,7 +93,7 @@ export class InfoPanelComponent {
         });
 
         // ✅ FIXED: Use lessonId as number directly
-        this.nodeSelectionService.selectById(event.lessonId, 'Lesson', 'calendar');
+        this.entitySelectionService.selectById(event.lessonId, 'Lesson', 'calendar');
       }
     });
   }
@@ -105,7 +105,7 @@ export class InfoPanelComponent {
 
   // Data computed signals - get current data for each entity type
   readonly currentCourse = computed(() => {
-    const node = this.selectedNode();
+    const node = this.selectedEntity();
     const mode = this.mode;
 
     if (mode === 'add') {
@@ -121,7 +121,7 @@ export class InfoPanelComponent {
   });
 
   readonly currentTopic = computed(() => {
-    const node = this.selectedNode();
+    const node = this.selectedEntity();
     const mode = this.mode;
 
     if (mode === 'add') {
@@ -137,7 +137,7 @@ export class InfoPanelComponent {
   });
 
   readonly currentSubTopic = computed(() => {
-    const node = this.selectedNode();
+    const node = this.selectedEntity();
     const mode = this.mode;
 
     if (mode === 'add') {
@@ -154,7 +154,7 @@ export class InfoPanelComponent {
 
   // FIXED: Proper Lesson/LessonDetail handling
   readonly currentLesson = computed(() => {
-    const node = this.selectedNode();
+    const node = this.selectedEntity();
     const mode = this.mode;
 
     if (mode === 'add') {
@@ -228,7 +228,7 @@ export class InfoPanelComponent {
   }
 
   // Utility method for child components that might need to initiate add mode
-  initiateAddMode(nodeType: NodeType, parentNode: any, courseId?: number) {
+  initiateAddMode(nodeType: EntityType, parentNode: any, courseId?: number) {
     console.log('[InfoPanel] Initiating add mode', {
       nodeType,
       parentNodeType: parentNode?.nodeType,

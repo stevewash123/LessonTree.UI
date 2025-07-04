@@ -281,7 +281,7 @@ createLessonNode(lesson: any): TreeNode {
 
   // Get text property from tree data based on node type
   getNodeText(treeData: TreeData): string {
-    switch (treeData.nodeType) {
+    switch (treeData.entityType) {
       case 'Course':
         return (treeData as Course).title;
       case 'Topic':
@@ -297,7 +297,7 @@ createLessonNode(lesson: any): TreeNode {
 
   // Get hasChildren property based on node type
   getHasChildren(treeData: TreeData): boolean {
-    switch (treeData.nodeType) {
+    switch (treeData.entityType) {
       case 'Course':
         return (treeData as Course).hasChildren ?? false;
       case 'Topic':

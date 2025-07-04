@@ -1,22 +1,14 @@
-// **COMPLETE FILE** - CalendarCoordinationService with Dual Signal/Observable Pattern
-// RESPONSIBILITY: Coordinates schedule state reactions and delegates to appropriate services for calendar component.
-// DOES NOT: Handle UI interactions, direct API calls, or template logic - pure reactive coordination service.
-// CALLED BY: LessonCalendarComponent for managing reactive state coordination.
+// **COMPLETE FILE** - CalendarCoordinationService - Observable Events & Cross-Service Coordination
+// RESPONSIBILITY: Observable event management and cross-service coordination for calendar operations
+// SCOPE: Observable patterns and cross-service subscriptions only (business logic in separate service)
+// RATIONALE: Event coordination separated from calendar management logic for maintainability
 
-import { Injectable, effect, signal, computed } from '@angular/core';
-import { Subject, Observable } from 'rxjs';
-import { CalendarOptions } from '@fullcalendar/core';
+import { Injectable, OnDestroy } from '@angular/core';
+import { Subject, Subscription } from 'rxjs';
 
-import { ScheduleStateService } from '../state/schedule-state.service';
-import { CourseDataService } from '../../../lesson-tree/services/course-data/course-data.service';
-import { CourseManagementService } from '../../../lesson-tree/services/course-operations/course-management.service';
-import { ScheduleEvent } from '../../../models/schedule-event.model';
-import { parseTeachingDaysToArray } from '../../../shared/utils/shared.utils';
-import { ScheduleConfigurationStateService } from '../state/schedule-configuration-state.service';
-import { CalendarEventService } from '../ui/calendar-event.service';
-import { SchedulePersistenceService } from '../ui/schedule-persistence.service';
-import { ScheduleCoordinationService } from './schedule-coordination.service';
 import { SpecialDayManagementService } from '../business/special-day-management.service';
+import { ScheduleEvent } from '../../../models/schedule-event.model';
+import {CalendarManagementService} from '../business/calendar-managment.service';
 
 // ✅ Observable event interfaces
 export interface CalendarRefreshEvent {
@@ -44,50 +36,41 @@ export interface CalendarOptionsUpdateEvent {
   timestamp: Date;
 }
 
-export interface CalendarRefreshCallbacks {
-  getCalendarApi: () => any;
-  getCalendarOptions: () => CalendarOptions;
-  setCalendarOptions: (options: CalendarOptions) => void;
-}
-
 @Injectable({
   providedIn: 'root'
 })
-export class CalendarCoordinationService {
+export class CalendarCoordinationService implements OnDestroy {
 
-  // ✅ Observable events for one-time business processing
+  // ✅ Observable events for cross-service coordination
   private readonly _calendarRefreshed$ = new Subject<CalendarRefreshEvent>();
   private readonly _initializationCompleted$ = new Subject<CalendarInitializationEvent>();
   private readonly _calendarDateUpdated$ = new Subject<CalendarDateUpdateEvent>();
   private readonly _calendarOptionsUpdated$ = new Subject<CalendarOptionsUpdateEvent>();
 
-  // ✅ Signal state for reactive UI and computed properties
-  private readonly _initialized = signal<boolean>(false);
-  private readonly _calendarEvents = signal<any[]>([]);
-  private _callbacks: CalendarRefreshCallbacks | null = null;
+  // Public observables for business logic subscriptions
+  readonly calendarRefreshed$ = this._calendarRefreshed$.asObservable();
+  readonly initializationCompleted$ = this._initializationCompleted$.asObservable();
+  readonly calendarDateUpdated$ = this._calendarDateUpdated$.asObservable();
+  readonly calendarOptionsUpdated$ = this._calendarOptionsUpdated$.asObservable();
 
-  // Computed signals for reactive UI (keep as signals)
-  readonly calendarEvents = computed(() => this._calendarEvents());
+  // ✅ Subscription management for cross-service coordination
+  private subscriptions = new Subscription();
 
   constructor(
-    private scheduleStateService: ScheduleStateService,
-    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
-    private schedulePersistenceService: SchedulePersistenceService,
-    private calendarEventService: CalendarEventService,
-    private courseDataService: CourseDataService,
-    private courseManagementService: CourseManagementService,
-    private scheduleCoordinationService: ScheduleCoordinationService,
+    private managementService: CalendarManagementService,
     private specialDayManagementService: SpecialDayManagementService
   ) {
-    console.log('[CalendarCoordinationService] Initialized with dual Signal/Observable pattern');
+    console.log('[CalendarCoordinationService] Observable coordination patterns initialized');
+    this.setupCrossServiceSubscriptions();
   }
 
-  // Initialize the coordination service with calendar refresh callbacks
-  initialize(callbacks: CalendarRefreshCallbacks): void {
-    console.log('[CalendarCoordinationService] initialize');
+  // === INITIALIZATION WITH EVENTS ===
 
-    this._callbacks = callbacks;
-    this._initialized.set(true);
+  initializeWithCoordination(callbacks: any): void {
+    console.log('[CalendarCoordinationService] Initialize with cross-service coordination');
+
+    // Delegate to management service
+    this.managementService.initialize(callbacks);
 
     // ✅ Emit initialization completed event for business logic
     this._initializationCompleted$.next({
@@ -95,169 +78,53 @@ export class CalendarCoordinationService {
       hasCallbacks: !!callbacks,
       timestamp: new Date()
     });
-
-    // Set up reactive effects for schedule
-    this.setupScheduleDisplayEffect();
-    this.setupScheduleDateEffect();
-    this.setupScheduleConfigurationEffect();
-    this.setupSpecialDayEventSubscription(); // ✅ NEW: Add special day coordination
-
-    // Load active schedule on initialization
-    this.loadActiveSchedule();
   }
 
-  /**
-   * Combined signal that coordinates schedule events and configuration readiness
-   * Prevents transformation attempts before both are loaded
-   */
-  readonly scheduleReadyForDisplay = computed(() => {
-    const events = this.scheduleStateService.currentScheduleEvents();
-    const config = this.scheduleConfigurationStateService.activeConfiguration();
+  // === CROSS-SERVICE SUBSCRIPTIONS ===
 
-    return {
-      canTransform: events.length > 0 && !!config?.periodAssignments?.length,
-      hasEvents: events.length > 0,
-      hasConfiguration: !!config?.periodAssignments?.length,
-      events,
-      config,
-      eventCount: events.length,
-      configTitle: config?.title || null
-    };
-  });
+  private setupCrossServiceSubscriptions(): void {
+    console.log('[CalendarCoordinationService] Setting up cross-service subscriptions');
 
-  private setupScheduleDisplayEffect(): void {
-    effect(() => {
-      if (!this._initialized() || !this._callbacks) return;
+    // ✅ Subscribe to special day operations
+    this.subscriptions.add(
+      this.specialDayManagementService.specialDayOperation$.subscribe(event => {
+        console.log('📅 [CalendarCoordinationService] RECEIVED specialDayOperation event (Observable)', {
+          type: event.type,
+          affectedPeriods: event.affectedPeriods,
+          date: event.date.toISOString().split('T')[0],
+          eventType: event.eventType,
+          timestamp: event.timestamp.toISOString()
+        });
 
-      const displayState = this.scheduleReadyForDisplay();
+        // Refresh calendar display when special days are created/updated/deleted
+        if (event.type === 'created' || event.type === 'updated' || event.type === 'deleted') {
+          console.log('📅 [CalendarCoordinationService] Refreshing calendar due to special day operation');
 
-      if (displayState.canTransform) {
-        console.log('[CalendarCoordinationService] Transforming events for calendar display');
-        this.refreshCalendarEventsOnly(displayState.events, 'schedule-update');
-      } else if (displayState.hasEvents && !displayState.hasConfiguration) {
-        this.refreshCalendarEventsOnly([], 'configuration-change');
-      } else if (!displayState.hasEvents) {
-        this.refreshCalendarEventsOnly([], 'schedule-update');
-      }
-    });
-  }
-
-  // Effect: Update calendar date when configuration changes
-  private setupScheduleDateEffect(): void {
-    effect(() => {
-      if (!this._initialized() || !this._callbacks) return;
-
-      const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-
-      if (activeConfig?.startDate) {
-        this.updateCalendarDate(new Date(activeConfig.startDate), 'configuration');
-      }
-    });
-  }
-
-  // Effect: Update calendar configuration when active configuration changes
-  private setupScheduleConfigurationEffect(): void {
-    effect(() => {
-      if (!this._initialized() || !this._callbacks) return;
-
-      const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-
-      if (activeConfig?.teachingDays) {
-        const teachingDaysArray = parseTeachingDaysToArray(activeConfig.teachingDays);
-        const hiddenDays = this.calculateHiddenDays(teachingDaysArray);
-        this.updateHiddenDays(hiddenDays);
-      }
-    });
-  }
-
-  private setupSpecialDayEventSubscription(): void {
-    this.specialDayManagementService.specialDayOperation$.subscribe(event => {
-      console.log('📅 [CalendarCoordinationService] RECEIVED specialDayOperation event (Observable)', {
-        type: event.type,
-        affectedPeriods: event.affectedPeriods,
-        date: event.date.toISOString().split('T')[0],
-        eventType: event.eventType,
-        timestamp: event.timestamp.toISOString()
-      });
-
-      // Refresh calendar display when special days are created/updated/deleted
-      if (event.type === 'created' || event.type === 'updated' || event.type === 'deleted') {
-        console.log('📅 [CalendarCoordinationService] Refreshing calendar due to special day operation');
-
-        // Force refresh of calendar events using existing method
-        const displayState = this.scheduleReadyForDisplay();
-        if (displayState.canTransform) {
-          this.refreshCalendarEventsOnly(displayState.events, 'schedule-update');
+          // Trigger business service refresh and emit coordination event
+          this.refreshCalendarWithCoordination('schedule-update');
         }
-      }
-    });
+      })
+    );
+
+    console.log('[CalendarCoordinationService] Cross-service subscriptions setup complete');
   }
 
-  // === PRIVATE HELPER METHODS ===
+  // === COORDINATED OPERATIONS ===
 
-  // Load active schedule for current user
-  private loadActiveSchedule(): void {
-    console.log('[CalendarCoordinationService] Loading active schedule');
+  refreshCalendarWithCoordination(source: 'schedule-update' | 'configuration-change' | 'manual-refresh'): void {
+    console.log(`[CalendarCoordinationService] Refresh calendar with coordination - source: ${source}`);
 
-    this.scheduleCoordinationService.loadActiveScheduleWithConfiguration().subscribe({
-      next: (success: boolean) => {
-        if (success) {
-          console.log('[CalendarCoordinationService] Active schedule loaded successfully');
-        } else {
-          console.log('[CalendarCoordinationService] No existing schedule, generating new one');
-          this.generateSchedule();
-        }
-      },
-      error: (error: any) => {
-        console.error('[CalendarCoordinationService] Failed to load active schedule:', error);
-        this.generateSchedule();
-      }
-    });
-  }
+    // Get display state from management service
+    const displayState = this.managementService.scheduleReadyForDisplay();
 
-  // Calculate hidden days from teaching days array
-  private calculateHiddenDays(teachingDaysArray: string[]): number[] {
-    const dayNameToNumber: { [key: string]: number } = {
-      'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
-      'Thursday': 4, 'Friday': 5, 'Saturday': 6
-    };
+    if (displayState.canTransform) {
+      // Trigger management service refresh
+      this.managementService.refreshCalendarEventsOnly(displayState.events);
 
-    const teachingDayNumbers = teachingDaysArray
-      .map(day => dayNameToNumber[day])
-      .filter(num => num !== undefined);
+      // Transform events for Observable emission
+      const events = this.managementService.calendarEvents();
 
-    // Return all days that are NOT teaching days
-    const allDays = [0, 1, 2, 3, 4, 5, 6];
-    return allDays.filter(day => !teachingDayNumbers.includes(day));
-  }
-
-  // Generate schedule using ScheduleGenerationService
-  private generateSchedule(): void {
-    console.log('[CalendarCoordinationService] Generating schedule');
-
-    this.scheduleCoordinationService.generateAndSetSchedule().subscribe({
-      next: () => {
-        console.log('[CalendarCoordinationService] Schedule generated successfully');
-      },
-      error: (error: any) => {
-        console.error('[CalendarCoordinationService] Schedule generation failed:', error);
-      }
-    });
-  }
-
-  // ✅ ENHANCED: Refresh calendar events with Observable event emission
-  private refreshCalendarEventsOnly(
-    scheduleEvents: ScheduleEvent[],
-    source: 'schedule-update' | 'configuration-change' | 'manual-refresh'
-  ): void {
-    if (scheduleEvents.length > 0) {
-      const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
-      console.log(`[CalendarCoordinationService] Calendar events updated: ${events.length} events`);
-
-      // ✅ Update signal state for reactive UI
-      this._calendarEvents.set(events);
-
-      // ✅ Emit Observable event for business logic processing
+      // ✅ Emit Observable event for cross-service coordination
       this._calendarRefreshed$.next({
         events,
         source,
@@ -265,12 +132,9 @@ export class CalendarCoordinationService {
         timestamp: new Date()
       });
     } else {
-      console.log('[CalendarCoordinationService] Calendar events cleared');
+      // Clear events and emit coordination event
+      this.managementService.refreshCalendarEventsOnly([]);
 
-      // ✅ Update signal state
-      this._calendarEvents.set([]);
-
-      // ✅ Emit Observable event
       this._calendarRefreshed$.next({
         events: [],
         source,
@@ -280,17 +144,11 @@ export class CalendarCoordinationService {
     }
   }
 
-  // ✅ ENHANCED: Update calendar date with Observable event emission
-  private updateCalendarDate(date: Date, source: 'configuration' | 'manual'): void {
-    if (!this._callbacks) return;
+  updateCalendarDateWithCoordination(date: Date, source: 'configuration' | 'manual'): void {
+    console.log('[CalendarCoordinationService] Update calendar date with coordination');
 
-    const currentOptions = this._callbacks.getCalendarOptions();
-    this._callbacks.setCalendarOptions({ ...currentOptions, initialDate: date });
-
-    const calendarApi = this._callbacks.getCalendarApi();
-    if (calendarApi) {
-      calendarApi.gotoDate(date);
-    }
+    // Delegate to management service
+    this.managementService.updateCalendarDate(date);
 
     // ✅ Emit Observable event for business logic
     this._calendarDateUpdated$.next({
@@ -300,17 +158,11 @@ export class CalendarCoordinationService {
     });
   }
 
-  // ✅ ENHANCED: Update hidden days with Observable event emission
-  private updateHiddenDays(hiddenDays: number[]): void {
-    if (!this._callbacks) return;
+  updateHiddenDaysWithCoordination(hiddenDays: number[]): void {
+    console.log('[CalendarCoordinationService] Update hidden days with coordination');
 
-    const currentOptions = this._callbacks.getCalendarOptions();
-    this._callbacks.setCalendarOptions({ ...currentOptions, hiddenDays });
-
-    const calendarApi = this._callbacks.getCalendarApi();
-    if (calendarApi) {
-      calendarApi.setOption('hiddenDays', hiddenDays);
-    }
+    // Delegate to management service
+    this.managementService.updateHiddenDays(hiddenDays);
 
     // ✅ Emit Observable event for business logic
     this._calendarOptionsUpdated$.next({
@@ -320,65 +172,88 @@ export class CalendarCoordinationService {
     });
   }
 
-  // === PUBLIC API METHODS ===
-
-  // Check if user has configured periods
-  hasScheduleConfiguration(): boolean {
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-    return activeConfig !== null &&
-      activeConfig !== undefined &&
-      (activeConfig.periodAssignments?.length || 0) > 0;
-  }
-
-  // Check if schedule is available
-  hasActiveSchedule(): boolean {
-    return this.scheduleStateService.hasActiveSchedule();
-  }
-
-  // Get schedule info for display
-  getScheduleInfo(): { title: string; eventCount: number; isInMemory: boolean } | null {
-    const schedule = this.scheduleStateService.getSchedule();
-    if (!schedule) return null;
-
-    return {
-      title: schedule.title,
-      eventCount: schedule.scheduleEvents?.length || 0,
-      isInMemory: this.scheduleStateService.isInMemorySchedule()
-    };
-  }
-
-  hasCoursesAvailable(): boolean {
-    return this.courseManagementService.hasCoursesAvailable();
-  }
+  // === DELEGATION METHODS - Direct access to business operations ===
 
   /**
-   * Get active course count
+   * Delegates to management service for operations that don't need coordination events
    */
-  getActiveCourseCount(): number {
-    return this.courseManagementService.getActiveCourseCount();
+  initialize(callbacks: any) {
+    return this.managementService.initialize(callbacks);
   }
 
-  /**
-   * Get current course data
-   */
-  getCurrentCourse(): any | null {
-    const validation = this.courseManagementService.validateCourseSelection();
+  get calendarEvents() {
+    return this.managementService.calendarEvents;
+  }
 
-    if (validation.isValid && validation.course) {
-      return validation.course;
-    }
+  get isInitialized() {
+    return this.managementService.isInitialized;
+  }
 
-    return null;
+  get scheduleReadyForDisplay() {
+    return this.managementService.scheduleReadyForDisplay;
+  }
+
+  hasScheduleConfiguration() {
+    return this.managementService.hasScheduleConfiguration();
+  }
+
+  hasActiveSchedule() {
+    return this.managementService.hasActiveSchedule();
+  }
+
+  getScheduleInfo() {
+    return this.managementService.getScheduleInfo();
+  }
+
+  hasCoursesAvailable() {
+    return this.managementService.hasCoursesAvailable();
+  }
+
+  getActiveCourseCount() {
+    return this.managementService.getActiveCourseCount();
+  }
+
+  getCurrentCourse() {
+    return this.managementService.getCurrentCourse();
+  }
+
+  regenerateSchedule() {
+    return this.managementService.regenerateSchedule();
+  }
+
+  saveSchedule() {
+    return this.managementService.saveSchedule();
+  }
+
+  getDebugInfo() {
+    return this.managementService.getDebugInfo();
+  }
+
+  refreshSchedule(): void {
+    console.log('[CalendarCoordinationService] refreshSchedule with coordination');
+
+    // Delegate to management service
+    this.managementService.loadActiveSchedule();
+
+    // ✅ Emit manual refresh event
+    this._calendarRefreshed$.next({
+      events: this.managementService.calendarEvents(),
+      source: 'manual-refresh',
+      eventCount: this.managementService.calendarEvents().length,
+      timestamp: new Date()
+    });
   }
 
   // === CLEANUP ===
 
-  // ✅ ENHANCED: Cleanup method with Observable completion
   cleanup(): void {
-    console.log('[CalendarCoordinationService] cleanup');
+    console.log('[CalendarCoordinationService] cleanup with Observable completion');
 
-    this._callbacks = null;
-    this._initialized.set(false);
+    // Delegate to management service
+    this.managementService.cleanup();
+
+    // ✅ Clean up subscriptions
+    this.subscriptions.unsubscribe();
 
     // Complete all Observable subjects
     this._calendarRefreshed$.complete();
@@ -387,21 +262,8 @@ export class CalendarCoordinationService {
     this._calendarOptionsUpdated$.complete();
   }
 
-  // Essential debug information only
-  getDebugInfo() {
-    const scheduleInfo = this.getScheduleInfo();
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-
-    return {
-      initialized: this._initialized(),
-      hasScheduleConfiguration: this.hasScheduleConfiguration(),
-      hasActiveSchedule: this.hasActiveSchedule(),
-      scheduleEventCount: scheduleInfo?.eventCount || 0,
-      periodsConfigured: activeConfig?.periodAssignments?.length || 0,
-      availableCoursesCount: this.courseManagementService.getActiveCourseCount(),
-      configurationTitle: activeConfig?.title || null,
-      calendarEventCount: this._calendarEvents().length
-    };
+  ngOnDestroy(): void {
+    this.cleanup();
+    console.log('[CalendarCoordinationService] All subjects completed on destroy');
   }
-
 }

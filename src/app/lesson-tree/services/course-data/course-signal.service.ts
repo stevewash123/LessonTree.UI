@@ -1,16 +1,16 @@
-// **COMPLETE FILE** - CourseSignalService with proper Observable event pattern
-// RESPONSIBILITY: Pure signal emission service with Observable events for cross-component workflows
+// **COMPLETE FILE** - CourseSignalService with proper Subject-based hybrid architecture
+// RESPONSIBILITY: Hybrid signal emission service supporting both Observable events and Signal state
 // DOES NOT: Handle business logic, API operations, or state management - pure event emission
 // CALLED BY: CourseDataService and other services for entity lifecycle event emission
 
-import { Injectable, OnDestroy } from '@angular/core';
-import { signal } from '@angular/core';
-import { Subject, Observable } from 'rxjs';
+import { Injectable, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import type { OperationType } from './course-data.service';
+import { EntityType } from '../../../info-panel/panel-state.service';
 
-// ✅ Enhanced event interfaces with better typing
-export interface NodeSignalPayload {
-  node: any;
+// Enhanced event interfaces for signal payloads
+export interface EntitySignalPayload {
+  entity: EntityType ;
   source: string;
   operationType: OperationType;
   metadata?: {
@@ -22,8 +22,8 @@ export interface NodeSignalPayload {
   timestamp: Date;
 }
 
-export interface NodeMoveSignalPayload {
-  node: any;
+export interface EntityMoveSignalPayload {
+  entity: EntityType ;
   sourceLocation: string;
   targetLocation: string;
   source: string;
@@ -35,110 +35,82 @@ export interface NodeMoveSignalPayload {
   timestamp: Date;
 }
 
-// ✅ NEW: Signal coordination event for debugging and monitoring
-export interface SignalCoordinationEvent {
-  signalType: 'node-added' | 'node-edited' | 'node-deleted' | 'node-moved';
-  emissionMethod: 'observable' | 'signal' | 'both';
-  entityDetails: {
-    entityType: string;
-    entityId: number;
-    entityTitle: string;
-  };
-  source: string;
-  operationType?: OperationType;
-  subscriberCount?: number;
-  timestamp: Date;
-}
-
 @Injectable({
   providedIn: 'root'
 })
-export class CourseSignalService implements OnDestroy {
+export class CourseSignalService {
 
-  // ✅ PRIMARY: Observable event emissions (preferred pattern)
-  private readonly _nodeAdded$ = new Subject<NodeSignalPayload>();
-  private readonly _nodeEdited$ = new Subject<NodeSignalPayload>();
-  private readonly _nodeDeleted$ = new Subject<NodeSignalPayload>();
-  private readonly _nodeMoved$ = new Subject<NodeMoveSignalPayload>();
+  // === SUBJECT-BASED HYBRID ARCHITECTURE ===
+  // Supports both Observable events (for coordination) and Signal state (for reactive UI)
 
-  // ✅ NEW: Signal coordination tracking
-  private readonly _signalCoordinated$ = new Subject<SignalCoordinationEvent>();
+  private readonly _nodeAddedSubject = new Subject<EntitySignalPayload>();
+  private readonly _nodeEditedSubject = new Subject<EntitySignalPayload>();
+  private readonly _nodeDeletedSubject = new Subject<EntitySignalPayload>();
+  private readonly _nodeMovedSubject = new Subject<EntityMoveSignalPayload>();
 
-  // Public observables for subscription (emit once, consume once)
-  readonly nodeAdded$: Observable<NodeSignalPayload> = this._nodeAdded$.asObservable();
-  readonly nodeEdited$: Observable<NodeSignalPayload> = this._nodeEdited$.asObservable();
-  readonly nodeDeleted$: Observable<NodeSignalPayload> = this._nodeDeleted$.asObservable();
-  readonly nodeMoved$: Observable<NodeMoveSignalPayload> = this._nodeMoved$.asObservable();
-  readonly signalCoordinated$: Observable<SignalCoordinationEvent> = this._signalCoordinated$.asObservable();
+  // === OBSERVABLE INTERFACE (for event-driven coordination) ===
+  readonly entityAdded$ = this._nodeAddedSubject.asObservable();
+  readonly entityEdited$ = this._nodeEditedSubject.asObservable();
+  readonly entityDeleted$ = this._nodeDeletedSubject.asObservable();
+  readonly entityMoved$ = this._nodeMovedSubject.asObservable();
 
-  // ✅ SECONDARY: Signal pattern (for UI reactivity)
-  private readonly _nodeAdded = signal<NodeSignalPayload | null>(null);
-  private readonly _nodeEdited = signal<NodeSignalPayload | null>(null);
-  private readonly _nodeDeleted = signal<NodeSignalPayload | null>(null);
-  private readonly _nodeMoved = signal<NodeMoveSignalPayload | null>(null);
+  // === SIGNAL INTERFACE (for reactive state monitoring) ===
+  // Convert Subject events to Signal state for UI reactivity
+  private readonly _nodeAddedSignal = signal<EntitySignalPayload | null>(null);
+  private readonly _nodeEditedSignal = signal<EntitySignalPayload | null>(null);
+  private readonly _nodeDeletedSignal = signal<EntitySignalPayload | null>(null);
+  private readonly _nodeMovedSignal = signal<EntityMoveSignalPayload | null>(null);
 
-  // Signal accessors (readonly for external access)
-  readonly nodeAdded = this._nodeAdded.asReadonly();
-  readonly nodeEdited = this._nodeEdited.asReadonly();
-  readonly nodeDeleted = this._nodeDeleted.asReadonly();
-  readonly nodeMoved = this._nodeMoved.asReadonly();
+  readonly entityAdded = this._nodeAddedSignal.asReadonly();
+  readonly entityEdited = this._nodeEditedSignal.asReadonly();
+  readonly entityDeleted = this._nodeDeletedSignal.asReadonly();
+  readonly entityMoved = this._nodeMovedSignal.asReadonly();
 
   constructor() {
-    console.log('[CourseSignalService] Enhanced with dual Signal/Observable pattern - pure emission service');
+    console.log('[CourseSignalService] Service initialized with hybrid Subject-Signal architecture');
+
+    // Bridge Observable events to Signal state for reactive UI
+    this._nodeAddedSubject.subscribe(payload => this._nodeAddedSignal.set(payload));
+    this._nodeEditedSubject.subscribe(payload => this._nodeEditedSignal.set(payload));
+    this._nodeDeletedSubject.subscribe(payload => this._nodeDeletedSignal.set(payload));
+    this._nodeMovedSubject.subscribe(payload => this._nodeMovedSignal.set(payload));
   }
 
-  // ✅ PREFERRED: Observable event emission methods (primary API)
+  // === SIGNAL EMISSION METHODS ===
 
   /**
-   * ✅ Enhanced: Emit entity added event with dual pattern
+   * Emit entity added event (hybrid: Observable + Signal)
    */
   emitEntityAdded(
-    entity: any,
+    entity: EntityType,                  
     source: string,
     operationType: OperationType = 'USER_ADD',
     metadata?: any
   ): void {
-    const payload: NodeSignalPayload = {
-      node: entity,
+    const payload: EntitySignalPayload = {
+      entity: entity,
       source,
       operationType,
       metadata,
       timestamp: new Date()
     };
 
-    console.log('🚨 [CourseSignalService] EMITTING entityAdded (Dual Pattern)', {
-      entityType: entity.nodeType,
-      entityId: entity.id,
-      entityTitle: entity.title,
-      source,
-      operationType,
-      timestamp: payload.timestamp.toISOString(),
-      pattern: 'Observable + Signal'
-    });
-
-    // ✅ Emit Observable event (primary)
-    this._nodeAdded$.next(payload);
-
-    // ✅ Update Signal (secondary - for UI reactivity)
-    this._nodeAdded.set(payload);
-
-    // ✅ Emit coordination tracking event
-    this._signalCoordinated$.next({
-      signalType: 'node-added',
-      emissionMethod: 'both',
-      entityDetails: {
+    console.log('📡 [CourseSignalService] Entity added emitted (hybrid)', {
         entityType: entity.nodeType,
         entityId: entity.id,
-        entityTitle: entity.title || 'Unknown'
-      },
-      source,
-      operationType,
-      timestamp: new Date()
-    });
+        entityTitle: entity.title,
+        source,
+        operationType,
+        timestamp: payload.timestamp.toISOString(),
+        patterns: ['Observable stream', 'Signal state']
+      });
+
+    // Emit to both Observable stream and Signal state
+    this._nodeAddedSubject.next(payload);
   }
 
   /**
-   * ✅ Enhanced: Emit entity edited event with dual pattern
+   * Emit entity edited event (hybrid: Observable + Signal)
    */
   emitEntityEdited(
     entity: any,
@@ -146,15 +118,15 @@ export class CourseSignalService implements OnDestroy {
     operationType: OperationType = 'API_RESPONSE',
     metadata?: any
   ): void {
-    const payload: NodeSignalPayload = {
-      node: entity,
+    const payload: EntitySignalPayload = {
+      entity: entity,
       source,
       operationType,
       metadata,
       timestamp: new Date()
     };
 
-    console.log('🚨 [CourseSignalService] EMITTING entityEdited (Dual Pattern)', {
+    console.log('📡 [CourseSignalService] Entity edited emitted (hybrid)', {
       entityType: entity.nodeType,
       entityId: entity.id,
       entityTitle: entity.title,
@@ -162,45 +134,27 @@ export class CourseSignalService implements OnDestroy {
       operationType
     });
 
-    // ✅ Emit Observable event (primary)
-    this._nodeEdited$.next(payload);
-
-    // ✅ Update Signal (secondary)
-    this._nodeEdited.set(payload);
-
-    // ✅ Emit coordination tracking event
-    this._signalCoordinated$.next({
-      signalType: 'node-edited',
-      emissionMethod: 'both',
-      entityDetails: {
-        entityType: entity.nodeType,
-        entityId: entity.id,
-        entityTitle: entity.title || 'Unknown'
-      },
-      source,
-      operationType,
-      timestamp: new Date()
-    });
+    this._nodeEditedSubject.next(payload);
   }
 
   /**
-   * ✅ Enhanced: Emit entity deleted event with dual pattern
+   * Emit entity deleted event (hybrid: Observable + Signal)
    */
   emitEntityDeleted(
-    entity: any,
+    entity: EntityType ,
     source: string,
     operationType: OperationType = 'API_RESPONSE',
     metadata?: any
   ): void {
-    const payload: NodeSignalPayload = {
-      node: entity,
+    const payload: EntitySignalPayload = {
+      entity: entity,
       source,
       operationType,
       metadata,
       timestamp: new Date()
     };
 
-    console.log('🚨 [CourseSignalService] EMITTING entityDeleted (Dual Pattern)', {
+    console.log('📡 [CourseSignalService] Entity deleted emitted (hybrid)', {
       entityType: entity.nodeType,
       entityId: entity.id,
       entityTitle: entity.title,
@@ -208,29 +162,11 @@ export class CourseSignalService implements OnDestroy {
       operationType
     });
 
-    // ✅ Emit Observable event (primary)
-    this._nodeDeleted$.next(payload);
-
-    // ✅ Update Signal (secondary)
-    this._nodeDeleted.set(payload);
-
-    // ✅ Emit coordination tracking event
-    this._signalCoordinated$.next({
-      signalType: 'node-deleted',
-      emissionMethod: 'both',
-      entityDetails: {
-        entityType: entity.nodeType,
-        entityId: entity.id,
-        entityTitle: entity.title || 'Unknown'
-      },
-      source,
-      operationType,
-      timestamp: new Date()
-    });
+    this._nodeDeletedSubject.next(payload);
   }
 
   /**
-   * ✅ Enhanced: Emit entity moved event with dual pattern
+   * Emit entity moved event (hybrid: Observable + Signal)
    */
   emitEntityMoved(
     entity: any,
@@ -239,8 +175,8 @@ export class CourseSignalService implements OnDestroy {
     source: string,
     metadata?: any
   ): void {
-    const payload: NodeMoveSignalPayload = {
-      node: entity,
+    const payload: EntityMoveSignalPayload = {
+      entity: entity,
       sourceLocation,
       targetLocation,
       source,
@@ -248,7 +184,7 @@ export class CourseSignalService implements OnDestroy {
       timestamp: new Date()
     };
 
-    console.log('🚨 [CourseSignalService] EMITTING entityMoved (Dual Pattern)', {
+    console.log('📡 [CourseSignalService] Entity moved emitted (hybrid)', {
       entityType: entity.nodeType,
       entityId: entity.id,
       entityTitle: entity.title,
@@ -257,27 +193,10 @@ export class CourseSignalService implements OnDestroy {
       source
     });
 
-    // ✅ Emit Observable event (primary)
-    this._nodeMoved$.next(payload);
-
-    // ✅ Update Signal (secondary)
-    this._nodeMoved.set(payload);
-
-    // ✅ Emit coordination tracking event
-    this._signalCoordinated$.next({
-      signalType: 'node-moved',
-      emissionMethod: 'both',
-      entityDetails: {
-        entityType: entity.nodeType,
-        entityId: entity.id,
-        entityTitle: entity.title || 'Unknown'
-      },
-      source,
-      timestamp: new Date()
-    });
+    this._nodeMovedSubject.next(payload);
   }
 
-  // ✅ LEGACY SUPPORT: Original method names (delegate to new methods)
+  // === LEGACY SUPPORT ===
 
   /**
    * @deprecated Use emitEntityAdded() instead for consistent naming
@@ -287,7 +206,7 @@ export class CourseSignalService implements OnDestroy {
     source: string,
     operationType: OperationType = 'USER_ADD'
   ): void {
-    console.log('[CourseSignalService] LEGACY emitNodeAdded - delegating to emitEntityAdded');
+    console.log('[CourseSignalService] Legacy emitNodeAdded - delegating to emitEntityAdded');
     this.emitEntityAdded(node, source, operationType);
   }
 
@@ -299,7 +218,7 @@ export class CourseSignalService implements OnDestroy {
     source: string,
     operationType: OperationType = 'API_RESPONSE'
   ): void {
-    console.log('[CourseSignalService] LEGACY emitNodeEdited - delegating to emitEntityEdited');
+    console.log('[CourseSignalService] Legacy emitNodeEdited - delegating to emitEntityEdited');
     this.emitEntityEdited(node, source, operationType);
   }
 
@@ -311,7 +230,7 @@ export class CourseSignalService implements OnDestroy {
     source: string,
     operationType: OperationType = 'API_RESPONSE'
   ): void {
-    console.log('[CourseSignalService] LEGACY emitNodeDeleted - delegating to emitEntityDeleted');
+    console.log('[CourseSignalService] Legacy emitNodeDeleted - delegating to emitEntityDeleted');
     this.emitEntityDeleted(node, source, operationType);
   }
 
@@ -324,70 +243,72 @@ export class CourseSignalService implements OnDestroy {
     targetLocation: string,
     source: string
   ): void {
-    console.log('[CourseSignalService] LEGACY emitNodeMoved - delegating to emitEntityMoved');
+    console.log('[CourseSignalService] Legacy emitNodeMoved - delegating to emitEntityMoved');
     this.emitEntityMoved(node, sourceLocation, targetLocation, source);
   }
 
-  // ✅ UTILITY METHODS
+  // === UTILITY METHODS ===
 
   /**
-   * ✅ Get emission statistics for debugging
+   * Reset all signals to null (for testing or cleanup)
    */
-  getEmissionStats(): {
-    totalEmissions: number;
-    emissionsByType: Record<string, number>;
-    lastEmissionTime?: Date;
-  } {
-    // This could be enhanced with actual tracking if needed
+  resetAllSignals(): void {
+    console.log('[CourseSignalService] Resetting all signals to null');
+    this._nodeAddedSignal.set(null);
+    this._nodeEditedSignal.set(null);
+    this._nodeDeletedSignal.set(null);
+    this._nodeMovedSignal.set(null);
+  }
+
+  /**
+   * Check if any signals have active values
+   */
+  hasActiveSignals(): boolean {
+    return !!(
+      this._nodeAddedSignal() ||
+      this._nodeEditedSignal() ||
+      this._nodeDeletedSignal() ||
+      this._nodeMovedSignal()
+    );
+  }
+
+  /**
+   * Get debug information about signal state
+   */
+  getDebugInfo(): any {
     return {
-      totalEmissions: 0,
-      emissionsByType: {
-        'entity-added': 0,
-        'entity-edited': 0,
-        'entity-deleted': 0,
-        'entity-moved': 0
+      signalService: {
+        initialized: true,
+        hasActiveSignals: this.hasActiveSignals(),
+        signalTypes: ['entityAdded', 'nodeEdited', 'nodeDeleted', 'nodeMoved'],
+        architecture: 'Subject-Signal Hybrid'
       },
-      lastEmissionTime: undefined
+      currentSignalValues: {
+        nodeAdded: !!this._nodeAddedSignal(),
+        nodeEdited: !!this._nodeEditedSignal(),
+        nodeDeleted: !!this._nodeDeletedSignal(),
+        nodeMoved: !!this._nodeMovedSignal()
+      },
+      serviceArchitecture: {
+        pattern: 'Hybrid Subject-Signal Architecture',
+        observableStreams: ['nodeAdded$', 'nodeEdited$', 'nodeDeleted$', 'nodeMoved$'],
+        signalState: ['entityAdded', 'nodeEdited', 'nodeDeleted', 'nodeMoved'],
+        dependencies: ['rxjs/Subject'],
+        consumers: ['TreeEffectsService', 'ScheduleCoordinationService', 'TreeWrapper', 'Calendar components'],
+        hasObservableEvents: true,
+        hasSignalState: true
+      }
     };
   }
 
   /**
-   * ✅ Reset all signals to null (for testing or cleanup)
-   */
-  resetAllSignals(): void {
-    console.log('[CourseSignalService] Resetting all signals to null');
-    this._nodeAdded.set(null);
-    this._nodeEdited.set(null);
-    this._nodeDeleted.set(null);
-    this._nodeMoved.set(null);
-  }
-
-  /**
-   * ✅ Check if any signals have active values
-   */
-  hasActiveSignals(): boolean {
-    return !!(
-      this._nodeAdded() ||
-      this._nodeEdited() ||
-      this._nodeDeleted() ||
-      this._nodeMoved()
-    );
-  }
-
-  // ✅ CLEANUP
-
-  /**
-   * ✅ Complete all Observable subjects
+   * Complete all Subjects on service destruction (for proper cleanup)
    */
   ngOnDestroy(): void {
-    console.log('[CourseSignalService] Cleaning up Observable subjects');
-
-    this._nodeAdded$.complete();
-    this._nodeEdited$.complete();
-    this._nodeDeleted$.complete();
-    this._nodeMoved$.complete();
-    this._signalCoordinated$.complete();
-
-    console.log('[CourseSignalService] All Observable subjects completed');
+    console.log('[CourseSignalService] Completing all Subject streams');
+    this._nodeAddedSubject.complete();
+    this._nodeEditedSubject.complete();
+    this._nodeDeletedSubject.complete();
+    this._nodeMovedSubject.complete();
   }
 }

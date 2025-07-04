@@ -22,7 +22,7 @@ export class CalendarEventTemplateService {
    */
   generateEventHTML(scheduleEvent: any, periodAssignment: any): string {
     const textColor = periodAssignment?.fontColor || '#FFFFFF';
-    
+
     // ERROR EVENTS - Special styling
     if (scheduleEvent?.eventType === 'Error') {
       return `
@@ -31,21 +31,21 @@ export class CalendarEventTemplateService {
         </div>
       `;
     }
-    
+
     // LESSON EVENTS - Custom HTML with correct text color
     if (scheduleEvent?.lessonTitle) {
-      const objectiveHtml = scheduleEvent.lessonObjective ? 
-        `<div class="lesson-objective" style="color: ${textColor};">${scheduleEvent.lessonObjective}</div>` : 
+      const objectiveHtml = scheduleEvent.lessonObjective ?
+        `<div class="lesson-objective" style="color: ${textColor};">${scheduleEvent.lessonObjective}</div>` :
         '';
-      
+
       return `
         <div class="custom-lesson-event" style="color: ${textColor};">
           <div class="lesson-title">${scheduleEvent.lessonTitle}</div>
           ${objectiveHtml}
         </div>
       `;
-    } 
-    
+    }
+
     // OTHER EVENTS - Simple display with correct color
     return `
       <div class="custom-other-event" style="color: ${textColor};">
@@ -60,32 +60,32 @@ export class CalendarEventTemplateService {
   applyEventStyling(info: any): void {
     const extendedProps = info.event.extendedProps || {};
     const scheduleEvent = extendedProps['scheduleEvent'];
-    
+
     // Apply period assignment background colors
     const periodAssignment = this.getPeriodAssignmentForEvent(scheduleEvent);
-    
+
     if (periodAssignment && scheduleEvent?.eventType !== 'Error') {
       info.el.style.backgroundColor = periodAssignment.backgroundColor;
       info.el.style.borderColor = periodAssignment.backgroundColor;
-      
+
       // Force text color on ALL text elements within the event
       const textColor = periodAssignment.fontColor || '#FFFFFF';
       const textElements = info.el.querySelectorAll('.fc-event-main, .custom-lesson-event, .lesson-title, .lesson-objective, .custom-other-event, .event-title');
       textElements.forEach((el: Element) => {
         (el as HTMLElement).style.setProperty('color', textColor, 'important');
       });
-      
+
     } else if (scheduleEvent?.eventType === 'Error') {
       info.el.style.backgroundColor = '#ffebee';
       info.el.style.borderColor = '#f44336';
-      
+
       // Force error text color
       const textElements = info.el.querySelectorAll('.fc-event-main, .custom-error-event');
       textElements.forEach((el: Element) => {
         (el as HTMLElement).style.setProperty('color', '#d32f2f', 'important');
       });
     }
-    
+
     // Common styling
     info.el.style.cursor = 'pointer';
   }
@@ -116,47 +116,6 @@ export class CalendarEventTemplateService {
     return periodBadge;
   }
 
-  /**
-   * Apply teaching day styling to day cells
-   */
-  styleDayCell(dayEl: HTMLElement, date: Date, isTeachingDay: boolean, periodsPerDay: number): void {
-    if (isTeachingDay) {
-      dayEl.classList.add('teaching-day');
-      
-      // Add period count indicator
-      const periodIndicator = document.createElement('div');
-      periodIndicator.className = 'period-count-indicator';
-      periodIndicator.textContent = `${periodsPerDay} periods`;
-      dayEl.appendChild(periodIndicator);
-    } else {
-      dayEl.classList.add('non-teaching-day');
-    }
-  }
-
-  /**
-   * Apply CSS classes based on event type
-   */
-  applyEventTypeClasses(element: HTMLElement, scheduleEvent: any): void {
-    // Clear existing event type classes
-    element.classList.remove('calendar-event-lesson', 'calendar-event-special-period', 
-                            'calendar-event-special-day', 'calendar-event-error');
-    
-    if (!scheduleEvent) return;
-    
-    const eventType = scheduleEvent.eventType;
-    const eventCategory = scheduleEvent.eventCategory;
-    
-    if (eventCategory === 'Lesson') {
-      element.classList.add('calendar-event-lesson');
-    } else if (eventCategory === 'SpecialPeriod') {
-      element.classList.add('calendar-event-special-period');
-    } else if (eventCategory === 'SpecialDay') {
-      element.classList.add('calendar-event-special-day');
-    } else if (eventType === 'Error') {
-      element.classList.add('calendar-event-error');
-    }
-  }
-
   // === HELPER METHODS ===
 
   /**
@@ -164,10 +123,10 @@ export class CalendarEventTemplateService {
    */
   private getPeriodAssignmentForEvent(scheduleEvent: any): any | null {
     if (!scheduleEvent?.period) return null;
-    
+
     const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
     if (!activeConfig?.periodAssignments) return null;
-    
+
     return activeConfig.periodAssignments.find(
       (assignment: any) => assignment.period === scheduleEvent.period
     ) || null;
@@ -178,7 +137,7 @@ export class CalendarEventTemplateService {
    */
   getDebugInfo(): any {
     const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-    
+
     return {
       templateService: {
         initialized: true,

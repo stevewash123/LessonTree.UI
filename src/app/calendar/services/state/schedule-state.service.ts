@@ -72,16 +72,6 @@ export class ScheduleStateService {
     console.log('[ScheduleStateService] Schedule cleared');
   }
 
-  updateSchedule(updatedSchedule: Schedule): void {
-    const currentSchedule = this._schedule();
-    if (currentSchedule && currentSchedule.id === updatedSchedule.id) {
-      this._schedule.set(updatedSchedule);
-      this.incrementScheduleVersion();
-      console.log('[ScheduleStateService] Schedule updated:', updatedSchedule.title);
-    } else {
-      console.warn('[ScheduleStateService] Cannot update schedule - ID mismatch or no current schedule');
-    }
-  }
 
   // === SCHEDULE EVENT CRUD ===
 
@@ -164,15 +154,6 @@ export class ScheduleStateService {
     return this.currentScheduleEvents();
   }
 
-  getEventById(eventId: number): ScheduleEvent | null {
-    const events = this.currentScheduleEvents();
-    return events.find(event => event.id === eventId) || null;
-  }
-
-  hasEvents(): boolean {
-    return this.currentScheduleEvents().length > 0;
-  }
-
   getEventCount(): number {
     return this.currentScheduleEvents().length;
   }
@@ -193,11 +174,6 @@ export class ScheduleStateService {
     console.log('[ScheduleStateService] Marked as saved');
   }
 
-  // === IN-MEMORY EVENT SUPPORT ===
-
-  generateInMemoryEventId(): number {
-    return this._inMemoryEventIdCounter--;
-  }
 
   // === LEGACY COMPATIBILITY ===
 
@@ -221,30 +197,6 @@ export class ScheduleStateService {
   }
 
   // === ESSENTIAL DEBUG INFO ===
-
-  debugScheduleState(): void {
-    const schedule = this.getSchedule();
-    const events = this.currentScheduleEvents();
-
-    console.log('[ScheduleStateService] 🔍 DEBUG Schedule State:');
-    console.log('Has Schedule:', !!schedule);
-    console.log('Schedule ID:', schedule?.id || 'N/A');
-    console.log('Schedule Title:', schedule?.title || 'N/A');
-    console.log('Is In Memory:', this.isInMemorySchedule());
-    console.log('Event Count:', events.length);
-    console.log('Has Unsaved Changes:', this.hasUnsavedChanges());
-    console.log('Can Save:', this.canSaveSchedule());
-
-    if (events.length > 0) {
-      console.log('First 3 Events:', events.slice(0, 3).map(e => ({
-        id: e.id,
-        date: e.date,
-        period: e.period,
-        lessonId: e.lessonId,
-        eventType: e.eventType
-      })));
-    }
-  }
 
   getDebugInfo() {
     const currentSchedule = this._schedule();

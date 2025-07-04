@@ -69,11 +69,6 @@ export class ScheduleValidationService {
   private readonly _statusComputed$ = new Subject<ValidationStatusEvent>();
   private readonly _configValidationCompleted$ = new Subject<ConfigValidationEvent>();
 
-  // Public observables
-  readonly validationCompleted$ = this._validationCompleted$.asObservable();
-  readonly statusComputed$ = this._statusComputed$.asObservable();
-  readonly configValidationCompleted$ = this._configValidationCompleted$.asObservable();
-
   constructor(
     private scheduleStateService: ScheduleStateService,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService
@@ -220,140 +215,6 @@ export class ScheduleValidationService {
     };
   }
 
-  /**
-   * ✅ Enhanced: Check if schedule is valid with Observable event emission
-   */
-  isScheduleValid(schedule: Schedule): boolean {
-    console.log(`[ScheduleValidationService] Checking schedule validity: ${schedule?.title || 'Unknown'}`);
-
-    const issues: string[] = [];
-    let isValid = true;
-
-    // Basic schedule validation
-    if (!schedule) {
-      issues.push('Schedule object is null');
-      isValid = false;
-    } else {
-      if (!schedule.title?.trim()) {
-        issues.push('Schedule title is empty');
-        isValid = false;
-      }
-    }
-
-    // Configuration validation
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-    if (!activeConfig) {
-      issues.push('No active configuration for validation');
-      isValid = false;
-    } else {
-      if (!activeConfig.startDate || !activeConfig.endDate) {
-        issues.push('Configuration missing date range');
-        isValid = false;
-      }
-      if (activeConfig.startDate && activeConfig.endDate &&
-        new Date(activeConfig.startDate) >= new Date(activeConfig.endDate)) {
-        issues.push('Configuration has invalid date range');
-        isValid = false;
-      }
-    }
-
-    console.log(`[ScheduleValidationService] Schedule validity check: ${isValid ? 'VALID' : 'INVALID'} (${issues.length} issues)`);
-
-    // ✅ Emit schedule validity event
-    this._validationCompleted$.next({
-      validationType: 'schedule-validity',
-      success: isValid,
-      issues,
-      scheduleId: schedule?.id,
-      configurationId: activeConfig?.id,
-      scheduleTitle: schedule?.title,
-      eventCount: schedule?.scheduleEvents?.length || 0,
-      timestamp: new Date()
-    });
-
-    return isValid;
-  }
-
-  /**
-   * ✅ Enhanced: Validate schedule configuration with Observable event emission
-   */
-  validateScheduleConfig(config: {
-    title?: string;
-    startDate?: Date;
-    endDate?: Date;
-    teachingDays?: string[];
-  }): { isValid: boolean; errors: string[] } {
-    console.log('[ScheduleValidationService] Validating schedule configuration with event emission');
-
-    const errors: string[] = [];
-
-    // Title validation
-    if (config.title !== undefined) {
-      if (!config.title.trim()) {
-        errors.push('Schedule title cannot be empty');
-      }
-
-      // ✅ Emit title validation event
-      this._configValidationCompleted$.next({
-        configurationType: 'title',
-        fieldName: 'title',
-        fieldValue: config.title,
-        isValid: config.title.trim().length > 0,
-        errors: config.title.trim().length > 0 ? [] : ['Title cannot be empty'],
-        timestamp: new Date()
-      });
-    }
-
-    // Date validation
-    if (config.startDate && config.endDate) {
-      const dateValid = config.startDate < config.endDate;
-      if (!dateValid) {
-        errors.push('End date must be after start date');
-      }
-
-      // ✅ Emit date validation event
-      this._configValidationCompleted$.next({
-        configurationType: 'dates',
-        fieldName: 'dateRange',
-        fieldValue: { startDate: config.startDate, endDate: config.endDate },
-        isValid: dateValid,
-        errors: dateValid ? [] : ['End date must be after start date'],
-        timestamp: new Date()
-      });
-    }
-
-    // Teaching days validation
-    if (config.teachingDays !== undefined) {
-      const teachingDaysValid = Array.isArray(config.teachingDays) && config.teachingDays.length > 0;
-      if (!teachingDaysValid) {
-        errors.push('At least one teaching day must be selected');
-      }
-
-      // ✅ Emit teaching days validation event
-      this._configValidationCompleted$.next({
-        configurationType: 'teaching-days',
-        fieldName: 'teachingDays',
-        fieldValue: config.teachingDays,
-        isValid: teachingDaysValid,
-        errors: teachingDaysValid ? [] : ['At least one teaching day required'],
-        timestamp: new Date()
-      });
-    }
-
-    const isValid = errors.length === 0;
-
-    console.log(`[ScheduleValidationService] Configuration validation completed: ${isValid ? 'VALID' : 'INVALID'} (${errors.length} errors)`);
-
-    // ✅ Emit complete configuration validation event
-    this._configValidationCompleted$.next({
-      configurationType: 'complete',
-      isValid,
-      errors: [...errors],
-      timestamp: new Date()
-    });
-
-    return { isValid, errors };
-  }
 
   /**
    * ✅ Enhanced: Get debug information with Observable event emission
@@ -403,49 +264,6 @@ export class ScheduleValidationService {
     return debugInfo;
   }
 
-  // === CONVENIENCE METHODS (Enhanced with Quick Validation) ===
-
-  /**
-   * ✅ NEW: Quick validation check with minimal event emission
-   */
-  quickValidationCheck(): boolean {
-    const currentSchedule = this.scheduleStateService.getSchedule();
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-
-    const isValid = !!(currentSchedule && activeConfig && currentSchedule.title?.trim());
-
-    // ✅ Emit quick check status
-    this._statusComputed$.next({
-      statusType: 'quick-check',
-      hasSchedule: !!currentSchedule,
-      isInMemory: this.scheduleStateService.isInMemorySchedule(),
-      hasUnsavedChanges: this.scheduleStateService.hasUnsavedChanges(),
-      canSave: isValid,
-      issueCount: isValid ? 0 : 1,
-      criticalIssues: isValid ? [] : ['Basic validation failed'],
-      eventCount: currentSchedule?.scheduleEvents?.length || 0,
-      configurationValid: !!activeConfig,
-      timestamp: new Date()
-    });
-
-    return isValid;
-  }
-
-  /**
-   * ✅ NEW: Get current validation issues without full validation
-   */
-  getCurrentValidationIssues(): string[] {
-    const validation = this.validateScheduleForSaving();
-    return validation.issues;
-  }
-
-  /**
-   * ✅ NEW: Check if schedule can be saved (optimized)
-   */
-  canSaveSchedule(): boolean {
-    const validation = this.validateScheduleForSaving();
-    return validation.canSave;
-  }
 
   // === CLEANUP ===
 

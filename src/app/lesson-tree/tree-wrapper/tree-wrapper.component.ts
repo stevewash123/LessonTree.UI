@@ -6,24 +6,24 @@
 import { Component, OnInit, AfterViewInit, Input, ViewChild, computed, OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { TreeViewComponent, TreeViewModule } from '@syncfusion/ej2-angular-navigations';
-import { TreeDragDropService, DragState } from '../services/tree-interactions/tree-drag-drop.service';
-import { TreeExpansionService } from '../services/tree-ui/tree-expansion.service';
-import { TreeSyncService } from '../services/tree-ui/tree-sync.service';
-import { TreeNodeActionsService } from '../services/tree-interactions/tree-node-actions.service';
-import { TreeEffectsService, TreeEffectCallbacks } from '../services/tree-ui/tree-effect.service';
+import { TreeExpansionService } from '../services/ui/tree-expansion.service';
+import { TreeSyncService } from '../services/ui/tree-sync.service';
+import { TreeEffectsService, TreeEffectCallbacks } from '../services/ui/tree-effect.service';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { CourseSignalService, NodeSignalPayload } from '../services/course-data/course-signal.service';
+import { CourseSignalService, EntityMoveSignalPayload, EntitySignalPayload } from '../services/course-data/course-signal.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { PanelStateService } from '../../info-panel/panel-state.service';
+import { EntityType, PanelStateService } from '../../info-panel/panel-state.service';
 import { Course } from '../../models/course';
-import { TreeNode, TreeData, NodeType } from '../../models/tree-node';
+import { TreeNode, TreeData } from '../../models/tree-node';
 import { CourseDataService, OperationType } from '../services/course-data/course-data.service';
 import { CourseCrudService } from '../services/course-operations/course-crud.service';
-import { NodeOperationClassifierService } from '../services/node-operations/node-operations-classifier.service';
-import { NodeSelectionService } from '../services/node-operations/node-selection.service';
-import { TreeDataService } from '../services/tree-ui/tree-data.service';
+import { TreeDataService } from '../services/ui/tree-data.service';
+import {DragState, TreeDragDropService} from '../services/ui/tree-drag-drop.service';
+import {NodeOperationClassifierService} from '../services/business/node-operations-classifier.service';
+import {EntitySelectionService} from '../services/state/entity-selection.service';
+import {TreeNodeActionsService} from '../services/coordination/tree-node-actions.service';
 
 @Component({
   selector: 'app-tree',
@@ -68,7 +68,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   });
 
   constructor(
-    private nodeSelectionService: NodeSelectionService,
+    private nodeSelectionService: EntitySelectionService,
     private panelStateService: PanelStateService,
     private courseDataService: CourseDataService,
     private courseCrudService: CourseCrudService,
@@ -138,25 +138,25 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
    */
   private setupEventSubscriptions(): void {
     // Subscribe to node added events for intelligent tree updates
-    const nodeAddedSub = this.courseSignalService.nodeAdded$.subscribe(event => {
+    const nodeAddedSub = this.courseSignalService.entityAdded$.subscribe((event: EntitySignalPayload) => {
       this.handleNodeAddedEvent(event);
     });
     this.subscriptions.push(nodeAddedSub);
 
     // Subscribe to node edited events
-    const nodeEditedSub = this.courseSignalService.nodeEdited$.subscribe(event => {
+    const nodeEditedSub = this.courseSignalService.entityEdited$.subscribe((event: EntitySignalPayload) => {
       this.handleNodeEditedEvent(event);
     });
     this.subscriptions.push(nodeEditedSub);
 
     // Subscribe to node deleted events
-    const nodeDeletedSub = this.courseSignalService.nodeDeleted$.subscribe(event => {
+    const nodeDeletedSub = this.courseSignalService.entityDeleted$.subscribe((event: EntitySignalPayload) => {
       this.handleNodeDeletedEvent(event);
     });
     this.subscriptions.push(nodeDeletedSub);
 
     // Subscribe to node moved events
-    const nodeMovedSub = this.courseSignalService.nodeMoved$.subscribe(event => {
+    const nodeMovedSub = this.courseSignalService.entityMoved$.subscribe((event: EntityMoveSignalPayload) => {
       this.handleNodeMovedEvent(event);
     });
     this.subscriptions.push(nodeMovedSub);
@@ -165,15 +165,15 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Best Practice: Handle node added events with intelligent routing
    */
-  private handleNodeAddedEvent(event: NodeSignalPayload): void {
+  private handleNodeAddedEvent(event: EntitySignalPayload): void {
     // Only process events for this course
     if (!this.isEventForThisCourse(event)) return;
 
     console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeAdded EVENT (Observable)`, {
       courseId: this.courseId,
-      nodeType: event.node.nodeType,
-      nodeId: event.node.nodeId,
-      nodeTitle: event.node.title,
+      nodeType: event.entity.nodeType,
+      nodeId: event.entity.nodeId,
+      nodeTitle: event.entity.title,
       source: event.source,
       operationType: event.operationType,
       timestamp: event.timestamp.toISOString(),
@@ -187,13 +187,13 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Handle node edited events
    */
-  private handleNodeEditedEvent(event: NodeSignalPayload): void {
+  private handleNodeEditedEvent(event: EntitySignalPayload): void {
     if (!this.isEventForThisCourse(event)) return;
 
     console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeEdited EVENT (Observable)`, {
       courseId: this.courseId,
-      nodeType: event.node.nodeType,
-      nodeTitle: event.node.title,
+      nodeType: event.entity.nodeType,
+      nodeTitle: event.entity.title,
       operationType: event.operationType
     });
 
@@ -204,13 +204,13 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Handle node deleted events
    */
-  private handleNodeDeletedEvent(event: NodeSignalPayload): void {
+  private handleNodeDeletedEvent(event: EntitySignalPayload): void {
     if (!this.isEventForThisCourse(event)) return;
 
     console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeDeleted EVENT (Observable)`, {
       courseId: this.courseId,
-      nodeType: event.node.nodeType,
-      nodeTitle: event.node.title,
+      nodeType: event.entity.nodeType,
+      nodeTitle: event.entity.title,
       operationType: event.operationType
     });
 
@@ -239,8 +239,8 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Best Practice: Intelligent update strategy determination
    */
-  private determineUpdateStrategy(event: NodeSignalPayload): 'incremental' | 'full_sync' {
-    const { operationType, node } = event;
+  private determineUpdateStrategy(event: EntitySignalPayload): 'incremental' | 'full_sync' {
+    const { operationType, entity: node } = event;
 
     // Check if we should use incremental update
     if (this.shouldUseIncrementalUpdate(operationType as OperationType, node.nodeType)) {
@@ -282,7 +282,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Execute update strategy
    */
-  private executeUpdateStrategy(strategy: 'incremental' | 'full_sync', event: NodeSignalPayload): void {
+  private executeUpdateStrategy(strategy: 'incremental' | 'full_sync', event: EntitySignalPayload): void {
     if (strategy === 'incremental') {
       this.executeIncrementalUpdate(event);
     } else {
@@ -293,15 +293,15 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Best Practice: Safe incremental updates with fallback
    */
-  private executeIncrementalUpdate(event: NodeSignalPayload): void {
+  private executeIncrementalUpdate(event: EntitySignalPayload): void {
     try {
       console.log(`🚀 [TreeWrapper-${this.instanceId}] Executing incremental update:`, {
-        nodeType: event.node.nodeType,
-        nodeTitle: (event.node as any).title,
+        nodeType: event.entity.nodeType,
+        nodeTitle: (event.entity as any).title,
         operationType: event.operationType
       });
 
-      this.handleLessonAdded(event.node);
+      this.handleLessonAdded(event.entity);
     } catch (error) {
       console.error(`❌ [TreeWrapper-${this.instanceId}] Incremental update failed, falling back:`, error);
       this.syncDataOnly();
@@ -311,8 +311,8 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   /**
    * ✅ Check if event affects this course
    */
-  private isEventForThisCourse(event: NodeSignalPayload): boolean {
-    return this.isNodeInCourse(event.node, this.courseId);
+  private isEventForThisCourse(event: EntitySignalPayload): boolean {
+    return this.isNodeInCourse(event.entity, this.courseId);
   }
 
   /**
@@ -518,7 +518,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   // ===== NODE ACTION HANDLERS =====
 
-  public initiateAddChildNode(data: any, childType: NodeType): void {
+  public initiateAddChildNode(data: any, childType: EntityType): void {
     if (!this.isViewInitialized) return;
     const result = this.treeNodeActionsService.initiateAddChildNode(data, childType, this.treeData, this.courseId);
     if (!result.success) {

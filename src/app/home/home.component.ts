@@ -22,8 +22,8 @@ import { UserConfigComponent } from '../user-config/user-config.component';
 import { ToolbarControlsService } from '../shared/services/toolbar-controls.service';
 import { CourseFilterDialogComponent } from '../lesson-tree/course-filter/course-filter-dialog.component';
 import { LayoutMode } from '../lesson-tree-container/layout-mode.service';
-import { DragMode } from '../lesson-tree/services/tree-interactions/node-drag-mode.service';
 import {ScheduleConfigComponent} from '../schedule-config/schedule-config.component';
+import {DragMode} from '../lesson-tree/services/state/node-drag-mode.service';
 
 @Component({
     selector: 'app-home',

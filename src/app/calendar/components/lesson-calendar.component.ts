@@ -1,6 +1,6 @@
 /* src/app/lessontree/calendar/lesson-calendar.component.ts - UPDATED FOR NEW INTERACTION SERVICE */
 // RESPONSIBILITY: Displays lessons in calendar format and handles direct UI interactions.
-// DOES NOT: Store schedule data, handle API operations, manage calendar configuration, handle course management, manage node selection, or coordinate complex effects - delegates to appropriate services.
+// DOES NOT: Store schedule data, handle API operations, manage calendar configuration, handle course management, manage entity selection, or coordinate complex effects - delegates to appropriate services.
 // CALLED BY: Main application router, displays calendar view of selected course lessons.
 import { Component, OnInit, OnDestroy, ViewChild, Input, computed, Signal, effect, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
@@ -18,7 +18,6 @@ import { Subscription } from 'rxjs';
 
 import { ContextMenuService } from '../services/ui/context-menu.service';
 import { CourseDataService } from '../../lesson-tree/services/course-data/course-data.service';
-import { NodeSelectionService } from '../../lesson-tree/services/node-operations/node-selection.service';
 import { UserService } from '../../user-config/user.service';
 import { CalendarCoordinationService } from '../services/coordination/calendar-coordination.service';
 import { ScheduleCoordinationService } from '../services/coordination/schedule-coordination.service';
@@ -26,6 +25,7 @@ import { ScheduleConfigurationStateService } from '../services/state/schedule-co
 import { ScheduleStateService } from '../services/state/schedule-state.service';
 import { CalendarConfigurationService } from '../services/ui/calendar-configuration.service';
 import { CalendarInteractionService } from '../services/ui/calendar-interaction.service';
+import {EntitySelectionService} from '../../lesson-tree/services/state/entity-selection.service';
 
 @Component({
   selector: 'app-lesson-calendar',
@@ -54,7 +54,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
 
   // PROPERLY FIXED: Readonly signals declared with proper initialization
   readonly hasSelection: Signal<boolean>;
-  readonly selectedNodeType: Signal<string | null>;
+  readonly selectedEntityType: Signal<string | null>;
   readonly selectedCourse: Signal<any | null>;
 
   // Schedule state signals - properly typed with Signal interface
@@ -73,7 +73,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   });
 
   readonly currentCourseId = computed(() => {
-    return this.nodeSelectionService.activeCourseId(); // FIXED: Use nodeSelectionService directly
+    return this.entitySelectionService.activeCourseId(); 
   });
 
   readonly selectedCourseData = computed(() => {
@@ -122,7 +122,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     private calendarCoordination: CalendarCoordinationService,
     private calendarInteraction: CalendarInteractionService,
     private scheduleContextService: ContextMenuService,
-    private nodeSelectionService: NodeSelectionService,
+    private entitySelectionService: EntitySelectionService,
     private userService: UserService,
     private courseDataService: CourseDataService,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService,
@@ -130,11 +130,11 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     private dialog: MatDialog
   ) {
     // Initialize readonly signals
-    this.hasSelection = this.nodeSelectionService.hasSelection;
-    this.selectedNodeType = this.nodeSelectionService.selectedNodeType;
+    this.hasSelection = this.entitySelectionService.hasSelection;
+    this.selectedEntityType = this.entitySelectionService.selectedEntityType;
     this.selectedCourse = computed(() => {
-      const node = this.nodeSelectionService.selectedNode();
-      return node?.nodeType === 'Course' ? node : null;
+      const entity = this.entitySelectionService.selectedEntity();
+      return entity?.entityType === 'Course' ? entity : null;
     });
 
     this.selectedSchedule = this.scheduleStateService.selectedSchedule;

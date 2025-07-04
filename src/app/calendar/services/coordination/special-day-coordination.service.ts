@@ -1,18 +1,35 @@
 ﻿// **COMPLETE FILE** - SpecialDayCoordinationService - Observable Events & Cross-Service Coordination
 // RESPONSIBILITY: Observable event management, cross-service coordination with lesson shifting and sequencing
-// SCOPE: Coordination patterns only (business logic handled by separate service)
-// RATIONALE: Complex coordination separated from core business operations for maintainability
+// SCOPE: Coordination patterns + integrated lesson shifting logic
+// RATIONALE: Complex coordination with integrated shifting logic for optimal performance
 
 import { Injectable, OnDestroy } from '@angular/core';
 import { Observable, Subject, Subscription } from 'rxjs';
-import { format } from 'date-fns';
+import { format, addDays, isAfter, isSameDay } from 'date-fns';
 
-import { LessonShiftingService } from '../business/lesson-shifting.service';
-import { LessonSequenceService } from '../business/lesson-sequence.service';
 import { ScheduleStateService } from '../state/schedule-state.service';
+import { ScheduleConfigurationStateService } from '../state/schedule-configuration-state.service';
+import { TeachingDayCalculationService } from '../business/teaching-day-calculations.service';
+import { LessonSequenceCoordinationService } from './lesson-sequence-coordination.service';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import {SpecialDayBusinessService, SpecialDayData} from '../business/special-day-buisness.service';
 import {map} from 'rxjs/operators';
+
+// ✅ Lesson shifting events (moved from LessonShiftingService)
+export interface LessonShiftingEvent {
+  operationType: 'shift-forward' | 'shift-backward' | 'shift-failed' | 'lessons-converted-to-errors';
+  insertionDate?: Date;
+  deletedDate?: Date;
+  period: number;
+  affectedLessonsCount: number;
+  shiftedLessonsCount: number;
+  errorsCreatedCount: number;
+  success: boolean;
+  errors: string[];
+  warnings: string[];
+  source: 'special-day-coordination';
+  timestamp: Date;
+}
 
 // ✅ Observable event for cross-component coordination
 export interface SpecialDayOperationEvent {
@@ -59,32 +76,17 @@ export class SpecialDayCoordinationService implements OnDestroy {
   constructor(
     private businessService: SpecialDayBusinessService,
     private scheduleStateService: ScheduleStateService,
-    private lessonShiftingService: LessonShiftingService,
-    private lessonSequenceService: LessonSequenceService
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
+    private teachingDayCalculation: TeachingDayCalculationService,
+    private lessonSequenceService: LessonSequenceCoordinationService
   ) {
-    console.log('[SpecialDayCoordinationService] Observable coordination patterns for special day operations');
+    console.log('[SpecialDayCoordinationService] Observable coordination patterns for special day operations with integrated lesson shifting');
     this.setupObservableConsumption();
   }
 
   // ✅ Observable consumption setup for cross-service coordination
   private setupObservableConsumption(): void {
     console.log('[SpecialDayCoordinationService] Setting up Observable consumption for cross-service coordination');
-
-    // ✅ Consume LessonShiftingService events
-    this.subscriptions.add(
-      this.lessonShiftingService.lessonShifting$.subscribe((event: any) => {
-        console.log('[SpecialDayCoordinationService] Received lessonShifted event', {
-          operationType: event.operationType,
-          period: event.period,
-          affectedLessonsCount: event.affectedLessonsCount,
-          success: event.success,
-          source: event.source,
-          timestamp: event.timestamp.toISOString()
-        });
-
-        this.handleLessonShiftingCompleted(event);
-      })
-    );
 
     // ✅ Consume LessonSequenceService events
     this.subscriptions.add(
@@ -118,66 +120,6 @@ export class SpecialDayCoordinationService implements OnDestroy {
   }
 
   // ✅ Cross-service coordination handlers
-  private handleLessonShiftingCompleted(event: any): void {
-    try {
-      const coordinationActions: string[] = [];
-
-      if (event.shiftType === 'forward' && event.affectedLessons > 0) {
-        coordinationActions.push('validate-special-day-placement');
-        coordinationActions.push('check-lesson-conflicts');
-
-        // Example: Validate that the special day creation didn't cause issues
-        const specialDaysOnDate = this.businessService.getSpecialDaysForDate(new Date(event.date));
-        if (specialDaysOnDate.length > 0) {
-          coordinationActions.push('confirmed-special-day-active');
-        }
-      }
-
-      if (event.shiftType === 'backward' && event.affectedLessons > 0) {
-        coordinationActions.push('validate-lesson-restoration');
-        coordinationActions.push('check-sequence-integrity');
-      }
-
-      // ✅ Emit coordination event
-      this._specialDayCoordinated$.next({
-        coordinationType: 'lesson-shifting-response',
-        triggerEvent: 'lesson-shifted',
-        sourceService: 'LessonShiftingService',
-        coordinationAction: coordinationActions.join(', '),
-        specialDayDetails: {
-          date: new Date(event.date),
-          affectedPeriods: [event.period],
-          eventType: 'lesson-shift-coordination'
-        },
-        success: true,
-        timestamp: new Date()
-      });
-
-      console.log('[SpecialDayCoordinationService] Lesson shifting coordination completed', {
-        shiftType: event.shiftType,
-        affectedLessons: event.affectedLessons,
-        actions: coordinationActions
-      });
-
-    } catch (error) {
-      console.error('[SpecialDayCoordinationService] Error handling lesson shifting completed:', error);
-
-      this._specialDayCoordinated$.next({
-        coordinationType: 'lesson-shifting-response',
-        triggerEvent: 'lesson-shifted',
-        sourceService: 'LessonShiftingService',
-        coordinationAction: 'error-handling',
-        specialDayDetails: {
-          date: new Date(event.date),
-          affectedPeriods: [event.period],
-          eventType: 'error'
-        },
-        success: false,
-        timestamp: new Date()
-      });
-    }
-  }
-
   private handleScheduleUpdated(event: any): void {
     try {
       const coordinationActions = ['validate-special-day-integrity', 'check-schedule-consistency'];
@@ -220,7 +162,7 @@ export class SpecialDayCoordinationService implements OnDestroy {
 
         // Trigger lesson shifting and sequence continuation
         scheduleEvents.forEach(event => {
-          this.lessonShiftingService.shiftLessonsForward(data.date, event.period);
+          this.shiftLessonsForward(data.date, event.period);
         });
 
         // Continue lesson sequences after shifting
@@ -295,7 +237,7 @@ export class SpecialDayCoordinationService implements OnDestroy {
     return this.businessService.deleteSpecialDay(scheduleEvent).pipe(
       map(() => {
         // Shift lessons backward and continue sequences
-        this.lessonShiftingService.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
+        this.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
         this.lessonSequenceService.continueSequencesAfterDate(scheduleEvent.date);
 
         // ✅ Emit Observable event for cross-component coordination
@@ -321,25 +263,202 @@ export class SpecialDayCoordinationService implements OnDestroy {
     );
   }
 
-  // === DELEGATION METHODS - Direct access to business operations ===
+  // === LESSON SHIFTING METHODS (integrated from LessonShiftingService) ===
 
   /**
-   * Delegates to business service for operations that don't need coordination
+   * Shift lessons forward when special day is created
    */
-  extractSpecialDayData(scheduleEvent: ScheduleEvent) {
-    return this.businessService.extractSpecialDayData(scheduleEvent);
+  private shiftLessonsForward(insertionDate: Date, period: number): void {
+    console.log(`[SpecialDayCoordinationService] Shifting lessons forward - Period ${period} from ${format(insertionDate, 'yyyy-MM-dd')}`);
+
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+
+    if (!currentSchedule?.scheduleEvents || !activeConfig?.teachingDays) {
+      console.error('[SpecialDayCoordinationService] Cannot shift: No schedule or teaching days available');
+      return;
+    }
+
+    const teachingDayNumbers = this.teachingDayCalculation.getTeachingDayNumbers(activeConfig.teachingDays);
+    const affectedLessons = this.findLessonsInPeriodOnOrAfter(currentSchedule.scheduleEvents, insertionDate, period);
+
+    if (affectedLessons.length === 0) {
+
+      return;
+    }
+
+    // Calculate and apply shifts
+    const shiftResults = this.calculateForwardShifts(affectedLessons, insertionDate, period, teachingDayNumbers, currentSchedule, activeConfig);
+    this.applyLessonShifts(shiftResults.shiftedLessons);
+
+    console.log('🚨 [SpecialDayCoordinationService] EMITTED lessonShifting event:', 'shift-forward');
   }
 
-  findSpecialDayById(scheduleEventId: number) {
-    return this.businessService.findSpecialDayById(scheduleEventId);
+  /**
+   * Shift lessons backward when special day is deleted
+   */
+  private shiftLessonsBackward(deletedDate: Date, period: number): void {
+    console.log(`[SpecialDayCoordinationService] Shifting lessons backward - Period ${period} from ${format(deletedDate, 'yyyy-MM-dd')}`);
+
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+
+    if (!currentSchedule?.scheduleEvents || !activeConfig?.teachingDays) {
+      console.error('[SpecialDayCoordinationService] Cannot shift backward: No schedule or teaching days available');
+
+      return;
+    }
+
+    const teachingDayNumbers = this.teachingDayCalculation.getTeachingDayNumbers(activeConfig.teachingDays);
+    const lessonsAfterDeleted = this.findLessonsInPeriodAfter(currentSchedule.scheduleEvents, deletedDate, period);
+
+    if (lessonsAfterDeleted.length === 0) {
+      return;
+    }
+
+    // Perform backward shifts
+    this.performBackwardShifts(lessonsAfterDeleted, period, teachingDayNumbers, currentSchedule);
+    this.scheduleStateService.markAsChanged();
+
+    console.log('🚨 [SpecialDayCoordinationService] EMITTED lessonShifting event:', 'shift-backward');
   }
 
-  getSpecialDaysForDate(date: Date) {
-    return this.businessService.getSpecialDaysForDate(date);
+  // === LESSON SHIFTING HELPER METHODS ===
+
+  private findLessonsInPeriodOnOrAfter(scheduleEvents: ScheduleEvent[], targetDate: Date, period: number): ScheduleEvent[] {
+    return scheduleEvents
+      .filter(event =>
+        event.lessonId &&
+        event.period === period &&
+        (isSameDay(new Date(event.date), targetDate) || isAfter(new Date(event.date), targetDate))
+      )
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
 
-  validateSpecialDayData(data: SpecialDayData) {
-    return this.businessService.validateSpecialDayData(data);
+  private findLessonsInPeriodAfter(scheduleEvents: ScheduleEvent[], targetDate: Date, period: number): ScheduleEvent[] {
+    return scheduleEvents
+      .filter(event =>
+        event.lessonId &&
+        event.period === period &&
+        isAfter(new Date(event.date), targetDate)
+      )
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  private calculateForwardShifts(
+    affectedLessons: ScheduleEvent[],
+    insertionDate: Date,
+    period: number,
+    teachingDayNumbers: number[],
+    currentSchedule: any,
+    activeConfig: any
+  ): { shiftedLessons: ScheduleEvent[], errorsCreated: number, warnings: string[] } {
+    const shiftedLessons: ScheduleEvent[] = [];
+    const warnings: string[] = [];
+    let errorsCreated = 0;
+    let currentShiftDate = this.teachingDayCalculation.getNextTeachingDay(addDays(insertionDate, 1), teachingDayNumbers);
+
+    for (const lesson of affectedLessons) {
+      currentShiftDate = this.findNextAvailableDateForPeriod(currentShiftDate, period, teachingDayNumbers, currentSchedule.scheduleEvents);
+
+      const shiftedLesson: ScheduleEvent = {
+        ...lesson,
+        date: new Date(currentShiftDate)
+      };
+
+      // Check if lesson goes past schedule end date
+      if (activeConfig.endDate && isAfter(currentShiftDate, new Date(activeConfig.endDate))) {
+        shiftedLesson.lessonId = null;
+        shiftedLesson.eventType = 'Error';
+        shiftedLesson.eventCategory = null;
+        shiftedLesson.comment = `ERROR: Lesson pushed past schedule end (Period ${period})`;
+        errorsCreated++;
+      }
+
+      shiftedLessons.push(shiftedLesson);
+      currentShiftDate = this.teachingDayCalculation.getNextTeachingDay(addDays(currentShiftDate, 1), teachingDayNumbers);
+    }
+
+    return { shiftedLessons, errorsCreated, warnings };
+  }
+
+  private findNextAvailableDateForPeriod(
+    startDate: Date,
+    period: number,
+    teachingDayNumbers: number[],
+    scheduleEvents: ScheduleEvent[]
+  ): Date {
+    let candidateDate = new Date(startDate);
+    const maxIterations = 365;
+    let iterations = 0;
+
+    while (iterations < maxIterations) {
+      if (this.teachingDayCalculation.isTeachingDay(candidateDate, teachingDayNumbers)) {
+        const isOccupied = this.teachingDayCalculation.isPeriodOccupiedByNonTeachingEvent(candidateDate, period, scheduleEvents);
+        if (!isOccupied) {
+          return candidateDate;
+        }
+      }
+      candidateDate = addDays(candidateDate, 1);
+      iterations++;
+    }
+
+    console.warn(`[SpecialDayCoordinationService] Could not find available date for Period ${period} after ${format(startDate, 'yyyy-MM-dd')}`);
+    return startDate;
+  }
+
+  private performBackwardShifts(
+    lessonsAfterDeleted: ScheduleEvent[],
+    period: number,
+    teachingDayNumbers: number[],
+    currentSchedule: any
+  ): void {
+    for (const currentLesson of lessonsAfterDeleted) {
+      const currentLessonDate = new Date(currentLesson.date);
+      const targetDate = this.findPreviousAvailableDateForPeriod(currentLessonDate, period, teachingDayNumbers, currentSchedule.scheduleEvents);
+
+      const updatedLesson: ScheduleEvent = {
+        ...currentLesson,
+        date: new Date(targetDate)
+      };
+
+      this.scheduleStateService.updateScheduleEvent(updatedLesson);
+    }
+  }
+
+  private findPreviousAvailableDateForPeriod(
+    startDate: Date,
+    period: number,
+    teachingDayNumbers: number[],
+    scheduleEvents: ScheduleEvent[]
+  ): Date {
+    let candidateDate = addDays(startDate, -1);
+    const maxIterations = 365;
+    let iterations = 0;
+
+    while (iterations < maxIterations) {
+      if (this.teachingDayCalculation.isTeachingDay(candidateDate, teachingDayNumbers)) {
+        const isOccupied = this.teachingDayCalculation.isPeriodOccupiedByNonTeachingEvent(candidateDate, period, scheduleEvents);
+        if (!isOccupied) {
+          return candidateDate;
+        }
+      }
+      candidateDate = addDays(candidateDate, -1);
+      iterations++;
+    }
+
+    console.warn(`[SpecialDayCoordinationService] Could not find previous available date for Period ${period} before ${format(startDate, 'yyyy-MM-dd')}`);
+    return addDays(startDate, -1);
+  }
+
+  private applyLessonShifts(shiftedLessons: ScheduleEvent[]): void {
+    if (shiftedLessons.length === 0) return;
+
+    shiftedLessons.forEach(lesson => {
+      this.scheduleStateService.updateScheduleEvent(lesson);
+    });
+
+    this.scheduleStateService.markAsChanged();
   }
 
   // === PRIVATE HELPER METHODS ===

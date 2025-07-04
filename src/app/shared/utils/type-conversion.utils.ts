@@ -20,7 +20,7 @@ export function treeDataToTreeNode(data: TreeData): TreeNode {
   return {
     id: stringifyId(data.id),
     text: getDisplayTitle(data),
-    nodeType: data.nodeType,
+    nodeType: data.entityType,
     title: getDisplayTitle(data),
     description: getDisplayDescription(data),
     archived: (data as any).archived || false,
@@ -49,7 +49,7 @@ export function courseToTreeNode(course: Course): TreeNode {
 
 // Get display title from any tree data
 function getDisplayTitle(data: TreeData): string {
-  switch (data.nodeType) {
+  switch (data.entityType) {
     case 'Course':
       return (data as Course).title;
     case 'Topic':
@@ -65,7 +65,7 @@ function getDisplayTitle(data: TreeData): string {
 
 // Get display description from any tree data
 function getDisplayDescription(data: TreeData): string {
-  switch (data.nodeType) {
+  switch (data.entityType) {
     case 'Course':
       return (data as Course).description || '';
     case 'Topic':

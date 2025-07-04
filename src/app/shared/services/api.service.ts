@@ -136,7 +136,7 @@ export class ApiService {
             catchError(error => this.handleError(error, options))
         );
     }
-    
+
     /** Fetch courses with filtering by archived status and visibility */
     getCourses(courseFilter: 'active' | 'archived' | 'both', visibilityFilter: 'private' | 'team' | null): Observable<Course[]> {
         let params = new HttpParams();
@@ -165,7 +165,7 @@ export class ApiService {
         });
         return this.get<Course[]>('course', options);
     }
-    
+
     /** Create a new Course - accepts create payload */
     createCourse(coursePayload: CourseCreatePayload): Observable<Course> {
         console.log('ApiService: POST createCourse', {
@@ -173,188 +173,12 @@ export class ApiService {
             body: coursePayload,
             timestamp: new Date().toISOString()
         });
-        
+
         // Send payload directly - no conversion needed
         return this.http.post<Course>(`${this.baseUrl}/course`, coursePayload).pipe(
             map(response => this.transformResponse<Course>(response)),
             catchError(error => this.handleError(error))
         );
-    }
-    
-
-    /** Update a Course (immediate properties only) */
-    updateCourse(course: Partial<Course>): Observable<Course> {
-        const body = {
-            id: course.id,
-            title: course.title,
-            description: course.description,
-            visibility: course.visibility,
-            archived: course.archived
-        };
-        console.log('ApiService: PUT updateCourse', {
-            url: `${this.baseUrl}/course/${course.id}`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<Course>(`${this.baseUrl}/course/${course.id}`, body).pipe(
-            map(response => this.transformResponse<Course>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-
-    /** Create a new Topic - accepts create payload */
-    createTopic(topicPayload: TopicCreatePayload): Observable<Topic> {
-        console.log('ApiService: POST createTopic', {
-            url: `${this.baseUrl}/topic`,
-            body: topicPayload,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Send payload directly - no conversion needed
-        return this.http.post<Topic>(`${this.baseUrl}/topic`, topicPayload).pipe(
-            map(response => this.transformResponse<Topic>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    updateTopic(topic: Partial<Topic>): Observable<Topic> {
-        const body = {
-            id: topic.id,
-            title: topic.title,
-            description: topic.description,
-            visibility: topic.visibility,
-            archived: topic.archived,
-            sortOrder: topic.sortOrder
-        };
-        console.log('ApiService: PUT updateTopic', {
-            url: `${this.baseUrl}/topic/${topic.id}`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<Topic>(`${this.baseUrl}/topic/${topic.id}`, body).pipe(
-            map(response => this.transformResponse<Topic>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    createSubTopic(subTopic: SubTopic): Observable<SubTopic> {
-        console.log('ApiService: POST createSubTopic', {
-            url: `${this.baseUrl}/subtopic`,
-            body: subTopic,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Send subtopic directly - no visibility conversion needed if API accepts strings
-        return this.http.post<SubTopic>(`${this.baseUrl}/subtopic`, subTopic).pipe(
-            map(response => this.transformResponse<SubTopic>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    updateSubTopic(subTopic: Partial<SubTopic>): Observable<SubTopic> {
-        const body = {
-            id: subTopic.id,
-            title: subTopic.title,
-            description: subTopic.description,
-            visibility: subTopic.visibility,
-            archived: subTopic.archived,
-            sortOrder: subTopic.sortOrder
-        };
-        console.log('ApiService: PUT updateSubTopic', {
-            url: `${this.baseUrl}/subtopic/${subTopic.id}`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<SubTopic>(`${this.baseUrl}/subtopic/${subTopic.id}`, body).pipe(
-            map(response => this.transformResponse<SubTopic>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    /** Create a new Lesson - accepts create payload, returns LessonDetail */
-    createLesson(lessonPayload: LessonCreatePayload): Observable<LessonDetail> {
-        console.log('ApiService: POST createLesson', {
-            url: `${this.baseUrl}/lesson`,
-            body: lessonPayload,
-            timestamp: new Date().toISOString()
-        });
-        
-        // Send payload directly - no conversion needed
-        return this.http.post<LessonDetail>(`${this.baseUrl}/lesson`, lessonPayload).pipe(
-            map(response => this.transformResponse<LessonDetail>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    updateLesson(lesson: Partial<LessonDetail>): Observable<LessonDetail> {
-        const body = {
-            id: lesson.id,
-            title: lesson.title,
-            visibility: lesson.visibility,
-            level: lesson.level,
-            objective: lesson.objective,
-            materials: lesson.materials,
-            classTime: lesson.classTime,
-            methods: lesson.methods,
-            specialNeeds: lesson.specialNeeds,
-            assessment: lesson.assessment,
-            archived: lesson.archived,
-            sortOrder: lesson.sortOrder
-        };
-        console.log('ApiService: PUT updateLesson', {
-            url: `${this.baseUrl}/lesson/${lesson.id}`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<LessonDetail>(`${this.baseUrl}/lesson/${lesson.id}`, body).pipe(
-            map(response => this.transformResponse<LessonDetail>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    // New endpoints for sorting
-    updateTopicSortOrder(topicId: number, sortOrder: number): Observable<void> {
-        const body = { topicId, sortOrder };
-        console.log('ApiService: PUT updateTopicSortOrder', {
-            url: `${this.baseUrl}/topic/${topicId}/sortOrder`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<void>(`${this.baseUrl}/topic/${topicId}/sortOrder`, body).pipe(
-            catchError(error => this.handleError(error))
-        );
-    }
-    
-    updateSubTopicSortOrder(subTopicId: number, sortOrder: number): Observable<void> {
-        const body = { subTopicId, sortOrder };
-        console.log('ApiService: PUT updateSubTopicSortOrder', {
-            url: `${this.baseUrl}/subtopic/${subTopicId}/sortOrder`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<void>(`${this.baseUrl}/subtopic/${subTopicId}/sortOrder`, body).pipe(
-            catchError(error => this.handleError(error))
-        );
-    }
-                
-    /** Delete a Course */
-    deleteCourse(courseId: number): Observable<void> {
-        return this.delete<void>(`course/${courseId}`);
-    }
-
-    /** Delete a Topic */
-    deleteTopic(topicId: number): Observable<void> {
-        return this.delete<void>(`topic/${topicId}`);
-    }
-
-    /** Delete a SubTopic */
-    deleteSubTopic(subTopicId: number): Observable<void> {
-        return this.delete<void>(`subtopic/${subTopicId}`);
-    }
-
-    /** Delete a Lesson */
-    deleteLesson(lessonId: number): Observable<void> {
-        return this.delete<void>(`lesson/${lessonId}`);
     }
 
     moveLesson(
@@ -370,18 +194,18 @@ export class ApiService {
           newSubTopicId: targetSubTopicId,
           newTopicId: targetTopicId
         };
-      
+
         // Add positioning parameters if provided
         if (relativeToId !== undefined) {
           payload.relativeToId = relativeToId;
           payload.position = position;
           payload.relativeToType = relativeToType;
         }
-      
+
         console.log('[ApiService] Moving lesson:', payload);
         return this.post('Lesson/move', payload);
       }
-      
+
       // REMOVE this method (if it exists):
       /*
       updateLessonSortOrder(lessonId: number, sortOrder: number): Observable<any> {
@@ -441,30 +265,6 @@ export class ApiService {
         );
     }
 
-    /** Fetch topics by course ID with transformation and error handling */
-    getTopicsByCourse(courseId: number): Observable<Topic[]> {
-        const url = `topic/byCourse/${courseId}`;
-        return this.get<Topic[]>(url);
-    }
-
-    /** Fetch subtopics by topic ID with transformation and error handling */
-    getSubtopicsByTopic(topicId: number): Observable<SubTopic[]> {
-        const url = `subtopic/byTopic/${topicId}`;
-        return this.get<SubTopic[]>(url);
-    }
-
-    /** Fetch lessons by subtopic ID with transformation and error handling */
-    getLessonsBySubtopic(subTopicId: number): Observable<Lesson[]> {
-        const url = `lesson/bySubtopic/${subTopicId}`;
-        return this.get<Lesson[]>(url);
-    }
-
-    /** Fetch lessons by topic ID with transformation and error handling */
-    getLessonsByTopic(topicId: number): Observable<Lesson[]> {
-        const url = `lesson/byTopic/${topicId}`;
-        return this.get<Lesson[]>(url);
-    }
-
     /** Create a new Note */
     createNote(note: Partial<Note>): Observable<Note> {
         const body = {
@@ -487,71 +287,10 @@ export class ApiService {
         );
     }
 
-    /** Update an existing Note */
-    updateNote(note: Partial<Note>): Observable<Note> {
-        const body = {
-            id: note.id,
-            content: note.content,
-            visibility: note.visibility,
-            teamId: note.teamId,
-            courseId: note.courseId,
-            topicId: note.topicId,
-            subTopicId: note.subTopicId,
-            lessonId: note.lessonId
-        };
-        console.log('ApiService: PUT updateNote', {
-            url: `${this.baseUrl}/note/${note.id}`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.put<Note>(`${this.baseUrl}/note/${note.id}`, body).pipe(
-            map(response => this.transformResponse<Note>(response)),
-            catchError(error => this.handleError(error))
-        );
-    }
 
     /** Delete a Note */
     deleteNote(id: number): Observable<void> {
         return this.delete<void>(`note/${id}`);
-    }
-
-    getStandards(): Observable<Standard[]> {
-        return this.get<Standard[]>('standard');
-    }
-
-    /** Fetch a standard by ID */
-    getStandard(id: number): Observable<Standard> {
-        return this.get<Standard>(`standard/${id}`);
-    }
-
-    /** Create a new Standard */
-    createStandard(standard: Partial<Standard>): Observable<Standard> {
-        const body = {
-            title: standard.title,
-            courseId: standard.courseId,
-            topicId: standard.topicId,
-            description: standard.description,
-            standardType: standard.standardType
-        };
-        return this.post<Standard>('standard', body);
-    }
-
-    /** Update a Standard */
-    updateStandard(standard: Partial<Standard>): Observable<void> {
-        const body = {
-            id: standard.id,
-            title: standard.title,
-            courseId: standard.courseId,
-            topicId: standard.topicId,
-            description: standard.description,
-            standardType: standard.standardType
-        };
-        return this.put<void>(`standard/${standard.id}`, body);
-    }
-
-    /** Delete a Standard */
-    deleteStandard(id: number): Observable<void> {
-        return this.delete<void>(`standard/${id}`);
     }
 
     /** Fetch standards by course ID with optional district ID */
@@ -566,15 +305,15 @@ export class ApiService {
 
     // === NEW SECURE USER ENDPOINTS ===
 
-/** Get current user's profile */
-getCurrentUserProfile(): Observable<any> {
-    console.log('ApiService: GET getCurrentUserProfile', {
-      url: `${this.baseUrl}/user/profile`,
-      timestamp: new Date().toISOString()
-    });
-    return this.get<any>('user/profile');
-  }
-  
+  /** Get current user's profile */
+  getCurrentUserProfile(): Observable<any> {
+      console.log('ApiService: GET getCurrentUserProfile', {
+        url: `${this.baseUrl}/user/profile`,
+        timestamp: new Date().toISOString()
+      });
+      return this.get<any>('user/profile');
+    }
+
   /** Update current user's profile */
   updateCurrentUserProfile(userData: any): Observable<any> {
     const body = {
@@ -585,25 +324,16 @@ getCurrentUserProfile(): Observable<any> {
       phone: userData.phone,
       district: userData.district
     };
-  
+
     console.log('ApiService: PUT updateCurrentUserProfile', {
       url: `${this.baseUrl}/user/profile`,
       body,
       timestamp: new Date().toISOString()
     });
-  
+
     return this.put<any>('user/profile', body);
   }
-  
-  /** Delete current user's account */
-  deleteCurrentUserAccount(): Observable<void> {
-    console.log('ApiService: DELETE deleteCurrentUserAccount', {
-      url: `${this.baseUrl}/user/profile`,
-      timestamp: new Date().toISOString()
-    });
-    return this.delete<void>('user/profile');
-  }
-  
+
   /** Get current user's configuration */
   getCurrentUserConfiguration(): Observable<any> {
     console.log('ApiService: GET getCurrentUserConfiguration', {
@@ -612,7 +342,7 @@ getCurrentUserProfile(): Observable<any> {
     });
     return this.get<any>('user/configuration');
   }
-  
+
   /** Update current user's configuration */
   updateCurrentUserConfiguration(configuration: any): Observable<any> {
     const body = {
@@ -622,13 +352,13 @@ getCurrentUserProfile(): Observable<any> {
       startDate: configuration.startDate,
       endDate: configuration.endDate
     };
-  
+
     console.log('ApiService: PUT updateCurrentUserConfiguration', {
       url: `${this.baseUrl}/user/configuration`,
       body,
       timestamp: new Date().toISOString()
     });
-  
+
     return this.put<any>('user/configuration', body);
   }
 

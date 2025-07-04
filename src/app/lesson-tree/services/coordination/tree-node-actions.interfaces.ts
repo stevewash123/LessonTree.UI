@@ -1,7 +1,8 @@
 ﻿// Observable Event Interfaces for TreeNodeActionsService
 // RESPONSIBILITY: Type definitions for node action coordination events
 
-import { NodeType } from '../node-operations/node-selection.service';
+
+import {NodeType} from '../../../models/shared';
 
 export interface NodeActionResult {
   success: boolean;

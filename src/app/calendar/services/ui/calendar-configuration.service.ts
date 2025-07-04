@@ -69,99 +69,10 @@ export class CalendarConfigurationService {
     console.log('[CalendarConfigurationService] Initialized with extracted services');
   }
 
-  // Get default date range for current school year
-  getDefaultDateRange(): { startDate: Date; endDate: Date } {
-    const currentYear = new Date().getFullYear();
-    return {
-      startDate: new Date(currentYear, SCHOOL_YEAR_START_MONTH, SCHOOL_YEAR_START_DAY),
-      endDate: new Date(currentYear + 1, SCHOOL_YEAR_END_MONTH, SCHOOL_YEAR_END_DAY)
-    };
-  }
-
-  // Get default teaching days
-  getDefaultTeachingDays(): string[] {
-    return [...DEFAULT_TEACHING_DAYS];
-  }
-
-  // Get school year for a given date
-  getSchoolYearForDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-
-    // School year runs from August to July
-    if (month >= SCHOOL_YEAR_START_MONTH) {
-      return `${year}-${year + 1}`;
-    } else {
-      return `${year - 1}-${year}`;
-    }
-  }
-
-  // Get current school year
-  getCurrentSchoolYear(): string {
-    return this.getSchoolYearForDate(new Date());
-  }
 
 
 
-  // Get current teaching days from active configuration
-  getCurrentTeachingDays(): string[] {
-    return this.teachingDays();
-  }
 
-  // Get current hidden days for FullCalendar
-  getCurrentHiddenDays(): number[] {
-    return this.hiddenDays();
-  }
-
-  // Check if a specific day is a teaching day
-  isTeachingDay(dayName: string): boolean {
-    return this.teachingDays().includes(dayName);
-  }
-
-  // Get day name from date
-  getDayName(date: Date): string {
-    return date.toLocaleDateString('en-US', { weekday: 'long' });
-  }
-
-  // Check if date falls on a teaching day
-  isDateOnTeachingDay(date: Date): boolean {
-    const dayName = this.getDayName(date);
-    return this.isTeachingDay(dayName);
-  }
-
-
-  // Get  schedule configuration summary
-  getScheduleConfigSummary(): {
-    teachingDays: string[];
-    hiddenDays: number[];
-    periodsPerDay: number;
-    hasSchedule: boolean;
-    optimalView: string;
-    extractedServices: any;
-  } {
-    return {
-      teachingDays: this.getCurrentTeachingDays(),
-      hiddenDays: this.getCurrentHiddenDays(),
-      periodsPerDay: this.periodsPerDay(),
-      hasSchedule: this.scheduleStateService.hasActiveSchedule(),
-      optimalView: this.getOptimalCalendarView(),
-      extractedServices: {
-        template: this.templateService.getDebugInfo(),
-        interaction: this.interactionService.getDebugInfo(),
-        dayCell: this.dayCellService.getDebugInfo()
-      }
-    };
-  }
-
-
-  /**
-   * Update createCalendarOptions to use period configuration
-   */
-  // **REPLACEMENT** - Update createCalendarOptions in calendar-configuration.service.ts
-
-  // **PARTIAL FILE** - Replace these methods in calendar-configuration.service.ts
-
-  // **PARTIAL FILE** - Replace these methods in calendar-configuration.service.ts
 
   createCalendarOptions(
   handleEventClick: (arg: any) => void,
@@ -269,46 +180,7 @@ export class CalendarConfigurationService {
     ) || null;
   }
 
-  /**
-   * MODIFY EXISTING METHOD - Update getOptimalCalendarView to prefer week view
-   */
-  getOptimalCalendarView(): string {
-    const teachingDaysCount = this.teachingDays().length;
-    const periodsCount = this.periodsPerDay();
 
-    // Always prefer week view for period-based display
-    // Month view will be tweaked separately later
-    return 'timeGridWeek';
-  }
-
-  /**
-   * Get period configuration summary for debugging
-   */
-  getPeriodConfigSummary(): {
-    periodsPerDay: number;
-    periodSlots: string[];
-    timeRange: { start: string; end: string };
-    slotDuration: string;
-  } {
-    const periodsCount = this.periodsPerDay();
-    const startHour = 8;
-    const endHour = startHour + periodsCount;
-
-    const periodSlots = [];
-    for (let i = 1; i <= periodsCount; i++) {
-      periodSlots.push(`Period ${i}`);
-    }
-
-    return {
-      periodsPerDay: periodsCount,
-      periodSlots,
-      timeRange: {
-        start: `${startHour.toString().padStart(2, '0')}:00:00`,
-        end: `${endHour.toString().padStart(2, '0')}:00:00`
-      },
-      slotDuration: '01:00:00'
-    };
-  }
 
   // Cleanup method
   cleanup(): void {

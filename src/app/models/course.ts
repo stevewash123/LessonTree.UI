@@ -8,7 +8,7 @@ import { TreeData, TreeNode } from "./tree-node";
 // Models a Course entity with optional topics for lazy loading
 export interface Course extends TreeData {
     topics?: Topic[];
-    nodeType: 'Course'; // Override to specify the concrete type
+    entityType: 'Course'; // Override to specify the concrete type
   }
 
   export function createCourseNode(course: Course): TreeNode {

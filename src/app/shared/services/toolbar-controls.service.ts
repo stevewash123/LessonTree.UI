@@ -7,9 +7,9 @@ import { Injectable, signal, computed, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { LayoutModeService, LayoutMode } from '../../lesson-tree-container/layout-mode.service';
 import { UserService } from '../../user-config/user.service';
-import { DragMode } from '../../lesson-tree/services/tree-interactions/node-drag-mode.service';
-import { NodeOperationsService } from '../../lesson-tree/services/node-operations/node-operations.service';
 import { CourseDataService } from '../../lesson-tree/services/course-data/course-data.service';
+import {NodeOperationsService} from '../../lesson-tree/services/business/node-operations.service';
+import {DragMode} from '../../lesson-tree/services/state/node-drag-mode.service';
 
 export interface CourseFilterState {
   courseFilter: 'active' | 'archived' | 'both';
@@ -81,13 +81,13 @@ export class ToolbarControlsService {
   setCourseFilterState(filterState: Partial<CourseFilterState>): void {
     const currentState = this._courseFilterState();
     const newState = { ...currentState, ...filterState };
-    
+
     console.log('[ToolbarControlsService] Updating course filter state', {
       old: currentState,
       new: newState,
       timestamp: new Date().toISOString()
     });
-    
+
     this._courseFilterState.set(newState);
   }
 
@@ -107,14 +107,14 @@ export class ToolbarControlsService {
   applyCourseFilters(): Observable<void> {
     return new Observable(observer => {
       const filterState = this._courseFilterState();
-      
+
       // Emit filter change event through CourseDataService or similar mechanism
       // This will be picked up by CourseListComponent
       console.log('[ToolbarControlsService] Applying course filters', {
         filterState,
         timestamp: new Date().toISOString()
       });
-      
+
       // For now, just complete - the actual filter application will be handled
       // by the component that listens to courseFilterState changes
       observer.next();

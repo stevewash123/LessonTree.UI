@@ -32,9 +32,9 @@
         <p>Select a node from the tree to view its details, or add a new item.</p>
         
         <!-- Optional: Show selection stats for debugging -->
-        @if (selectedNode(); as node) {
+        @if (selectedEntity(); as entity) {
             <div class="selection-stats">
-              <small>Selected: {{ node.nodeType }}</small>
+              <small>Selected: {{ entity.nodeType }}</small>
             </div>
           }
       </div>

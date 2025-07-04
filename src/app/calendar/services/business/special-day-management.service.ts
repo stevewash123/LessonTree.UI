@@ -74,10 +74,6 @@ export class SpecialDayManagementService implements OnDestroy {
     return this.business.findSpecialDayById(scheduleEventId);
   }
 
-  getSpecialDaysForDate(date: Date): ScheduleEvent[] {
-    console.log('[SpecialDayManagementService] FACADE: Delegating getSpecialDaysForDate to business service');
-    return this.business.getSpecialDaysForDate(date);
-  }
 
   // === VALIDATION - Delegate to Business Service ===
 

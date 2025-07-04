@@ -92,18 +92,6 @@ export class ScheduleConfigurationStateService {
     return this._activeConfiguration();
   }
 
-  clearActiveConfiguration(): void {
-    this._activeConfiguration.set(null);
-    console.log('[ScheduleConfigurationStateService] Active configuration cleared');
-  }
-
-  // === ALL CONFIGURATIONS MANAGEMENT ===
-
-  setAllConfigurations(configurations: ScheduleConfiguration[]): void {
-    this._allConfigurations.set(configurations);
-    console.log(`[ScheduleConfigurationStateService] Set ${configurations.length} configurations`);
-  }
-
   addConfiguration(configuration: ScheduleConfiguration): void {
     const currentConfigs = this._allConfigurations();
     const updatedConfigs = [...currentConfigs, configuration];
@@ -112,75 +100,6 @@ export class ScheduleConfigurationStateService {
     console.log(`[ScheduleConfigurationStateService] Added configuration: ${configuration.title}`);
   }
 
-  updateConfiguration(updatedConfiguration: ScheduleConfiguration): void {
-    const currentConfigs = this._allConfigurations();
-    const updatedConfigs = currentConfigs.map(config =>
-      config.id === updatedConfiguration.id ? updatedConfiguration : config
-    );
-    this._allConfigurations.set(updatedConfigs);
-
-    // Update active configuration if it's the one being updated
-    const activeConfig = this._activeConfiguration();
-    if (activeConfig && activeConfig.id === updatedConfiguration.id) {
-      this._activeConfiguration.set(updatedConfiguration);
-    }
-
-    console.log(`[ScheduleConfigurationStateService] Updated configuration: ${updatedConfiguration.title}`);
-  }
-
-  removeConfiguration(configurationId: number): void {
-    const currentConfigs = this._allConfigurations();
-    const updatedConfigs = currentConfigs.filter(config => config.id !== configurationId);
-    this._allConfigurations.set(updatedConfigs);
-
-    // Clear active configuration if it was the one being removed
-    const activeConfig = this._activeConfiguration();
-    if (activeConfig && activeConfig.id === configurationId) {
-      this._activeConfiguration.set(null);
-    }
-
-    console.log(`[ScheduleConfigurationStateService] Removed configuration with ID: ${configurationId}`);
-  }
-
-  // === LOADING STATE MANAGEMENT ===
-
-  setLoadingConfiguration(loading: boolean): void {
-    this._isLoadingConfiguration.set(loading);
-  }
-
-  // === CONFIGURATION QUERIES ===
-
-  getConfigurationById(id: number): ScheduleConfiguration | null {
-    const configs = this._allConfigurations();
-    return configs.find(config => config.id === id) || null;
-  }
-
-  getActivePeriodAssignments(): SchedulePeriodAssignment[] {
-    const config = this._activeConfiguration();
-    return config?.periodAssignments || [];
-  }
-
-  getAssignedCourseIds(): number[] {
-    const assignments = this.getActivePeriodAssignments();
-    const courseIds = assignments
-      .filter(assignment => assignment.courseId)
-      .map(assignment => assignment.courseId!)
-      .filter((id, index, array) => array.indexOf(id) === index); // Remove duplicates
-
-    return courseIds;
-  }
-
-  hasValidConfigurationForGeneration(): boolean {
-    const config = this._activeConfiguration();
-    if (!config) return false;
-
-    const hasValidPeriods = config.periodsPerDay > 0;
-    const hasPeriodAssignments = config.periodAssignments.length > 0;
-    const hasTeachingDays = config.teachingDays.length > 0;
-    const hasDateRange = !!(config.startDate && config.endDate);
-
-    return hasValidPeriods && hasPeriodAssignments && hasTeachingDays && hasDateRange;
-  }
 
   // === STATE RESET ===
 

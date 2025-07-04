@@ -11,21 +11,21 @@ import { SubTopic } from '../models/subTopic';
 import { Lesson } from '../models/lesson';
 
 export type PanelMode = 'view' | 'edit' | 'add';
-export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+export type EntityType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
 
 // ✅ Observable event interfaces
 export interface PanelModeChangeEvent {
   previousMode: PanelMode;
   newMode: PanelMode;
   trigger: 'user-action' | 'programmatic' | 'reset';
-  nodeType?: NodeType;
+  entityType?: EntityType;
   entityId?: number;
   timestamp: Date;
 }
 
 export interface AddModeInitiatedEvent {
-  nodeType: NodeType;
-  parentNode: Course | Topic | SubTopic | null;
+  entityType: EntityType;
+  parentEntity: Course | Topic | SubTopic | null;
   courseId: number | null;
   template: any;
   timestamp: Date;
@@ -33,7 +33,7 @@ export interface AddModeInitiatedEvent {
 
 export interface EditModeInitiatedEvent {
   entity: Course | Topic | SubTopic | Lesson;
-  entityType: NodeType;
+  entityType: EntityType;
   entityId: number;
   courseId: number | null;
   timestamp: Date;
@@ -46,10 +46,10 @@ export interface PanelStateResetEvent {
 }
 
 export interface TemplateCreatedEvent {
-  nodeType: NodeType;
+  nodeType: EntityType;
   template: any;
   courseId: number | null;
-  parentNode: Course | Topic | SubTopic | null;
+  parentEntity: Course | Topic | SubTopic | null;
   timestamp: Date;
 }
 
@@ -74,15 +74,15 @@ export class PanelStateService {
 
   // ✅ Signal state for reactive UI
   private readonly _panelMode = signal<PanelMode>('view');
-  private readonly _addNodeType = signal<NodeType | null>(null);
+  private readonly _addNodeType = signal<EntityType | null>(null);
   private readonly _parentNode = signal<Course | Topic | SubTopic | null>(null);
   private readonly _courseId = signal<number | null>(null);
   private readonly _nodeTemplate = signal<any | null>(null);
 
   // Public readonly signals for reactive UI
   readonly panelMode = this._panelMode.asReadonly();
-  readonly addNodeType = this._addNodeType.asReadonly();
-  readonly parentNode = this._parentNode.asReadonly();
+  readonly addEntityType = this._addNodeType.asReadonly();
+  readonly parentEntity = this._parentNode.asReadonly();
   readonly courseId = this._courseId.asReadonly();
   readonly nodeTemplate = this._nodeTemplate.asReadonly();
 
@@ -97,7 +97,7 @@ export class PanelStateService {
   readonly isAddMode = computed(() => this._panelMode() === 'add');
 
   readonly addModeContext = computed((): {
-    nodeType: NodeType | null;
+    nodeType: EntityType | null;
     parentNode: Course | Topic | SubTopic | null;
     courseId: number | null;
     template: any | null;
@@ -145,7 +145,7 @@ export class PanelStateService {
   }
 
   // ✅ ENHANCED: Initiate add mode with Observable event emission
-  initiateAddMode(nodeType: NodeType, parentNode: Course | Topic | SubTopic | null = null, courseId?: number): void {
+  initiateAddMode(nodeType: EntityType, parentNode: Course | Topic | SubTopic | null = null, courseId?: number): void {
     const previousMode = this._panelMode();
 
     console.log(`[PanelStateService] Initiating add mode for ${nodeType}`, {
@@ -179,14 +179,14 @@ export class PanelStateService {
       previousMode,
       newMode: 'add',
       trigger: 'programmatic',
-      nodeType,
+      entityType: nodeType,
       timestamp: new Date()
     });
 
     // 2. Add mode initiated event
     this._addModeInitiated$.next({
-      nodeType,
-      parentNode,
+      entityType: nodeType,
+      parentEntity: parentNode,
       courseId: resolvedCourseId,
       template,
       timestamp: new Date()
@@ -197,7 +197,7 @@ export class PanelStateService {
       nodeType,
       template,
       courseId: resolvedCourseId,
-      parentNode,
+      parentEntity: parentNode,
       timestamp: new Date()
     });
 
@@ -223,11 +223,11 @@ export class PanelStateService {
   }
 
   // ✅ ENHANCED: Create basic template with improved debugging
-  private createBasicTemplate(nodeType: NodeType, courseId: number, parentNode: Course | Topic | SubTopic | null): any {
+  private createBasicTemplate(nodeType: EntityType, courseId: number, parentNode: Course | Topic | SubTopic | null): any {
     console.log(`[PanelStateService] Creating template for ${nodeType}`, {
       courseId,
       hasParentNode: !!parentNode,
-      parentNodeType: parentNode?.nodeType,
+      parentNodeType: parentNode?.entityType,
       timestamp: new Date().toISOString()
     });
 
@@ -263,8 +263,8 @@ export class PanelStateService {
         return {
           ...baseTemplate,
           courseId,
-          topicId: parentNode?.nodeType === 'Topic' ? parentNode.id : undefined,
-          subTopicId: parentNode?.nodeType === 'SubTopic' ? parentNode.id : undefined,
+          topicId: parentNode?.entityType === 'Topic' ? parentNode.id : undefined,
+          subTopicId: parentNode?.entityType === 'SubTopic' ? parentNode.id : undefined,
           objective: '',
           methods: '',
           assessment: '',
@@ -279,11 +279,11 @@ export class PanelStateService {
   }
 
   // ✅ ENHANCED: Set add mode with Observable event emission (legacy method)
-  setAddMode(nodeType: NodeType, parentNode: Course | Topic | SubTopic | null = null): void {
+  setAddMode(nodeType: EntityType, parentNode: Course | Topic | SubTopic | null = null): void {
     console.log(`[PanelStateService] setAddMode called (legacy method)`, {
       nodeType,
       hasParentNode: !!parentNode,
-      parentNodeType: parentNode?.nodeType
+      parentNodeType: parentNode?.entityType
     });
 
     // Debug parentNode properties
@@ -302,7 +302,7 @@ export class PanelStateService {
   // ✅ ENHANCED: Set edit mode with Observable event emission
   setEditMode(entity: Course | Topic | SubTopic | Lesson): void {
     const previousMode = this._panelMode();
-    const entityType = entity.nodeType as NodeType;
+    const entityType = entity.entityType as EntityType;
 
     console.log(`[PanelStateService] Setting edit mode`, {
       previousMode,
@@ -329,7 +329,7 @@ export class PanelStateService {
       previousMode,
       newMode: 'edit',
       trigger: 'user-action',
-      nodeType: entityType,
+      entityType: entityType,
       entityId: entity.id,
       timestamp: new Date()
     });

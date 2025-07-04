@@ -32,7 +32,7 @@ export class NodePositioningService {
     
     console.log(`[NodePositioningService] Using enhanced moveLesson API:`, {
       nodeId: node.id,
-      nodeType: node.nodeType,
+      nodeType: node.entityType,
       targetParentId,
       targetParentType,
       relativeToId,
@@ -40,7 +40,7 @@ export class NodePositioningService {
       relativeToType
     });
 
-    if (node.nodeType === 'Lesson') {
+    if (node.entityType === 'Lesson') {
       if (targetParentType !== 'SubTopic' && targetParentType !== 'Topic') {
         console.error(`[NodePositioningService] Invalid parent type: ${targetParentType}`);
         return of({ success: false });
@@ -70,7 +70,7 @@ export class NodePositioningService {
     }
 
     // For other node types, no special positioning logic implemented yet
-    console.log(`[NodePositioningService] Positional move not implemented for ${node.nodeType}`);
+    console.log(`[NodePositioningService] Positional move not implemented for ${node.entityType}`);
     return of({ success: false });
   }
 

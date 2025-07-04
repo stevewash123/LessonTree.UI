@@ -2,17 +2,17 @@
 // DOES NOT: Define CRUD interfaces or detailed entity properties
 // CALLED BY: TreeWrapper components, SyncFusion TreeView, node selection services
 
+import { EntityType } from "../info-panel/panel-state.service";
 import { Course } from "./course";
 import { Lesson } from "./lesson";
 import { SubTopic } from "./subTopic";
 import { Topic } from "./topic";
 
-export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
 
 // TreeNode: Tightly bound to SyncFusion TreeView - DO NOT CHANGE without SyncFusion compatibility check
 export interface TreeNode {
     id: string;
-    nodeType?: NodeType;
+    nodeType?: EntityType;
     hasChildren?: boolean;
     text: string;
     expanded?: boolean;
@@ -27,7 +27,7 @@ export interface TreeData {
     id: number;
     courseId: number;
     nodeId: string;
-    nodeType: 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+    entityType: EntityType;
     title: string;
     description?: string;
     archived: boolean;
@@ -40,9 +40,9 @@ export interface TreeData {
   export interface NodeMovedEvent {
     node: TreeData;               // The node being moved
     sourceParentId?: number;      // Source parent ID (optional)
-    sourceParentType?: NodeType;  // Source parent type (optional)
+    sourceParentType?: EntityType;  // Source parent type (optional)
     targetParentId?: number;      // Target parent ID (where it's moving to)
-    targetParentType?: NodeType;  // Target parent type
+    targetParentType?: EntityType;  // Target parent type
     sourceCourseId?: number;      // Only needed for cross-course moves
     targetCourseId?: number;      // Only needed for cross-course moves
   }
@@ -53,11 +53,11 @@ export interface NodeSelectedEvent {
 
 export interface NodeDeletedEvent {
     node: TreeData;
-    nodeType: NodeType;
+    nodeType: EntityType;
 }
 
 export interface AddNodeEvent {
     parentNode: TreeData | null;
-    nodeType: NodeType;
+    nodeType: EntityType;
     courseId?: number;
 }

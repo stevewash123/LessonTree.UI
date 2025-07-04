@@ -19,7 +19,7 @@ import { Standard } from '../../models/standard';
 import { UserService } from '../../user-config/user.service';
 import { PanelStateService } from '../panel-state.service';
 import { ToastrService } from 'ngx-toastr';
-import { CourseCrudService, LessonSaveCompletedEvent, LessonSaveErrorEvent } from '../../lesson-tree/services/course-operations/course-crud.service';
+import { CourseCrudCoordinationService, LessonSaveCompletedEvent, LessonSaveErrorEvent } from '../../lesson-tree/services/coordination/course-crud-coordination.service';
 
 @Component({
   selector: 'lesson-info-panel',
@@ -71,7 +71,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit, OnDestroy {
   constructor(
     private userService: UserService,
     private panelStateService: PanelStateService,
-    private courseCrudService: CourseCrudService,
+    private courseCrudService: CourseCrudCoordinationService,
     private toastr: ToastrService
   ) {
     console.log('[LessonInfoPanel] Component initialized with Observable event subscriptions');
