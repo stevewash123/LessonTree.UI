@@ -1,4 +1,4 @@
-// **COMPLETE FILE** - TreeEffectsService with Observable pattern migration
+// **COMPLETE FILE** - TreeEffectsService with Entity/TreeData boundary compliance
 // RESPONSIBILITY: Manages reactive effects for tree component, handles signal-based state changes and Observable event coordination.
 // DOES NOT: Handle UI operations, data transformation, or direct service calls.
 // CALLED BY: TreeWrapper for effect setup and coordination during component lifecycle.
@@ -6,10 +6,11 @@
 import { Injectable, effect, EffectRef, inject, Injector, runInInjectionContext } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { Course } from '../../../models/course';
+import { Entity } from '../../../models/entity';
 import { CourseDataService } from '../course-data/course-data.service';
 import { CourseSignalService } from '../course-data/course-signal.service';
-import {TreeData} from '../../../models/tree-node';
-import {EntitySelectionService} from '../state/entity-selection.service';
+import { TreeData, createTreeData } from '../../../models/tree-node';
+import { EntitySelectionService } from '../state/entity-selection.service';
 import { EntitySignalPayload, EntityMoveSignalPayload } from '../course-data/course-signal.service';
 
 export interface TreeEffectCallbacks {
@@ -121,7 +122,9 @@ export class TreeEffectsService {
       const source = this.entitySelectionService.selectionSource();
 
       if (source !== 'tree' && entity) {
-        callbacks.onExternalSelection(entity);
+        // ✅ FIXED: Convert Entity to TreeData for callback
+        const treeData = createTreeData(entity);
+        callbacks.onExternalSelection(treeData);
       }
     });
   }
@@ -134,10 +137,13 @@ export class TreeEffectsService {
 
     // Observable subscription for nodeAdded events
     const nodeAddedSub = this.courseSignalService.entityAdded$.subscribe((addedEvent: EntitySignalPayload) => {
+      // ✅ FIXED: Generate nodeId from entity
+      const nodeId = `${addedEvent.entity.entityType.toLowerCase()}_${addedEvent.entity.id}`;
+
       console.log('🌳 [TreeEffectsService] RECEIVED nodeAdded EVENT (Observable)', {
         courseId: courseId,
-        nodeType: addedEvent.entity.nodeType,
-        nodeId: addedEvent.entity.nodeId,
+        entityType: addedEvent.entity.entityType,
+        nodeId: nodeId,
         nodeTitle: addedEvent.entity.title,
         source: addedEvent.source,
         operationType: addedEvent.operationType,
@@ -159,10 +165,13 @@ export class TreeEffectsService {
 
     // Observable subscription for nodeEdited events
     const nodeEditedSub = this.courseSignalService.entityEdited$.subscribe((editedEvent: EntitySignalPayload) => {
+      // ✅ FIXED: Generate nodeId from entity
+      const nodeId = `${editedEvent.entity.entityType.toLowerCase()}_${editedEvent.entity.id}`;
+
       console.log('🌳 [TreeEffectsService] RECEIVED nodeEdited EVENT (Observable)', {
         courseId: courseId,
-        nodeType: editedEvent.entity.nodeType,
-        nodeId: editedEvent.entity.nodeId,
+        entityType: editedEvent.entity.entityType,
+        nodeId: nodeId,
         nodeTitle: editedEvent.entity.title,
         source: editedEvent.source,
         operationType: editedEvent.operationType,
@@ -177,10 +186,13 @@ export class TreeEffectsService {
 
     // Observable subscription for nodeDeleted events
     const nodeDeletedSub = this.courseSignalService.entityDeleted$.subscribe((deletedEvent: EntitySignalPayload) => {
+      // ✅ FIXED: Generate nodeId from entity
+      const nodeId = `${deletedEvent.entity.entityType.toLowerCase()}_${deletedEvent.entity.id}`;
+
       console.log('🌳 [TreeEffectsService] RECEIVED nodeDeleted EVENT (Observable)', {
         courseId: courseId,
-        nodeType: deletedEvent.entity.nodeType,
-        nodeId: deletedEvent.entity.nodeId,
+        entityType: deletedEvent.entity.entityType,
+        nodeId: nodeId,
         nodeTitle: deletedEvent.entity.title,
         source: deletedEvent.source,
         operationType: deletedEvent.operationType,
@@ -195,10 +207,13 @@ export class TreeEffectsService {
 
     // Observable subscription for nodeMoved events
     const nodeMovedSub = this.courseSignalService.entityMoved$.subscribe((movedEvent: EntityMoveSignalPayload) => {
+      // ✅ FIXED: Generate nodeId from entity
+      const nodeId = `${movedEvent.entity.entityType.toLowerCase()}_${movedEvent.entity.id}`;
+
       console.log('🌳 [TreeEffectsService] RECEIVED nodeMoved EVENT (Observable)', {
         courseId: courseId,
-        nodeType: movedEvent.entity.nodeType,
-        nodeId: movedEvent.entity.nodeId,
+        entityType: movedEvent.entity.entityType,
+        nodeId: nodeId,
         nodeTitle: movedEvent.entity.title,
         source: movedEvent.source,
         affectsThisCourse: this.isNodeInCourse(movedEvent.entity, courseId)
@@ -215,10 +230,15 @@ export class TreeEffectsService {
 
   /**
    * Check if a node belongs to the specified course
+   * ✅ FIXED: Handle both Entity and TreeData types
    */
-  private isNodeInCourse(node: TreeData, courseId: number): boolean {
-    const actualNode = (node as any).node ? (node as any).node : node;
-    return actualNode.courseId === courseId;
+  private isNodeInCourse(nodeOrEntity: Entity | TreeData, courseId: number): boolean {
+    // Extract entity from TreeData wrapper if needed
+    const entity = 'entity' in nodeOrEntity ? (nodeOrEntity as TreeData).entity : nodeOrEntity as Entity;
+
+    // Get courseId from entity based on type
+    const entityCourseId = (entity as any).courseId || entity.id;
+    return entityCourseId === courseId;
   }
 
   /**

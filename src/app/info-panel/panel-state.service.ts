@@ -9,9 +9,10 @@ import { Course } from '../models/course';
 import { Topic } from '../models/topic';
 import { SubTopic } from '../models/subTopic';
 import { Lesson } from '../models/lesson';
+import { EntityType } from '../models/entity';
 
 export type PanelMode = 'view' | 'edit' | 'add';
-export type EntityType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+export type { EntityType } from '../models/entity';
 
 // ✅ Observable event interfaces
 export interface PanelModeChangeEvent {
@@ -46,7 +47,7 @@ export interface PanelStateResetEvent {
 }
 
 export interface TemplateCreatedEvent {
-  nodeType: EntityType;
+  entityType : EntityType;
   template: any;
   courseId: number | null;
   parentEntity: Course | Topic | SubTopic | null;
@@ -74,14 +75,14 @@ export class PanelStateService {
 
   // ✅ Signal state for reactive UI
   private readonly _panelMode = signal<PanelMode>('view');
-  private readonly _addNodeType = signal<EntityType | null>(null);
+  private readonly _addentityType  = signal<EntityType | null>(null);
   private readonly _parentNode = signal<Course | Topic | SubTopic | null>(null);
   private readonly _courseId = signal<number | null>(null);
   private readonly _nodeTemplate = signal<any | null>(null);
 
   // Public readonly signals for reactive UI
   readonly panelMode = this._panelMode.asReadonly();
-  readonly addEntityType = this._addNodeType.asReadonly();
+  readonly addEntityType = this._addentityType .asReadonly();
   readonly parentEntity = this._parentNode.asReadonly();
   readonly courseId = this._courseId.asReadonly();
   readonly nodeTemplate = this._nodeTemplate.asReadonly();
@@ -97,7 +98,7 @@ export class PanelStateService {
   readonly isAddMode = computed(() => this._panelMode() === 'add');
 
   readonly addModeContext = computed((): {
-    nodeType: EntityType | null;
+    entityType : EntityType | null;
     parentNode: Course | Topic | SubTopic | null;
     courseId: number | null;
     template: any | null;
@@ -105,7 +106,7 @@ export class PanelStateService {
     if (this._panelMode() !== 'add') return null;
 
     return {
-      nodeType: this._addNodeType(),
+      entityType : this._addentityType (),
       parentNode: this._parentNode(),
       courseId: this._courseId(),
       template: this._nodeTemplate()
@@ -115,7 +116,7 @@ export class PanelStateService {
   readonly hasValidAddContext = computed(() => {
     const context = this.addModeContext();
     return context !== null &&
-      context.nodeType !== null &&
+      context.entityType  !== null &&
       context.courseId !== null;
   });
 
@@ -145,10 +146,10 @@ export class PanelStateService {
   }
 
   // ✅ ENHANCED: Initiate add mode with Observable event emission
-  initiateAddMode(nodeType: EntityType, parentNode: Course | Topic | SubTopic | null = null, courseId?: number): void {
+  initiateAddMode(entityType : EntityType, parentNode: Course | Topic | SubTopic | null = null, courseId?: number): void {
     const previousMode = this._panelMode();
 
-    console.log(`[PanelStateService] Initiating add mode for ${nodeType}`, {
+    console.log(`[PanelStateService] Initiating add mode for ${entityType }`, {
       previousMode,
       hasParentNode: !!parentNode,
       providedCourseId: courseId,
@@ -163,10 +164,10 @@ export class PanelStateService {
     }
 
     // Create basic template
-    const template = this.createBasicTemplate(nodeType, resolvedCourseId, parentNode);
+    const template = this.createBasicTemplate(entityType , resolvedCourseId, parentNode);
 
     // ✅ Update signal state
-    this._addNodeType.set(nodeType);
+    this._addentityType .set(entityType );
     this._parentNode.set(parentNode);
     this._courseId.set(resolvedCourseId);
     this._nodeTemplate.set(template);
@@ -179,13 +180,13 @@ export class PanelStateService {
       previousMode,
       newMode: 'add',
       trigger: 'programmatic',
-      entityType: nodeType,
+      entityType: entityType ,
       timestamp: new Date()
     });
 
     // 2. Add mode initiated event
     this._addModeInitiated$.next({
-      entityType: nodeType,
+      entityType: entityType ,
       parentEntity: parentNode,
       courseId: resolvedCourseId,
       template,
@@ -194,7 +195,7 @@ export class PanelStateService {
 
     // 3. Template created event
     this._templateCreated$.next({
-      nodeType,
+      entityType ,
       template,
       courseId: resolvedCourseId,
       parentEntity: parentNode,
@@ -202,7 +203,7 @@ export class PanelStateService {
     });
 
     console.log(`[PanelStateService] Add mode initiated successfully`, {
-      nodeType,
+      entityType ,
       courseId: resolvedCourseId,
       templateCreated: !!template,
       timestamp: new Date().toISOString()
@@ -223,11 +224,11 @@ export class PanelStateService {
   }
 
   // ✅ ENHANCED: Create basic template with improved debugging
-  private createBasicTemplate(nodeType: EntityType, courseId: number, parentNode: Course | Topic | SubTopic | null): any {
-    console.log(`[PanelStateService] Creating template for ${nodeType}`, {
+  private createBasicTemplate(entityType : EntityType, courseId: number, parentNode: Course | Topic | SubTopic | null): any {
+    console.log(`[PanelStateService] Creating template for ${entityType }`, {
       courseId,
       hasParentNode: !!parentNode,
-      parentNodeType: parentNode?.entityType,
+      parententityType : parentNode?.entityType,
       timestamp: new Date().toISOString()
     });
 
@@ -238,10 +239,10 @@ export class PanelStateService {
       archived: false,
       visibility: 'Private',
       courseId,
-      nodeType
+      entityType
     };
 
-    switch (nodeType) {
+    switch (entityType ) {
       case 'Course':
         return baseTemplate;
 
@@ -279,11 +280,11 @@ export class PanelStateService {
   }
 
   // ✅ ENHANCED: Set add mode with Observable event emission (legacy method)
-  setAddMode(nodeType: EntityType, parentNode: Course | Topic | SubTopic | null = null): void {
+  setAddMode(entityType : EntityType, parentNode: Course | Topic | SubTopic | null = null): void {
     console.log(`[PanelStateService] setAddMode called (legacy method)`, {
-      nodeType,
+      entityType ,
       hasParentNode: !!parentNode,
-      parentNodeType: parentNode?.entityType
+      parententityType : parentNode?.entityType
     });
 
     // Debug parentNode properties
@@ -296,7 +297,7 @@ export class PanelStateService {
     const resolvedCourseId = this.extractCourseId(parentNode);
 
     // Use the enhanced initiateAddMode method
-    this.initiateAddMode(nodeType, parentNode, resolvedCourseId || undefined);
+    this.initiateAddMode(entityType , parentNode, resolvedCourseId || undefined);
   }
 
   // ✅ ENHANCED: Set edit mode with Observable event emission
@@ -318,7 +319,7 @@ export class PanelStateService {
 
     // ✅ Update signal state
     this._panelMode.set('edit');
-    this._addNodeType.set(null);
+    this._addentityType .set(null);
     this._parentNode.set(null);
     this._courseId.set(resolvedCourseId);
 
@@ -362,7 +363,7 @@ export class PanelStateService {
 
     // ✅ Update signal state
     this._panelMode.set('view');
-    this._addNodeType.set(null);
+    this._addentityType .set(null);
     this._parentNode.set(null);
 
     // ✅ Emit Observable events
@@ -391,7 +392,7 @@ export class PanelStateService {
 
     // ✅ Update signal state
     this._panelMode.set('view');
-    this._addNodeType.set(null);
+    this._addentityType .set(null);
     this._parentNode.set(null);
     this._courseId.set(null);
     this._nodeTemplate.set(null);

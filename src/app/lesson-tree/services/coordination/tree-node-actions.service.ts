@@ -1,7 +1,7 @@
-// **COMPLETE FILE** - TreeNodeActionsService - Observable Infrastructure REMOVED
-// RESPONSIBILITY: Handles tree node actions (add, delete, select) and coordinates with business services.
-// DOES NOT: Handle tree UI state, data transformation, or SyncFusion integration.
-// CALLED BY: TreeWrapper for user-initiated node actions and selections.
+// **COMPLETE FILE** - tree-interactions/tree-node-actions.service.ts
+// RESPONSIBILITY: Handles tree node actions (add, delete, select) and coordinates with business services using Entity architecture
+// DOES NOT: Handle tree UI state, data transformation, or SyncFusion integration directly
+// CALLED BY: TreeWrapper for user-initiated node actions and selections
 
 import { Injectable } from '@angular/core';
 import { PanelStateService } from '../../../info-panel/panel-state.service';
@@ -9,18 +9,19 @@ import { Course } from '../../../models/course';
 import { Lesson } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
 import { Topic } from '../../../models/topic';
-import { TreeNode, TreeData } from '../../../models/tree-node';
+import { Entity, EntityType } from '../../../models/entity';
+import { TreeNode } from '../../../models/tree-node';
 import { OperationMetadata } from '../course-data/course-data.service';
 import { CourseCrudService } from '../course-operations/course-crud.service';
-import { TreeDataService } from '../ui/tree-data.service';
-import { EntitySelectionService } from '../state/entity-selection.service';
-import { NodeType } from '../../../models/shared';
+import { treeNodeToEntity, isCourse, isTopic, isSubTopic, isLesson, castToEntityType, generateNodeIdFromEntity } from '../../../shared/utils/type-conversion.utils';
+import {EntitySelectionService} from '../state/entity-selection.service';
+import {TreeNodeBuilderService} from '../ui/tree-node-builder.service';
 
 export interface NodeActionResult {
   success: boolean;
   action: 'select' | 'add' | 'delete' | 'auto-select';
   nodeId?: string;
-  nodeType?: NodeType;
+  entityType?: EntityType;
   error?: string;
 }
 
@@ -44,9 +45,9 @@ export class TreeNodeActionsService {
     private nodeSelectionService: EntitySelectionService,
     private panelStateService: PanelStateService,
     private courseCrudService: CourseCrudService,
-    private treeDataService: TreeDataService
+    private treeNodeBuilderService: TreeNodeBuilderService
   ) {
-    console.log('[TreeNodeActionsService] Service initialized for node action coordination');
+    console.log('[TreeNodeActionsService] Service initialized for node action coordination with Entity architecture');
   }
 
   // Update action statistics
@@ -72,24 +73,35 @@ export class TreeNodeActionsService {
     }
 
     // Use TreeDataService to find the node
-    const selectedTreeNode = this.treeDataService.findNodeById(treeData, args.nodeData.id);
+    const selectedTreeNode = this.treeNodeBuilderService.findNodeById(treeData, args.nodeData.id);
 
     if (selectedTreeNode && selectedTreeNode.original) {
-      // Update the selection service
-      this.nodeSelectionService.selectNode(selectedTreeNode.original as TreeData, 'tree');
+      const entity = this.extractEntityFromTreeNode(selectedTreeNode);
+
+      if (!entity) {
+        return {
+          success: false,
+          action: 'select',
+          nodeId: args.nodeData.id,
+          error: 'Could not extract entity from tree node'
+        };
+      }
+
+      // Update the selection service with Entity
+      this.nodeSelectionService.selectNode(entity, 'tree');
 
       const result: NodeActionResult = {
         success: true,
         action: 'select',
-        nodeId: selectedTreeNode.original.nodeId,
-        nodeType: selectedTreeNode.original.entityType as NodeType
+        nodeId: generateNodeIdFromEntity(entity),
+        entityType: entity.entityType as EntityType
       };
 
       this.updateActionStats('select');
 
       console.log('[TreeNodeActionsService] Node selected:', {
         nodeId: result.nodeId,
-        nodeType: result.nodeType,
+        entityType: result.entityType,
         action: 'select'
       });
 
@@ -133,24 +145,35 @@ export class TreeNodeActionsService {
     }
 
     // Use TreeDataService to find the expanded node
-    const expandedTreeNode = this.treeDataService.findNodeById(treeData, args.nodeData.id);
+    const expandedTreeNode = this.treeNodeBuilderService.findNodeById(treeData, args.nodeData.id);
 
     if (expandedTreeNode && expandedTreeNode.original) {
+      const entity = this.extractEntityFromTreeNode(expandedTreeNode);
+
+      if (!entity) {
+        return {
+          success: false,
+          action: 'auto-select',
+          nodeId: args.nodeData.id,
+          error: 'Could not extract entity from expanded node'
+        };
+      }
+
       // Select with 'tree' source so TreeWrapper doesn't react to its own selection
-      this.nodeSelectionService.selectNode(expandedTreeNode.original as TreeData, 'tree');
+      this.nodeSelectionService.selectNode(entity, 'tree');
 
       const result: NodeActionResult = {
         success: true,
         action: 'auto-select',
-        nodeId: expandedTreeNode.original.nodeId,
-        nodeType: expandedTreeNode.original.entityType as NodeType
+        nodeId: generateNodeIdFromEntity(entity),
+        entityType: entity.entityType as EntityType
       };
 
       this.updateActionStats('auto-select');
 
       console.log('[TreeNodeActionsService] Auto-selected on expand:', {
         nodeId: result.nodeId,
-        nodeType: result.nodeType,
+        entityType: result.entityType,
         action: 'auto-select'
       });
 
@@ -172,12 +195,12 @@ export class TreeNodeActionsService {
    */
   initiateAddChildNode(
     data: any,
-    childType: NodeType,
+    childType: EntityType,
     treeData: TreeNode[],
     courseId: number
   ): NodeActionResult {
     const nodeId = data.id;
-    const node = this.treeDataService.findNodeById(treeData, nodeId);
+    const node = this.treeNodeBuilderService.findNodeById(treeData, nodeId);
 
     if (!node || !node.original) {
       console.warn('[TreeNodeActionsService] Could not find node data for add child action:', nodeId);
@@ -190,27 +213,35 @@ export class TreeNodeActionsService {
       };
     }
 
-    const treeData_ = node.original as TreeData;
+    const entity = this.extractEntityFromTreeNode(node);
+    if (!entity) {
+      return {
+        success: false,
+        action: 'add',
+        nodeId,
+        error: 'Could not extract entity from parent node'
+      };
+    }
 
     // Cast to specific entity type for panel state service
-    const parentEntity = this.castToSpecificEntityType(treeData_);
+    const parentEntity = this.castToSpecificEntityType(entity);
     if (!parentEntity) {
       return {
         success: false,
         action: 'add',
-        nodeId: treeData_.nodeId,
+        nodeId: generateNodeIdFromEntity(entity),
         error: 'Cannot cast to specific entity type'
       };
     }
 
     // Extract business entity ID
-    const businessEntityId = this.extractBusinessEntityId(treeData_);
-    if (!businessEntityId) {
+    const businessEntityId = entity.id;
+    if (!businessEntityId || businessEntityId <= 0) {
       return {
         success: false,
         action: 'add',
-        nodeId: treeData_.nodeId,
-        error: 'Cannot extract business entity ID'
+        nodeId: generateNodeIdFromEntity(entity),
+        error: 'Invalid business entity ID'
       };
     }
 
@@ -219,15 +250,15 @@ export class TreeNodeActionsService {
     const result: NodeActionResult = {
       success: true,
       action: 'add',
-      nodeId: treeData_.nodeId,
-      nodeType: childType
+      nodeId: generateNodeIdFromEntity(entity),
+      entityType: childType
     };
 
     this.updateActionStats('add');
 
     console.log('[TreeNodeActionsService] Add child node initiated:', {
-      parentNodeId: treeData_.nodeId,
-      parentNodeType: treeData_.entityType,
+      parentNodeId: generateNodeIdFromEntity(entity),
+      parentEntityType: entity.entityType,
       childType,
       action: 'add'
     });
@@ -236,23 +267,28 @@ export class TreeNodeActionsService {
   }
 
   /**
-   * Cast TreeData to specific entity type for PanelStateService
+   * Cast Entity to specific entity type for PanelStateService
    */
-  private castToSpecificEntityType(treeData: TreeData): Course | Topic | SubTopic | null {
-    switch (treeData.entityType) {
-      case 'Course':
-        return treeData as Course;
-      case 'Topic':
-        return treeData as Topic;
-      case 'SubTopic':
-        return treeData as SubTopic;
-      case 'Lesson':
-        // Lessons can't have children, but handle gracefully
-        console.warn('[TreeNodeActionsService] Lessons cannot be parent entities');
-        return null;
-      default:
-        console.warn('[TreeNodeActionsService] Unknown entity type for casting:', treeData.entityType);
-        return null;
+  private castToSpecificEntityType(entity: Entity): Course | Topic | SubTopic | null {
+    try {
+      switch (entity.entityType) {
+        case 'Course':
+          return castToEntityType<Course>(entity, 'Course');
+        case 'Topic':
+          return castToEntityType<Topic>(entity, 'Topic');
+        case 'SubTopic':
+          return castToEntityType<SubTopic>(entity, 'SubTopic');
+        case 'Lesson':
+          // Lessons can't have children, but handle gracefully
+          console.warn('[TreeNodeActionsService] Lessons cannot be parent entities');
+          return null;
+        default:
+          console.warn('[TreeNodeActionsService] Unknown entity type for casting:', entity.entityType);
+          return null;
+      }
+    } catch (error) {
+      console.error('[TreeNodeActionsService] Error casting entity to specific type:', error);
+      return null;
     }
   }
 
@@ -265,7 +301,7 @@ export class TreeNodeActionsService {
     courseId: number
   ): NodeActionResult {
     const nodeId = data.id;
-    const node = this.treeDataService.findNodeById(treeData, nodeId);
+    const node = this.treeNodeBuilderService.findNodeById(treeData, nodeId);
 
     if (!node) {
       console.warn(`[TreeNodeActionsService] Node not found for deletion:`, nodeId);
@@ -278,16 +314,23 @@ export class TreeNodeActionsService {
       };
     }
 
-    // Extract business entity ID
-    const businessEntity = node.original as TreeData;
-    const entityId = this.extractBusinessEntityId(businessEntity);
-
-    if (!entityId) {
+    const entity = this.extractEntityFromTreeNode(node);
+    if (!entity) {
       return {
         success: false,
         action: 'delete',
         nodeId: node.id,
-        error: 'Could not extract business entity ID'
+        error: 'Could not extract entity from node'
+      };
+    }
+
+    const entityId = entity.id;
+    if (!entityId || entityId <= 0) {
+      return {
+        success: false,
+        action: 'delete',
+        nodeId: node.id,
+        error: 'Invalid entity ID for deletion'
       };
     }
 
@@ -299,7 +342,7 @@ export class TreeNodeActionsService {
 
     // Call appropriate business service for deletion
     try {
-      switch (node.nodeType) {
+      switch (entity.entityType) {
         case 'Course':
           this.courseCrudService.deleteCourse(entityId).subscribe();
           break;
@@ -313,21 +356,21 @@ export class TreeNodeActionsService {
           this.courseCrudService.deleteLesson(entityId).subscribe();
           break;
         default:
-          throw new Error(`Unsupported node type for deletion: ${node.nodeType}`);
+          throw new Error(`Unsupported node type for deletion: ${entity.entityType}`);
       }
 
       const result: NodeActionResult = {
         success: true,
         action: 'delete',
         nodeId: node.id,
-        nodeType: node.nodeType as NodeType
+        entityType: entity.entityType as EntityType
       };
 
       this.updateActionStats('delete');
 
       console.log('[TreeNodeActionsService] Node deletion initiated:', {
         nodeId: node.id,
-        nodeType: node.nodeType,
+        entityType: entity.entityType,
         entityId,
         action: 'delete'
       });
@@ -340,32 +383,25 @@ export class TreeNodeActionsService {
         success: false,
         action: 'delete',
         nodeId: node.id,
-        nodeType: node.nodeType as NodeType,
+        entityType: entity.entityType as EntityType,
         error: error instanceof Error ? error.message : 'Deletion initiation error'
       };
     }
   }
 
   /**
-   * Extract business entity ID while isolating from TreeData properties
+   * Extract Entity from TreeNode (safe operation)
    */
-  private extractBusinessEntityId(entity: TreeData): number | null {
+  private extractEntityFromTreeNode(treeNode: TreeNode): Entity | null {
     try {
-      switch (entity.entityType) {
-        case 'Course':
-          return (entity as Course).id;
-        case 'Topic':
-          return (entity as Topic).id;
-        case 'SubTopic':
-          return (entity as SubTopic).id;
-        case 'Lesson':
-          return (entity as Lesson).id;
-        default:
-          console.warn(`[TreeNodeActionsService] Unknown entity type for ID extraction: ${entity.entityType}`);
-          return null;
+      if (!treeNode?.original) {
+        console.warn('[TreeNodeActionsService] TreeNode missing original entity reference');
+        return null;
       }
+
+      return treeNodeToEntity(treeNode);
     } catch (error) {
-      console.error('[TreeNodeActionsService] Error extracting business entity ID:', error);
+      console.error('[TreeNodeActionsService] Failed to extract entity from TreeNode:', error);
       return null;
     }
   }
@@ -373,8 +409,8 @@ export class TreeNodeActionsService {
   /**
    * Get node type icon (delegated to TreeDataService)
    */
-  getNodeTypeIcon(nodeType: string): string {
-    return this.treeDataService.getNodeTypeIcon(nodeType);
+  getEntityTypeIcon(entityType: string): string {
+    return this.treeNodeBuilderService.getEntityTypeIcon(entityType);
   }
 
   /**
@@ -382,15 +418,15 @@ export class TreeNodeActionsService {
    */
   validateNodeAction(
     action: 'add' | 'delete' | 'select',
-    nodeType: NodeType,
-    childType?: NodeType
+    entityType: EntityType,
+    childType?: EntityType
   ): { isValid: boolean; reason?: string } {
     switch (action) {
       case 'add':
         if (!childType) {
           return { isValid: false, reason: 'Child type required for add action' };
         }
-        return this.validateAddChild(nodeType, childType);
+        return this.validateAddChild(entityType, childType);
 
       case 'delete':
         return { isValid: true }; // All node types can be deleted
@@ -407,10 +443,10 @@ export class TreeNodeActionsService {
    * Validate if a parent can have a specific child type
    */
   private validateAddChild(
-    parentType: NodeType,
-    childType: NodeType
+    parentType: EntityType,
+    childType: EntityType
   ): { isValid: boolean; reason?: string } {
-    const validRelationships: Record<NodeType, NodeType[]> = {
+    const validRelationships: Record<EntityType, EntityType[]> = {
       'Course': ['Topic'],
       'Topic': ['SubTopic', 'Lesson'],
       'SubTopic': ['Lesson'],
@@ -449,9 +485,10 @@ export class TreeNodeActionsService {
     return {
       actionStats: this.getActionStats(),
       serviceArchitecture: {
-        delegates: ['NodeSelectionService', 'PanelStateService', 'CourseCrudService', 'TreeDataService'],
+        delegates: ['EntitySelectionService', 'PanelStateService', 'CourseCrudService', 'TreeNodeBuilderService'],
         responsibilities: ['Node selection coordination', 'Add/delete actions', 'Business service delegation'],
-        hasObservableEvents: false
+        hasObservableEvents: false,
+        entityArchitecture: true
       },
       supportedActions: ['select', 'add', 'delete', 'auto-select'],
       validParentChildRelationships: {

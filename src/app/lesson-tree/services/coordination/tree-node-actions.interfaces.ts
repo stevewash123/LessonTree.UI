@@ -2,24 +2,24 @@
 // RESPONSIBILITY: Type definitions for node action coordination events
 
 
-import {NodeType} from '../../../models/shared';
+import {entityType } from '../../../models/shared';
 
 export interface NodeActionResult {
   success: boolean;
   action: 'select' | 'add' | 'delete' | 'auto-select';
   nodeId?: string;
-  nodeType?: NodeType;
+  entityType ?: entityType ;
   error?: string;
 }
 
 export interface NodeActionEvent {
   action: 'select' | 'add' | 'delete' | 'auto-select';
   nodeId: string;
-  nodeType: NodeType;
+  entityType : entityType ;
   success: boolean;
   metadata?: {
     parentId?: string;
-    childType?: NodeType;
+    childType?: entityType ;
     selectionSource?: string;
     userAction?: string;
     entityId?: number;
@@ -30,11 +30,11 @@ export interface NodeActionEvent {
 
 export interface SelectionCoordinationEvent {
   selectedNodeId: string;
-  selectedNodeType: NodeType;
+  selectedentityType : entityType ;
   selectionSource: 'tree' | 'external';
   previousSelection?: {
     nodeId: string;
-    nodeType: NodeType;
+    entityType : entityType ;
   };
   timestamp: Date;
 }
@@ -42,8 +42,8 @@ export interface SelectionCoordinationEvent {
 export interface NodeActionInitiationEvent {
   action: 'add' | 'delete';
   targetNodeId: string;
-  targetNodeType: NodeType;
-  childType?: NodeType;
+  targetentityType : entityType ;
+  childType?: entityType ;
   userTrigger: 'context-menu' | 'button' | 'keyboard';
   timestamp: Date;
 }

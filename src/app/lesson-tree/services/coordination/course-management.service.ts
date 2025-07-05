@@ -138,7 +138,7 @@ export class CourseManagementService {
       courseTitle: course?.title,
       error,
       hasSelection: !!selectedNode,
-      nodeType: selectedNode?.entityType
+      entityType : selectedNode?.entityType
     });
 
     return { isValid, courseId, course, error };

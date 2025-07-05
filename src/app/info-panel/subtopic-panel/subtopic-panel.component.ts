@@ -21,22 +21,22 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
   @Input()
   set data(value: SubTopic | null) {
     this._data = value;
-    console.log(`[SubtopicPanel] Data set`, { 
-      title: this._data?.title ?? 'New SubTopic', 
-      timestamp: new Date().toISOString() 
+    console.log(`[SubtopicPanel] Data set`, {
+      title: this._data?.title ?? 'New SubTopic',
+      timestamp: new Date().toISOString()
     });
   }
   get data(): SubTopic | null {
     return this._data;
   }
-  
+
   originalData: SubTopic | null = null;
 
   // Access mode from centralized service
   get mode() {
     return this.panelStateService.panelMode();
   }
-  
+
   get isEditing(): boolean {
     return this.mode === 'edit' || this.mode === 'add';
   }
@@ -51,15 +51,15 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {
-    console.log('[SubtopicPanel] Component initialized with signals optimization', { 
-      timestamp: new Date().toISOString() 
+    console.log('[SubtopicPanel] Component initialized with signals optimization', {
+      timestamp: new Date().toISOString()
     });
 
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[SubtopicPanel] Mode changed to: ${currentMode}`, { 
-        timestamp: new Date().toISOString() 
+      console.log(`[SubtopicPanel] Mode changed to: ${currentMode}`, {
+        timestamp: new Date().toISOString()
       });
       this.updateEditingState();
     });
@@ -68,11 +68,11 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     effect(() => {
       const template = this.panelStateService.nodeTemplate();
       const mode = this.panelStateService.panelMode();
-      
-      if (mode === 'add' && template && template.nodeType === 'SubTopic') {
+
+      if (mode === 'add' && template && template.entityType  === 'SubTopic') {
         this._data = template as SubTopic;
-        console.log(`[SubtopicPanel] Using template for new subtopic`, { 
-          timestamp: new Date().toISOString() 
+        console.log(`[SubtopicPanel] Using template for new subtopic`, {
+          timestamp: new Date().toISOString()
         });
       }
     });
@@ -90,7 +90,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
 
   private updateEditingState() {
     if (this.mode === 'edit' && this.data && !this.originalData) {
-      this.originalData = { ...this.data };
+      this.originalData = this.data.clone();
       console.log(`[SubtopicPanel] Stored original data for editing: ${this.originalData.title}`);
     } else if (this.mode === 'add' && this.data) {
       this.data.archived = false;
@@ -104,7 +104,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
 
   enterEditMode() {
     if (this.data) {
-      this.originalData = { ...this.data };
+      this.originalData = this.data.clone();
       this.panelStateService.setMode('edit');
       console.log(`[SubtopicPanel] Entered edit mode for ${this.data.title}`);
     }
@@ -118,16 +118,16 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
         next: (createdSubTopic) => {
           this.data = createdSubTopic;
           this.panelStateService.setMode('view');
-          console.log(`[SubtopicPanel] SubTopic created`, { 
-            title: createdSubTopic.title, 
-            timestamp: new Date().toISOString() 
+          console.log(`[SubtopicPanel] SubTopic created`, {
+            title: createdSubTopic.title,
+            timestamp: new Date().toISOString()
           });
           this.toastr.success(`SubTopic "${createdSubTopic.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[SubtopicPanel] Error creating subtopic`, { 
-            error, 
-            timestamp: new Date().toISOString() 
+          console.error(`[SubtopicPanel] Error creating subtopic`, {
+            error,
+            timestamp: new Date().toISOString()
           });
           this.toastr.error('Failed to create subtopic: ' + error.message, 'Error');
         }
@@ -137,16 +137,16 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
         next: (updatedSubTopic) => {
           this.panelStateService.setMode('view');
           this.originalData = null;
-          console.log(`[SubtopicPanel] SubTopic updated`, { 
-            title: updatedSubTopic.title, 
-            timestamp: new Date().toISOString() 
+          console.log(`[SubtopicPanel] SubTopic updated`, {
+            title: updatedSubTopic.title,
+            timestamp: new Date().toISOString()
           });
           this.toastr.success(`SubTopic "${updatedSubTopic.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[SubtopicPanel] Error updating subtopic`, { 
-            error, 
-            timestamp: new Date().toISOString() 
+          console.error(`[SubtopicPanel] Error updating subtopic`, {
+            error,
+            timestamp: new Date().toISOString()
           });
           this.toastr.error('Failed to update subtopic: ' + error.message, 'Error');
         }

@@ -96,11 +96,12 @@ export class LessonSequenceCoordinationService implements OnDestroy {
 
     // ✅ Subscribe to lesson added events for fresh data coordination
     const lessonAddedSub = this.courseSignalService.entityAdded$.subscribe((event: EntitySignalPayload) => {
-      if (event.entity.nodeType === 'Lesson') {
+      if (event.entity.entityType === 'Lesson') {
+        const courseId = this.getCourseIdFromEntity(event.entity);
         console.log('[LessonSequenceCoordinationService] RECEIVED lesson added EVENT (Observable):', {
           lessonTitle: event.entity.title,
-          lessonId: event.entity.nodeId,
-          courseId: event.entity.courseId,
+          lessonId: event.entity.id,
+          courseId: courseId,
           source: event.source,
           operationType: event.operationType,
           timestamp: event.timestamp.toISOString(),
@@ -112,6 +113,22 @@ export class LessonSequenceCoordinationService implements OnDestroy {
 
     this.subscriptions.push(lessonAddedSub);
     console.log('[LessonSequenceCoordinationService] Cross-service subscriptions setup complete');
+  }
+
+  private getCourseIdFromEntity(entity: any): number {
+    switch (entity.entityType) {
+      case 'Course':
+        return entity.id;
+      case 'Topic':
+        return entity.courseId || 0;
+      case 'SubTopic':
+        return entity.courseId || 0;
+      case 'Lesson':
+        return entity.courseId || 0;
+      default:
+        console.warn('[LessonSequenceCoordinationService] Unknown entity type for courseId extraction:', entity.entityType);
+        return 0;
+    }
   }
 
   // === COORDINATED OPERATIONS ===

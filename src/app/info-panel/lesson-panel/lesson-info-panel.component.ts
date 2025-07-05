@@ -89,7 +89,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit, OnDestroy {
       const template = this.panelStateService.nodeTemplate();
       const mode = this.panelStateService.panelMode();
 
-      if (mode === 'add' && template && template.nodeType === 'Lesson') {
+      if (mode === 'add' && template && template.entityType  === 'Lesson') {
         this._lessonDetail = template as LessonDetail;
         console.log(`[LessonInfoPanel] Using template for new lesson`, {
           timestamp: new Date().toISOString()
@@ -152,7 +152,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   private updateEditingState() {
     if (this.mode === 'edit' && this.lessonDetail && !this.originalLessonDetail) {
-      this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail));
+      this.originalLessonDetail = this.lessonDetail.clone();
       console.log(`[LessonInfoPanel] Stored original data for editing: ${this.originalLessonDetail!.title}`);
     } else if (this.mode === 'add' && this.lessonDetail) {
       this.lessonDetail.archived = false;
@@ -173,7 +173,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit, OnDestroy {
 
   enterEditMode() {
     if (this.lessonDetail) {
-      this.originalLessonDetail = JSON.parse(JSON.stringify(this.lessonDetail));
+      this.originalLessonDetail = this.lessonDetail.clone();
       this.panelStateService.setMode('edit');
       console.log(`[LessonInfoPanel] Entered edit mode for ${this.lessonDetail.title}`);
     }

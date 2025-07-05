@@ -53,8 +53,8 @@ export class LessonTreeContainerComponent {
 
   // Computed panel titles for display (now dynamic for details panel)
   readonly panelTitles = computed(() => {
-    const selectedNodeType = this.nodeSelectionService.selectedEntityType();
-    const detailsTitle = selectedNodeType ? `${selectedNodeType} Details` : 'Details';
+    const selectedentityType  = this.nodeSelectionService.selectedEntityType();
+    const detailsTitle = selectedentityType  ? `${selectedentityType } Details` : 'Details';
 
     const titles: Record<SplitPanelType, string> = {
       'tree': 'Course Tree',

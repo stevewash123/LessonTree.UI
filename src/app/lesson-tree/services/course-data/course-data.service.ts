@@ -1,9 +1,11 @@
+// **COMPLETE FILE** - course-data/course-data.service.ts
 // RESPONSIBILITY: Signal management and service coordination. Pure signal emission for node operations.
 // DOES NOT: Handle data storage, mutations, or filtering logic.
 // CALLED BY: CourseCrudService, TreeWrapper, Calendar, NodeOperationsService
 
 import { Injectable, signal, effect } from '@angular/core';
 import { Course } from '../../../models/course';
+import { Entity } from '../../../models/entity';
 import { TreeData } from '../../../models/tree-node';
 import { CourseDataStorageService } from './course-data-storage.service';
 import { CourseTreeMutationService } from './course-tree-mutation.service';
@@ -13,6 +15,8 @@ import { CourseSignalService } from './course-signal.service';
 
 export type OperationType =
   | 'USER_ADD'      // User clicked add button, used form to create
+  | 'USER_EDIT'     // User edited entity via form
+  | 'USER_DELETE'   // User deleted entity via context menu
   | 'API_RESPONSE'  // Generic API response (legacy fallback)
   | 'BULK_LOAD'     // Initial load or full refresh from API
   | 'DRAG_MOVE'     // Drag and drop operation completed
@@ -31,7 +35,7 @@ export interface OperationMetadata {
   };
   bulkInfo?: {
     totalNodes: number;
-    nodeType: string;
+    entityType: string;
     loadType: 'initial' | 'refresh' | 'filter';
   };
 }
@@ -118,21 +122,18 @@ export class CourseDataService {
     this.filteredCoursesCount = this.filterService.filteredCoursesCount;
     this.hasFilteredData = this.filterService.hasFilteredData;
     this.isFilteredEmpty = this.filterService.isFilteredEmpty;
-
-    // ❌ REMOVED: setupSignalSubscriptions() - was causing infinite loop
-    // The public methods (addEntity, updateEntity, removeEntity) already handle
-    // both storage updates AND signal emission, so the effect subscriptions
-    // were duplicating the storage updates
   }
 
   // === SIGNAL EMISSION METHODS (CORE RESPONSIBILITY) ===
+
   emitNodeAdded(
     node: TreeData,
     source: ChangeSource = 'api',
     operationType: OperationType = 'API_RESPONSE',
     metadata?: OperationMetadata
   ): void {
-    this.signalService.emitNodeAdded(node, source, operationType); // Fix: Remove metadata param
+    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
+    this.signalService.emitNodeAdded(node.entity, source, operationType);
   }
 
   emitNodeEdited(
@@ -141,7 +142,8 @@ export class CourseDataService {
     operationType: OperationType = 'API_RESPONSE',
     metadata?: OperationMetadata
   ): void {
-    this.signalService.emitNodeEdited(node, source, operationType); // Fix: Remove metadata param
+    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
+    this.signalService.emitNodeEdited(node.entity, source, operationType);
   }
 
   emitNodeDeleted(
@@ -150,7 +152,8 @@ export class CourseDataService {
     operationType: OperationType = 'API_RESPONSE',
     metadata?: OperationMetadata
   ): void {
-    this.signalService.emitNodeDeleted(node, source, operationType); // Fix: Remove metadata param
+    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
+    this.signalService.emitNodeDeleted(node.entity, source, operationType);
   }
 
   emitNodeMoved(
@@ -158,7 +161,8 @@ export class CourseDataService {
     changeSource: ChangeSource = 'api',
     operationType: OperationType = 'DRAG_MOVE'
   ): void {
-    this.signalService.emitNodeMoved(event.node, event.sourceLocation, event.targetLocation, changeSource); // Fix: Match expected signature
+    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
+    this.signalService.emitNodeMoved(event.node.entity, event.sourceLocation, event.targetLocation, changeSource);
   }
 
   setCourses(courses: Course[], source: ChangeSource = 'initialization'): void {
@@ -233,13 +237,13 @@ export class CourseDataService {
    * Add entity with storage update and event emission
    */
   addEntity(
-    entity: any,
+    entity: Entity,  // ✅ FIXED: Accept Entity directly, not TreeData
     source: string,
     operationType: OperationType = 'USER_ADD',
     metadata?: OperationMetadata
   ): void {
     console.log(`[CourseDataService] Adding entity with operation context`, {
-      entityType: entity.nodeType,
+      entityType: entity.entityType,
       entityId: entity.id,
       source,
       operationType,
@@ -250,19 +254,16 @@ export class CourseDataService {
     // Update storage first
     this.mutationService.addEntity(entity);
 
-    // ✅ UPDATED: Use entity-based method names
+    // ✅ FIXED: Pass Entity directly to signal service
     this.signalService.emitEntityAdded(entity, source, operationType);
-
-    // 🔄 LEGACY: Also emit signal for backward compatibility during migration
-    this.signalService.emitNodeAdded(entity, source, operationType);
   }
 
   /**
    * Update entity with storage update and event emission
    */
-  updateEntity(entity: any, source: string): void {
+  updateEntity(entity: Entity, source: string): void {  // ✅ FIXED: Accept Entity directly
     console.log(`[CourseDataService] Updating entity`, {
-      entityType: entity.nodeType,
+      entityType: entity.entityType,
       entityId: entity.id,
       source,
       timestamp: new Date().toISOString()
@@ -271,19 +272,16 @@ export class CourseDataService {
     // Update storage first
     this.mutationService.updateEntity(entity);
 
-    // ✅ UPDATED: Use entity-based method names
-    this.signalService.emitEntityEdited(entity, source, 'USER_EDIT' as OperationType);
-
-    // 🔄 LEGACY: Also emit signal for backward compatibility
-    this.signalService.emitNodeEdited(entity, source, 'USER_EDIT' as OperationType);
+    // ✅ FIXED: Pass Entity directly to signal service
+    this.signalService.emitEntityEdited(entity, source, 'USER_EDIT');
   }
 
   /**
    * Remove entity with storage update and event emission
    */
-  removeEntity(entity: any, source: string): void {
+  removeEntity(entity: Entity, source: string): void {  // ✅ FIXED: Accept Entity directly
     console.log(`[CourseDataService] Removing entity`, {
-      entityType: entity.nodeType,
+      entityType: entity.entityType,
       entityId: entity.id,
       source,
       timestamp: new Date().toISOString()
@@ -292,10 +290,7 @@ export class CourseDataService {
     // Update storage first
     this.mutationService.removeEntity(entity);
 
-    // ✅ UPDATED: Use entity-based method names
-    this.signalService.emitEntityDeleted(entity, source, 'USER_DELETE' as OperationType);
-
-    // 🔄 LEGACY: Also emit signal for backward compatibility
-    this.signalService.emitNodeDeleted(entity, source, 'USER_DELETE' as OperationType);
+    // ✅ FIXED: Pass Entity directly to signal service
+    this.signalService.emitEntityDeleted(entity, source, 'USER_DELETE');
   }
 }

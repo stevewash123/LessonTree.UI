@@ -6,11 +6,11 @@
 import { Injectable, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import type { OperationType } from './course-data.service';
-import { EntityType } from '../../../info-panel/panel-state.service';
+import { Entity, EntityType } from '../../../models/entity';
 
 // Enhanced event interfaces for signal payloads
 export interface EntitySignalPayload {
-  entity: EntityType ;
+  entity: Entity;
   source: string;
   operationType: OperationType;
   metadata?: {
@@ -23,7 +23,7 @@ export interface EntitySignalPayload {
 }
 
 export interface EntityMoveSignalPayload {
-  entity: EntityType ;
+  entity: Entity;
   sourceLocation: string;
   targetLocation: string;
   source: string;
@@ -82,7 +82,7 @@ export class CourseSignalService {
    * Emit entity added event (hybrid: Observable + Signal)
    */
   emitEntityAdded(
-    entity: EntityType,                  
+    entity: Entity,  // ✅ FIXED: Entity object, not EntityType string
     source: string,
     operationType: OperationType = 'USER_ADD',
     metadata?: any
@@ -96,14 +96,14 @@ export class CourseSignalService {
     };
 
     console.log('📡 [CourseSignalService] Entity added emitted (hybrid)', {
-        entityType: entity.nodeType,
-        entityId: entity.id,
-        entityTitle: entity.title,
-        source,
-        operationType,
-        timestamp: payload.timestamp.toISOString(),
-        patterns: ['Observable stream', 'Signal state']
-      });
+      entityType: entity.entityType,  // ✅ FIXED: Access from Entity object
+      entityId: entity.id,            // ✅ FIXED: Access from Entity object
+      entityTitle: entity.title,      // ✅ FIXED: Access from Entity object
+      source,
+      operationType,
+      timestamp: payload.timestamp.toISOString(),
+      patterns: ['Observable stream', 'Signal state']
+    });
 
     // Emit to both Observable stream and Signal state
     this._nodeAddedSubject.next(payload);
@@ -113,7 +113,7 @@ export class CourseSignalService {
    * Emit entity edited event (hybrid: Observable + Signal)
    */
   emitEntityEdited(
-    entity: any,
+    entity: Entity,  // ✅ FIXED: Entity object parameter
     source: string,
     operationType: OperationType = 'API_RESPONSE',
     metadata?: any
@@ -127,9 +127,9 @@ export class CourseSignalService {
     };
 
     console.log('📡 [CourseSignalService] Entity edited emitted (hybrid)', {
-      entityType: entity.nodeType,
-      entityId: entity.id,
-      entityTitle: entity.title,
+      entityType: entity.entityType,   // ✅ FIXED: Access from Entity object
+      entityId: entity.id,             // ✅ FIXED: Access from Entity object
+      entityTitle: entity.title,       // ✅ FIXED: Access from Entity object
       source,
       operationType
     });
@@ -141,7 +141,7 @@ export class CourseSignalService {
    * Emit entity deleted event (hybrid: Observable + Signal)
    */
   emitEntityDeleted(
-    entity: EntityType ,
+    entity: Entity,  // ✅ FIXED: Entity object, not EntityType string
     source: string,
     operationType: OperationType = 'API_RESPONSE',
     metadata?: any
@@ -155,9 +155,9 @@ export class CourseSignalService {
     };
 
     console.log('📡 [CourseSignalService] Entity deleted emitted (hybrid)', {
-      entityType: entity.nodeType,
-      entityId: entity.id,
-      entityTitle: entity.title,
+      entityType: entity.entityType,   // ✅ FIXED: Access from Entity object
+      entityId: entity.id,             // ✅ FIXED: Access from Entity object
+      entityTitle: entity.title,       // ✅ FIXED: Access from Entity object
       source,
       operationType
     });
@@ -169,7 +169,7 @@ export class CourseSignalService {
    * Emit entity moved event (hybrid: Observable + Signal)
    */
   emitEntityMoved(
-    entity: any,
+    entity: Entity,  // ✅ FIXED: Entity object parameter
     sourceLocation: string,
     targetLocation: string,
     source: string,
@@ -185,9 +185,9 @@ export class CourseSignalService {
     };
 
     console.log('📡 [CourseSignalService] Entity moved emitted (hybrid)', {
-      entityType: entity.nodeType,
-      entityId: entity.id,
-      entityTitle: entity.title,
+      entityType: entity.entityType,   // ✅ FIXED: Access from Entity object
+      entityId: entity.id,             // ✅ FIXED: Access from Entity object
+      entityTitle: entity.title,       // ✅ FIXED: Access from Entity object
       sourceLocation,
       targetLocation,
       source
@@ -202,7 +202,7 @@ export class CourseSignalService {
    * @deprecated Use emitEntityAdded() instead for consistent naming
    */
   emitNodeAdded(
-    node: any,
+    node: Entity,  // ✅ FIXED: Entity object parameter
     source: string,
     operationType: OperationType = 'USER_ADD'
   ): void {
@@ -214,7 +214,7 @@ export class CourseSignalService {
    * @deprecated Use emitEntityEdited() instead for consistent naming
    */
   emitNodeEdited(
-    node: any,
+    node: Entity,  // ✅ FIXED: Entity object parameter
     source: string,
     operationType: OperationType = 'API_RESPONSE'
   ): void {
@@ -226,7 +226,7 @@ export class CourseSignalService {
    * @deprecated Use emitEntityDeleted() instead for consistent naming
    */
   emitNodeDeleted(
-    node: any,
+    node: Entity,  // ✅ FIXED: Entity object parameter
     source: string,
     operationType: OperationType = 'API_RESPONSE'
   ): void {
@@ -238,7 +238,7 @@ export class CourseSignalService {
    * @deprecated Use emitEntityMoved() instead for consistent naming
    */
   emitNodeMoved(
-    node: any,
+    node: Entity,  // ✅ FIXED: Entity object parameter
     sourceLocation: string,
     targetLocation: string,
     source: string

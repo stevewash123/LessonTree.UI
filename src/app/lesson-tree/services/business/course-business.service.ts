@@ -351,11 +351,15 @@ export class CourseBusinessService implements OnDestroy {
   /**
    * Prepare subtopic for API creation with computed sort order
    */
-  prepareSubTopicForCreation(subtopic: SubTopic): SubTopic {
+  prepareSubTopicForCreation(subtopic: SubTopic): any {
     const computedSortOrder = this.computeUnifiedSortOrder(subtopic.topicId);
 
+    // Return plain object for API - Entity conversion happens after API response
     return {
-      ...subtopic,
+      title: subtopic.title,
+      description: subtopic.description ?? '',
+      topicId: subtopic.topicId,
+      visibility: subtopic.visibility || 'Private',
       sortOrder: computedSortOrder
     };
   }
@@ -386,19 +390,17 @@ export class CourseBusinessService implements OnDestroy {
    * Create full lesson entity from API response and original data
    */
   createFullLessonEntity(originalLesson: LessonDetail, apiResponse: any, computedSortOrder: number): LessonDetail {
-    return {
-      ...originalLesson,
+    // ✅ FIXED: Use LessonDetail constructor instead of object literal
+    return new LessonDetail({
+      ...originalLesson.toJSON(),
       id: apiResponse.id,
       sortOrder: computedSortOrder,
-      nodeId: apiResponse.nodeId || `lesson_${apiResponse.id}`,
-      entityType: 'Lesson',
-      hasChildren: false,
       archived: false,
       userId: apiResponse.userId || 0,
       standards: [],
       attachments: [],
       notes: []
-    };
+    });
   }
 
   // === VALIDATION METHODS ===

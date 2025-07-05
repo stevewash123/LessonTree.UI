@@ -1,21 +1,65 @@
+import { Entity, EntityType } from "./entity";
 import { Lesson } from "./lesson";
-import { createSubTopicNode, SubTopic } from "./subTopic";
-import { TreeData, TreeNode } from "./tree-node";
+import { SubTopic } from "./subTopic";
 
-export interface Topic extends TreeData {
+export class Topic extends Entity {
+    readonly entityType: EntityType = 'Topic';
     courseId: number;
-    subTopics?: SubTopic[];
-    lessons?: Lesson[];
-    entityType: 'Topic';
+    subTopics?: SubTopic[];           // Domain relationships
+    lessons?: Lesson[];               // Direct lessons (no SubTopic)
+
+    constructor(data: Partial<Topic>) {
+      super(data);
+      this.courseId = data.courseId || 0;
+      this.subTopics = data.subTopics;
+      this.lessons = data.lessons;
+    }
+
+    /**
+     * Domain logic: Topic has children if it has subtopics or direct lessons
+     */
+    get hasChildren(): boolean {
+      return (this.subTopics?.length ?? 0) > 0 || (this.lessons?.length ?? 0) > 0;
+    }
+
+    /**
+     * Domain logic: Get all lessons (direct + from subtopics)
+     */
+    getAllLessons(): Lesson[] {
+      const directLessons = this.lessons || [];
+      const subTopicLessons = this.subTopics?.flatMap(st => st.lessons || []) || [];
+      return [...directLessons, ...subTopicLessons];
+    }
+
+    /**
+     * Domain logic: Count total lessons in topic
+     */
+    get totalLessons(): number {
+      return this.getAllLessons().length;
+    }
+
+
+  /**
+   * Clone method to handle Topic-specific properties
+   */
+  clone(): Topic {
+    return new Topic({
+      ...this.toJSON(),
+      courseId: this.courseId,
+      subTopics: this.subTopics,    // Shallow reference
+      lessons: this.lessons         // Shallow reference
+    });
   }
 
-export function createTopicNode(topic: Topic): TreeNode {
+  /**
+   * Override toJSON to include Topic-specific properties
+   */
+  override toJSON(): Record<string, any> {
     return {
-        id: topic.nodeId,
-        text: topic.title,
-        nodeType: 'Topic',
-        hasChildren: topic.hasChildren,
-        original: topic,
-        iconCss: 'material-icons topic-icon' // 'school' icon
+      ...super.toJSON(),
+      courseId: this.courseId,
+      subTopics: this.subTopics,
+      lessons: this.lessons
     };
-}
+  }
+  }

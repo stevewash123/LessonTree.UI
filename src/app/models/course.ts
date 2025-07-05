@@ -1,23 +1,76 @@
+// **COMPLETE FILE** - models/course.ts - Pure domain entity, no tree concerns
 
-// course.ts
+import { Entity, EntityType } from './entity';
+import { Topic } from './topic';
+import { Standard } from './standard';
 
-import { Standard } from "./standard";
-import { createTopicNode, Topic } from "./topic";
-import { TreeData, TreeNode } from "./tree-node";
+/**
+ * Course domain entity - pure business logic, no UI concerns
+ */
+export class Course extends Entity {
+  readonly entityType: EntityType = 'Course';
+  topics?: Topic[];                    // Domain relationships
+  standards?: Standard[];              // Domain relationships
 
-// Models a Course entity with optional topics for lazy loading
-export interface Course extends TreeData {
-    topics?: Topic[];
-    entityType: 'Course'; // Override to specify the concrete type
+  constructor(data: Partial<Course>) {
+    super(data);
+    this.topics = data.topics;
+    this.standards = data.standards;
   }
 
-  export function createCourseNode(course: Course): TreeNode {
+  /**
+   * Domain logic: Course has children if it has topics
+   */
+  get hasChildren(): boolean {
+    return (this.topics?.length ?? 0) > 0;
+  }
+
+  /**
+   * Domain logic: Get all lessons across all topics
+   */
+  getAllLessons(): any[] {
+    if (!this.topics) return [];
+
+    return this.topics.flatMap(topic => {
+      const directLessons = topic.lessons || [];
+      const subTopicLessons = topic.subTopics?.flatMap(st => st.lessons || []) || [];
+      return [...directLessons, ...subTopicLessons];
+    });
+  }
+
+  /**
+   * Domain logic: Count total lessons in course
+   */
+  get totalLessons(): number {
+    return this.getAllLessons().length;
+  }
+
+  /**
+   * Domain logic: Check if course is empty
+   */
+  get isEmpty(): boolean {
+    return this.totalLessons === 0;
+  }
+
+  /**
+   * Override clone to handle Course-specific collections
+   */
+  clone(): Course {
+    return new Course({
+      ...this.toJSON(),
+      topics: this.topics,      // Shallow reference for editing scenarios
+      standards: this.standards // Shallow reference for editing scenarios
+    });
+  }
+
+  /**
+   * Override toJSON to include Course-specific properties
+   */
+  override toJSON(): Record<string, any> {
     return {
-      id: course.nodeId,
-      text: course.title,
-      nodeType: 'Course',
-      hasChildren: course.hasChildren,
-      original: course,
-      iconCss: 'material-icons course-icon'
+      ...super.toJSON(),
+      topics: this.topics,
+      standards: this.standards
     };
   }
+}

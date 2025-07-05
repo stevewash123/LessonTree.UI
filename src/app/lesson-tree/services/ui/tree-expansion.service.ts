@@ -1,13 +1,14 @@
+// **COMPLETE FILE** - TreeExpansionService with Entity/TreeData boundary compliance
 // RESPONSIBILITY: Handles tree node expansion, path finding, and external selection coordination.
 // DOES NOT: Manage tree data or handle SyncFusion lifecycle - only expansion operations.
 // CALLED BY: TreeWrapper for external selection handling and expansion operations.
 
 import { Injectable } from '@angular/core';
 import { TreeViewComponent } from '@syncfusion/ej2-angular-navigations';
-import { TreeDataService } from './tree-data.service';
-import { TreeData, TreeNode } from '../../../models/tree-node';
+import { TreeData, TreeNode, unwrapEntityFromTree } from '../../../models/tree-node';
 import { Lesson } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
+import { TreeNodeBuilderService } from './tree-node-builder.service';
 
 export interface ExpansionResult {
   success: boolean;
@@ -21,7 +22,7 @@ export interface ExpansionResult {
 })
 export class TreeExpansionService {
 
-  constructor(private treeDataService: TreeDataService) {
+  constructor(private treeNodeBuilderService: TreeNodeBuilderService) {
     console.log('[TreeExpansionService] Service initialized');
   }
 
@@ -32,24 +33,27 @@ export class TreeExpansionService {
    */
   findNodePath(targetNode: TreeData, courseId: number): string[] {
     const path: string[] = [];
-    
+
+    // ✅ FIXED: Extract Entity from TreeData for property access
+    const entity = unwrapEntityFromTree(targetNode);
+
     // For any node, we need to find its parent chain
     if (targetNode.entityType === 'Lesson') {
-      const lesson = targetNode as Lesson;
-      
+      const lesson = entity as Lesson;
+
       // Path: Course -> Topic -> [SubTopic] -> Lesson
       path.push(`course_${courseId}`); // Course nodeId
-      
+
       if (lesson.topicId) {
         path.push(`topic_${lesson.topicId}`); // Topic nodeId
       }
-      
+
       if (lesson.subTopicId) {
         path.push(`subtopic_${lesson.subTopicId}`); // SubTopic nodeId
       }
     } else if (targetNode.entityType === 'SubTopic') {
-      const subTopic = targetNode as SubTopic;
-      
+      const subTopic = entity as SubTopic;
+
       // Path: Course -> Topic -> SubTopic
       path.push(`course_${courseId}`); // Course nodeId
       path.push(`topic_${subTopic.topicId}`); // Topic nodeId
@@ -58,7 +62,7 @@ export class TreeExpansionService {
       path.push(`course_${courseId}`); // Course nodeId
     }
     // Course nodes don't need expansion path
-    
+
     return path;
   }
 
@@ -66,8 +70,8 @@ export class TreeExpansionService {
    * Expand all parent nodes in the path to make target node visible
    */
   async expandNodePath(
-    pathNodeIds: string[], 
-    syncFuncTree: TreeViewComponent, 
+    pathNodeIds: string[],
+    syncFuncTree: TreeViewComponent,
     treeData: TreeNode[],
     courseId: number
   ): Promise<ExpansionResult> {
@@ -78,33 +82,33 @@ export class TreeExpansionService {
         error: 'Invalid parameters - no tree component or empty path'
       };
     }
-    
+
     const expandedNodes: string[] = [];
 
     try {
       // Expand nodes in sequence with small delays
       for (const nodeId of pathNodeIds) {
-        const nodeInTree = this.treeDataService.findNodeById(treeData, nodeId);
-        
+        const nodeInTree = this.treeNodeBuilderService.findNodeById(treeData, nodeId);
+
         if (nodeInTree && nodeInTree.hasChildren) {
           // Use SyncFusion's expandAll method for specific node
           syncFuncTree.expandAll([nodeId]);
           expandedNodes.push(nodeId);
-          
+
           // Small delay to allow SyncFusion to process the expansion
           await new Promise(resolve => setTimeout(resolve, 50));
         } else if (!nodeInTree) {
           console.warn('[TreeExpansionService] Node not found for expansion:', nodeId);
         }
       }
-      
+
       return {
         success: true,
         expandedNodes
       };
     } catch (error) {
       console.error('[TreeExpansionService] Error expanding node path:', error);
-      
+
       return {
         success: false,
         expandedNodes,
@@ -130,23 +134,25 @@ export class TreeExpansionService {
         error: 'Invalid tree state - no component or data'
       };
     }
-    
+
     // Step 1: Find the target node in the tree
-    const nodeInTree = this.treeDataService.findNodeById(treeData, node.nodeId);
-    
+    // ✅ FIXED: Generate nodeId from TreeData properties
+    const nodeId = `${node.entityType.toLowerCase()}_${node.id}`;
+    const nodeInTree = this.treeNodeBuilderService.findNodeById(treeData, nodeId);
+
     if (!nodeInTree) {
-      console.warn(`[TreeExpansionService] External node not found in tree:`, node.nodeId);
-      
+      console.warn(`[TreeExpansionService] External node not found in tree:`, nodeId);
+
       return {
         success: false,
         expandedNodes: [],
-        error: `Node ${node.nodeId} not found in tree data`
+        error: `Node ${nodeId} not found in tree data`
       };
     }
-    
+
     // Step 2: Find the path to expand (parent nodes)
     const expansionPath = this.findNodePath(node, courseId);
-    
+
     // Step 3: Expand parent nodes to make target visible
     let expansionResult: ExpansionResult = {
       success: true,
@@ -155,19 +161,19 @@ export class TreeExpansionService {
 
     if (expansionPath.length > 0) {
       expansionResult = await this.expandNodePath(expansionPath, syncFuncTree, treeData, courseId);
-      
+
       if (!expansionResult.success) {
         console.warn(`[TreeExpansionService] Failed to expand path for external selection:`, expansionResult.error);
         // Continue anyway - maybe the node is already visible
       }
     }
-    
+
     // Step 4: Select the target node (with delay to ensure expansion is complete)
     return new Promise((resolve) => {
       setTimeout(() => {
         try {
           syncFuncTree.selectedNodes = [nodeInTree.id];
-          
+
           // Step 5: Ensure the selected node is visible in viewport
           syncFuncTree.ensureVisible(nodeInTree.id);
 
@@ -212,7 +218,7 @@ export class TreeExpansionService {
     const countNodes = (nodes: TreeNode[]) => {
       for (const node of nodes) {
         totalNodes++;
-        
+
         if (this.canExpandNode(node)) {
           expandableNodes++;
           if (node.expanded) {

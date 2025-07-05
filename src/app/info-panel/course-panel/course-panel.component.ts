@@ -21,9 +21,9 @@ export class CoursePanelComponent implements OnChanges, OnInit {
   @Input()
   set data(value: Course | null) {
     this._data = value;
-    console.log(`[CoursePanel] Data set`, { 
-      title: this._data?.title ?? 'New Course', 
-      timestamp: new Date().toISOString() 
+    console.log(`[CoursePanel] Data set`, {
+      title: this._data?.title ?? 'New Course',
+      timestamp: new Date().toISOString()
     });
   }
   get data(): Course | null {
@@ -51,15 +51,15 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {
-    console.log('[CoursePanel] Component initialized with signals optimization', { 
-      timestamp: new Date().toISOString() 
+    console.log('[CoursePanel] Component initialized with signals optimization', {
+      timestamp: new Date().toISOString()
     });
 
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[CoursePanel] Mode changed to: ${currentMode}`, { 
-        timestamp: new Date().toISOString() 
+      console.log(`[CoursePanel] Mode changed to: ${currentMode}`, {
+        timestamp: new Date().toISOString()
       });
       this.updateEditingState();
     });
@@ -68,11 +68,11 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     effect(() => {
       const template = this.panelStateService.nodeTemplate();
       const mode = this.panelStateService.panelMode();
-      
-      if (mode === 'add' && template && template.nodeType === 'Course') {
+
+      if (mode === 'add' && template && template.entityType  === 'Course') {
         this._data = template as Course;
-        console.log(`[CoursePanel] Using template for new course`, { 
-          timestamp: new Date().toISOString() 
+        console.log(`[CoursePanel] Using template for new course`, {
+          timestamp: new Date().toISOString()
         });
       }
     });
@@ -87,11 +87,13 @@ export class CoursePanelComponent implements OnChanges, OnInit {
       this.updateEditingState();
     }
   }
-  
+
+
   private updateEditingState() {
     if (this.mode === 'edit' && this.data && !this.originalData) {
-      this.originalData = { ...this.data };
-      console.log(`[CoursePanel] Stored original data for editing: ${this.originalData.title}`);
+      // Create a proper clone of the Course entity
+      this.originalData = this.data.clone();
+      console.log(`[CoursePanel] Stored original data for editing: ${this.originalData?.title}`);
     } else if (this.mode === 'add' && this.data) {
       this.data.archived = false;
       if (!this.hasDistrictId) {
@@ -104,7 +106,8 @@ export class CoursePanelComponent implements OnChanges, OnInit {
 
   enterEditMode() {
     if (this.data) {
-      this.originalData = { ...this.data };
+      // Create a proper clone of the Course entity
+      this.originalData = this.data.clone();
       this.panelStateService.setMode('edit');
       console.log(`[CoursePanel] Entered edit mode for ${this.data.title}`);
     }
@@ -118,18 +121,18 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         next: (createdCourse) => {
           this.data = createdCourse;
           this.panelStateService.setMode('view');
-          
-          console.log(`[CoursePanel] Course created`, { 
-            title: createdCourse.title, 
+
+          console.log(`[CoursePanel] Course created`, {
+            title: createdCourse.title,
             id: createdCourse.id,
-            timestamp: new Date().toISOString() 
+            timestamp: new Date().toISOString()
           });
           this.toastr.success(`Course "${createdCourse.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[CoursePanel] Error creating course`, { 
-            error, 
-            timestamp: new Date().toISOString() 
+          console.error(`[CoursePanel] Error creating course`, {
+            error,
+            timestamp: new Date().toISOString()
           });
           this.toastr.error('Failed to create course: ' + error.message, 'Error');
         }
@@ -139,17 +142,17 @@ export class CoursePanelComponent implements OnChanges, OnInit {
         next: (updatedCourse) => {
           this.panelStateService.setMode('view');
           this.originalData = null;
-          
-          console.log(`[CoursePanel] Course updated`, { 
-            title: updatedCourse.title, 
-            timestamp: new Date().toISOString() 
+
+          console.log(`[CoursePanel] Course updated`, {
+            title: updatedCourse.title,
+            timestamp: new Date().toISOString()
           });
           this.toastr.success(`Course "${updatedCourse.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[CoursePanel] Error updating course`, { 
-            error, 
-            timestamp: new Date().toISOString() 
+          console.error(`[CoursePanel] Error updating course`, {
+            error,
+            timestamp: new Date().toISOString()
           });
           this.toastr.error('Failed to update course: ' + error.message, 'Error');
         }

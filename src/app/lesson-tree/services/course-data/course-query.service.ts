@@ -1,3 +1,4 @@
+// **COMPLETE FILE** - course-data/course-query.service.ts
 // RESPONSIBILITY: Read-only data access and queries for course hierarchy. Enhanced with lesson utilities.
 // DOES NOT: Handle mutations, storage, or signal emission.
 // CALLED BY: CourseDataService, TreeWrapper, InfoPanel components
@@ -8,18 +9,19 @@ import { Course } from '../../../models/course';
 import { Lesson, LessonDetail } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
 import { Topic } from '../../../models/topic';
+import { Entity, EntityType } from '../../../models/entity';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CourseQueryService {
-  
+
   constructor(private readonly storageService: CourseDataStorageService) {
     console.log('[CourseQueryService] Enhanced query service initialized');
   }
 
   // === DATA ACCESS METHODS ===
-  
+
   getCourses(): Course[] {
     return this.storageService.getCoursesCopy();
   }
@@ -81,10 +83,9 @@ export class CourseQueryService {
     // Implementation should delegate to API service for full details
     const basicLesson = this.getLessonById(lessonId);
     if (!basicLesson) return null;
-    
-    // For now, create a basic LessonDetail from Lesson
-    // In practice, this should call API service for full details
-    return {
+
+    // ✅ FIXED: Use proper LessonDetail constructor instead of object literal
+    return new LessonDetail({
       ...basicLesson,
       level: '',
       materials: '',
@@ -95,22 +96,22 @@ export class CourseQueryService {
       standards: [],
       attachments: [],
       notes: []
-    } as LessonDetail;
+    });
   }
 
   // === LESSON COLLECTION UTILITIES ===
-  
+
   // Collect lessons from course hierarchy in proper order
   collectLessonsFromCourse(course: Course): Lesson[] {
     const lessons: Lesson[] = [];
     if (!course.topics) return lessons;
-  
+
     const sortedTopics = [...course.topics].sort((a: Topic, b: Topic) => a.sortOrder - b.sortOrder);
-    
+
     for (const topic of sortedTopics) {
       // Collect ALL children (subtopics + direct lessons) and sort by unified sortOrder
       const allChildren: Array<{type: 'SubTopic' | 'Lesson', item: any, sortOrder: number}> = [];
-      
+
       // Add subtopics to unified list
       if (topic.subTopics) {
         topic.subTopics.forEach((subTopic: SubTopic) => {
@@ -121,18 +122,18 @@ export class CourseQueryService {
           });
         });
       }
-      
+
       // Add direct lessons to unified list
       if (topic.lessons) {
         topic.lessons.forEach((lesson: Lesson) => {
           allChildren.push({
-            type: 'Lesson', 
+            type: 'Lesson',
             item: lesson,
             sortOrder: lesson.sortOrder
           });
         });
       }
-      
+
       // Sort by unified sortOrder and process in order
       allChildren
         .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
@@ -150,10 +151,10 @@ export class CourseQueryService {
           }
         });
     }
-  
-    console.log(`[CourseQueryService] Collected ${lessons.length} lessons from course ${course.title} in unified order:`, 
+
+    console.log(`[CourseQueryService] Collected ${lessons.length} lessons from course ${course.title} in unified order:`,
       lessons.map((l: Lesson) => `${l.title}(${l.sortOrder})`).join(', '));
-    
+
     return lessons;
   }
 
@@ -161,7 +162,7 @@ export class CourseQueryService {
   getLessonCountForCourse(courseId: number): number {
     const course = this.getCourseById(courseId);
     if (!course) return 0;
-    
+
     return this.collectLessonsFromCourse(course).length;
   }
 
@@ -171,7 +172,7 @@ export class CourseQueryService {
     if (!course) {
       return { hasLessons: false, lessonCount: 0 };
     }
-    
+
     const lessons = this.collectLessonsFromCourse(course);
     return {
       hasLessons: lessons.length > 0,
@@ -210,38 +211,43 @@ export class CourseQueryService {
     return allLessons;
   }
 
-  // Find entities by nodeId (useful for tree operations)
+  // ✅ FIXED: Find entities by nodeId - generate nodeId instead of accessing property
   findEntityByNodeId(nodeId: string): { entity: any; type: string } | null {
     for (const course of this.storageService.getCurrentCourses()) {
-      if (course.nodeId === nodeId) {
+      // ✅ Generate nodeId instead of accessing property
+      if (`course_${course.id}` === nodeId) {
         return { entity: course, type: 'Course' };
       }
-      
+
       if (course.topics) {
         for (const topic of course.topics) {
-          if (topic.nodeId === nodeId) {
+          // ✅ Generate nodeId instead of accessing property
+          if (`topic_${topic.id}` === nodeId) {
             return { entity: topic, type: 'Topic' };
           }
-          
+
           if (topic.subTopics) {
             for (const subTopic of topic.subTopics) {
-              if (subTopic.nodeId === nodeId) {
+              // ✅ Generate nodeId instead of accessing property
+              if (`subtopic_${subTopic.id}` === nodeId) {
                 return { entity: subTopic, type: 'SubTopic' };
               }
-              
+
               if (subTopic.lessons) {
                 for (const lesson of subTopic.lessons) {
-                  if (lesson.nodeId === nodeId) {
+                  // ✅ Generate nodeId instead of accessing property
+                  if (`lesson_${lesson.id}` === nodeId) {
                     return { entity: lesson, type: 'Lesson' };
                   }
                 }
               }
             }
           }
-          
+
           if (topic.lessons) {
             for (const lesson of topic.lessons) {
-              if (lesson.nodeId === nodeId) {
+              // ✅ Generate nodeId instead of accessing property
+              if (`lesson_${lesson.id}` === nodeId) {
                 return { entity: lesson, type: 'Lesson' };
               }
             }

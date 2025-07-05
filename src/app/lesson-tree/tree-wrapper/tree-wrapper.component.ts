@@ -1,29 +1,29 @@
-// **COMPLETE FILE** - TreeWrapper with best practice Observable architecture
-// RESPONSIBILITY: Manages SyncFusion tree UI, drag operations, and node actions for a single course.
-// DOES NOT: Handle data storage, API calls, or cross-course operations.
-// CALLED BY: CourseList for each active course, displays hierarchical course structure.
+// **COMPLETE FILE** - TreeWrapper with Clean Boundary Enforcement
+// RESPONSIBILITY: SyncFusion integration + Tree/Business boundary enforcement
+// DOES NOT: Handle business logic, work with raw Entities outside boundary conversions
+// CALLED BY: CourseList for each course, enforces TreeNode/TreeData/Entity boundaries
 
 import { Component, OnInit, AfterViewInit, Input, ViewChild, computed, OnDestroy } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { TreeViewComponent, TreeViewModule } from '@syncfusion/ej2-angular-navigations';
-import { TreeExpansionService } from '../services/ui/tree-expansion.service';
-import { TreeSyncService } from '../services/ui/tree-sync.service';
-import { TreeEffectsService, TreeEffectCallbacks } from '../services/ui/tree-effect.service';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { CourseSignalService, EntityMoveSignalPayload, EntitySignalPayload } from '../services/course-data/course-signal.service';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { EntityType, PanelStateService } from '../../info-panel/panel-state.service';
 import { Course } from '../../models/course';
-import { TreeNode, TreeData } from '../../models/tree-node';
+import { Entity, EntityType } from '../../models/entity';
+import { TreeNode, TreeData, createTreeData, treeNodeToTreeData, treeDataToTreeNode, NodeMovedEvent } from '../../models/tree-node';
+import { CourseSignalService, EntityMoveSignalPayload, EntitySignalPayload } from '../services/course-data/course-signal.service';
 import { CourseDataService, OperationType } from '../services/course-data/course-data.service';
 import { CourseCrudService } from '../services/course-operations/course-crud.service';
-import { TreeDataService } from '../services/ui/tree-data.service';
-import {DragState, TreeDragDropService} from '../services/ui/tree-drag-drop.service';
-import {NodeOperationClassifierService} from '../services/business/node-operations-classifier.service';
 import {EntitySelectionService} from '../services/state/entity-selection.service';
+import {DragState, TreeDragDropService} from '../services/ui/tree-drag-drop.service';
+import {TreeExpansionService} from '../services/ui/tree-expansion.service';
+import {TreeSyncService} from '../services/ui/tree-sync.service';
 import {TreeNodeActionsService} from '../services/coordination/tree-node-actions.service';
+import {NodeOperationClassifierService} from '../services/business/node-operations-classifier.service';
+import {TreeEffectCallbacks, TreeEffectsService} from '../services/ui/tree-effect.service';
+import {TreeNodeBuilderService} from '../services/ui/tree-node-builder.service';
 
 @Component({
   selector: 'app-tree',
@@ -41,10 +41,11 @@ import {TreeNodeActionsService} from '../services/coordination/tree-node-actions
 export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   @Input() courseId!: number;
   private instanceId = Math.random().toString(36).substr(2, 9);
-  course: Course | null = null;
+  private course: Course | null = null;
 
   @ViewChild('treeview') syncFuncTree!: TreeViewComponent;
 
+  // ✅ BOUNDARY: SyncFusion TreeNode data
   public cssClass: string = "custom";
   public treeData: TreeNode[] = [];
   public treeFields: object = {
@@ -54,14 +55,14 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     child: 'child',
     hasChildren: 'hasChildren',
     iconCss: 'iconCss',
-    cssClass: 'nodeType',
+    cssClass: 'entityType',
   };
 
   private isViewInitialized = false;
   private dragState: DragState;
-  private subscriptions: Subscription[] = []; // ✅ Best Practice: Track subscriptions
+  private subscriptions: Subscription[] = [];
 
-  // Reactive course data via Signals (state monitoring)
+  // ✅ BOUNDARY: Entity signals → TreeData computed
   readonly currentCourse = computed(() => {
     if (!this.courseId) return null;
     return this.courseDataService.getCourseById(this.courseId);
@@ -69,10 +70,9 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   constructor(
     private nodeSelectionService: EntitySelectionService,
-    private panelStateService: PanelStateService,
     private courseDataService: CourseDataService,
     private courseCrudService: CourseCrudService,
-    private treeDataService: TreeDataService,
+    private treeNodeBuilderService: TreeNodeBuilderService,
     private treeDragDropService: TreeDragDropService,
     private treeExpansionService: TreeExpansionService,
     private treeSyncService: TreeSyncService,
@@ -85,21 +85,21 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngOnInit() {
-    console.log(`🌲 [TreeWrapper-${this.instanceId}] Initializing with best practice Observable architecture for courseId: ${this.courseId}`);
+    console.log(`🌲 [TreeWrapper-${this.instanceId}] Initializing with clean boundaries for courseId: ${this.courseId}`);
 
     if (!this.courseId) return;
 
-    // Setup TreeEffectsService for Signal-based state monitoring
     this.setupTreeEffects();
-
-    // Setup Observable subscriptions for event handling
     this.setupEventSubscriptions();
 
-    this.course = this.courseDataService.getCourseById(this.courseId);
+    // ✅ BOUNDARY: Entity → Tree domain
+    const courseEntity = this.courseDataService.getCourseById(this.courseId);
+    if (courseEntity) {
+      this.course = courseEntity;
+    }
   }
 
   ngOnDestroy() {
-    // ✅ Best Practice: Clean up all subscriptions
     this.subscriptions.forEach(sub => sub.unsubscribe());
     this.subscriptions = [];
 
@@ -111,19 +111,18 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   ngAfterViewInit() {
     this.isViewInitialized = true;
     if (this.course) {
-      console.log(`🔄 [TreeWrapper-${this.instanceId}] ngAfterViewInit called for courseId: ${this.courseId}`);
+      console.log(`🔄 [TreeWrapper-${this.instanceId}] ngAfterViewInit for courseId: ${this.courseId}`);
       this.updateTreeData();
     }
   }
 
-  /**
-   * ✅ Setup TreeEffectsService for Signal-based state monitoring
-   */
+  // ===== BOUNDARY SETUP =====
+
   private setupTreeEffects(): void {
     const callbacks: TreeEffectCallbacks = {
       onCourseDataUpdated: (course) => this.handleCourseDataChange(course),
       onCourseCleared: () => this.handleCourseCleared(),
-      onExternalSelection: (node) => this.handleExternalSelection(node),
+      onExternalSelection: (treeData) => this.handleExternalSelection(treeData),
       onInternalTreeChange: () => this.handleInternalTreeChange(),
     };
 
@@ -133,195 +132,147 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  /**
-   * ✅ Best Practice: Observable subscriptions for event handling
-   */
   private setupEventSubscriptions(): void {
-    // Subscribe to node added events for intelligent tree updates
+    // ✅ BOUNDARY: Entity signals → TreeData processing
     const nodeAddedSub = this.courseSignalService.entityAdded$.subscribe((event: EntitySignalPayload) => {
-      this.handleNodeAddedEvent(event);
+      this.handleEntityAddedEvent(event);
     });
     this.subscriptions.push(nodeAddedSub);
 
-    // Subscribe to node edited events
     const nodeEditedSub = this.courseSignalService.entityEdited$.subscribe((event: EntitySignalPayload) => {
-      this.handleNodeEditedEvent(event);
+      this.handleEntityEditedEvent(event);
     });
     this.subscriptions.push(nodeEditedSub);
 
-    // Subscribe to node deleted events
     const nodeDeletedSub = this.courseSignalService.entityDeleted$.subscribe((event: EntitySignalPayload) => {
-      this.handleNodeDeletedEvent(event);
+      this.handleEntityDeletedEvent(event);
     });
     this.subscriptions.push(nodeDeletedSub);
 
-    // Subscribe to node moved events
     const nodeMovedSub = this.courseSignalService.entityMoved$.subscribe((event: EntityMoveSignalPayload) => {
-      this.handleNodeMovedEvent(event);
+      this.handleEntityMovedEvent(event);
     });
     this.subscriptions.push(nodeMovedSub);
   }
 
-  /**
-   * ✅ Best Practice: Handle node added events with intelligent routing
-   */
-  private handleNodeAddedEvent(event: EntitySignalPayload): void {
-    // Only process events for this course
+  // ===== BOUNDARY: Entity Events → TreeData Processing =====
+
+  private handleEntityAddedEvent(event: EntitySignalPayload): void {
     if (!this.isEventForThisCourse(event)) return;
 
-    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeAdded EVENT (Observable)`, {
+    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED entityAdded EVENT`, {
       courseId: this.courseId,
-      nodeType: event.entity.nodeType,
-      nodeId: event.entity.nodeId,
-      nodeTitle: event.entity.title,
-      source: event.source,
-      operationType: event.operationType,
-      timestamp: event.timestamp.toISOString(),
-      pattern: 'Observable - emit once, consume once'
-    });
-
-    const updateStrategy = this.determineUpdateStrategy(event);
-    this.executeUpdateStrategy(updateStrategy, event);
-  }
-
-  /**
-   * ✅ Handle node edited events
-   */
-  private handleNodeEditedEvent(event: EntitySignalPayload): void {
-    if (!this.isEventForThisCourse(event)) return;
-
-    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeEdited EVENT (Observable)`, {
-      courseId: this.courseId,
-      nodeType: event.entity.nodeType,
-      nodeTitle: event.entity.title,
-      operationType: event.operationType
-    });
-
-    // Node edits typically require full sync for data consistency
-    this.syncDataOnly();
-  }
-
-  /**
-   * ✅ Handle node deleted events
-   */
-  private handleNodeDeletedEvent(event: EntitySignalPayload): void {
-    if (!this.isEventForThisCourse(event)) return;
-
-    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeDeleted EVENT (Observable)`, {
-      courseId: this.courseId,
-      nodeType: event.entity.nodeType,
-      nodeTitle: event.entity.title,
-      operationType: event.operationType
-    });
-
-    // Node deletions require full sync
-    this.syncDataOnly();
-  }
-
-  /**
-   * ✅ Handle node moved events
-   */
-  private handleNodeMovedEvent(event: any): void {
-    // Check if move affects this course
-    if (!this.isNodeInCourse(event.node, this.courseId)) return;
-
-    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED nodeMoved EVENT (Observable)`, {
-      courseId: this.courseId,
-      nodeType: event.node.nodeType,
-      nodeTitle: event.node.title,
+      entityType: event.entity.entityType,
+      entityId: event.entity.id,
+      entityTitle: event.entity.title,
       source: event.source
     });
 
-    // Node moves require full sync
+    // ✅ BOUNDARY: Entity → TreeData conversion
+    const treeData = createTreeData(event.entity);
+
+    const updateStrategy = this.determineUpdateStrategy(event);
+    this.executeUpdateStrategy(updateStrategy, treeData, event);
+  }
+
+  private handleEntityEditedEvent(event: EntitySignalPayload): void {
+    if (!this.isEventForThisCourse(event)) return;
+
+    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED entityEdited EVENT`, {
+      courseId: this.courseId,
+      entityType: event.entity.entityType,
+      entityTitle: event.entity.title
+    });
+
+    // Entity edits require full sync for data consistency
     this.syncDataOnly();
   }
 
-  /**
-   * ✅ Best Practice: Intelligent update strategy determination
-   */
-  private determineUpdateStrategy(event: EntitySignalPayload): 'incremental' | 'full_sync' {
-    const { operationType, entity: node } = event;
+  private handleEntityDeletedEvent(event: EntitySignalPayload): void {
+    if (!this.isEventForThisCourse(event)) return;
 
-    // Check if we should use incremental update
-    if (this.shouldUseIncrementalUpdate(operationType as OperationType, node.nodeType)) {
+    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED entityDeleted EVENT`, {
+      courseId: this.courseId,
+      entityType: event.entity.entityType,
+      entityTitle: event.entity.title
+    });
+
+    // Entity deletions require full sync
+    this.syncDataOnly();
+  }
+
+  private handleEntityMovedEvent(event: EntityMoveSignalPayload): void {
+    // ✅ BOUNDARY: Check if move affects this course (handle both Entity and TreeData)
+    const entityToCheck = event.entity;
+
+    if (!entityToCheck || !this.isEntityInCourse(entityToCheck, this.courseId)) return;
+
+    console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED entityMoved EVENT`, {
+      courseId: this.courseId,
+      entityType: entityToCheck.entityType,
+      entityTitle: entityToCheck.title,
+      source: event.source
+    });
+
+    // Entity moves require full sync
+    this.syncDataOnly();
+  }
+
+  // ===== UPDATE STRATEGY LOGIC =====
+
+  private determineUpdateStrategy(event: EntitySignalPayload): 'incremental' | 'full_sync' {
+    const { operationType, entity } = event;
+
+    if (this.shouldUseIncrementalUpdate(operationType as OperationType, entity.entityType)) {
       console.log(`🌱 [TreeWrapper-${this.instanceId}] Using incremental update:`, {
         operationType,
-        nodeType: node.nodeType,
-        nodeTitle: (node as any).title
+        entityType: entity.entityType,
+        entityTitle: entity.title
       });
       return 'incremental';
     }
 
-    // Default to full sync for safety
     console.log(`🔄 [TreeWrapper-${this.instanceId}] Using full sync:`, {
       operationType,
-      nodeType: node.nodeType,
-      reason: this.getFullSyncReason(operationType as OperationType, node.nodeType)
+      entityType: entity.entityType,
+      reason: this.getFullSyncReason(operationType as OperationType, entity.entityType)
     });
     return 'full_sync';
   }
 
-  /**
-   * ✅ Best Practice: Use service for classification logic
-   */
-  private shouldUseIncrementalUpdate(operationType: OperationType, nodeType: string): boolean {
-    return this.nodeOperationClassifier.shouldUseIncrementalUpdate(operationType, nodeType);
+  private shouldUseIncrementalUpdate(operationType: OperationType, entityType: string): boolean {
+    return this.nodeOperationClassifier.shouldUseIncrementalUpdate(operationType, entityType);
   }
 
-  /**
-   * ✅ Clear reasoning for full sync decisions
-   */
-  private getFullSyncReason(operationType: OperationType, nodeType: string): string {
+  private getFullSyncReason(operationType: OperationType, entityType: string): string {
     if (operationType === 'BULK_LOAD') return 'Bulk operation';
-    if (operationType === 'DRAG_MOVE') return 'Drag operation (not yet supported incrementally)';
-    if (nodeType !== 'Lesson') return `${nodeType} operations use full sync`;
+    if (operationType === 'DRAG_MOVE') return 'Drag operation';
+    if (entityType !== 'Lesson') return `${entityType} operations use full sync`;
     if (operationType === 'API_RESPONSE') return 'Legacy API response';
     return 'Safety fallback';
   }
 
-  /**
-   * ✅ Execute update strategy
-   */
-  private executeUpdateStrategy(strategy: 'incremental' | 'full_sync', event: EntitySignalPayload): void {
+  private executeUpdateStrategy(strategy: 'incremental' | 'full_sync', treeData: TreeData, event: EntitySignalPayload): void {
     if (strategy === 'incremental') {
-      this.executeIncrementalUpdate(event);
+      this.executeIncrementalUpdate(treeData, event);
     } else {
       this.syncDataOnly();
     }
   }
 
-  /**
-   * ✅ Best Practice: Safe incremental updates with fallback
-   */
-  private executeIncrementalUpdate(event: EntitySignalPayload): void {
+  private executeIncrementalUpdate(treeData: TreeData, event: EntitySignalPayload): void {
     try {
       console.log(`🚀 [TreeWrapper-${this.instanceId}] Executing incremental update:`, {
-        nodeType: event.entity.nodeType,
-        nodeTitle: (event.entity as any).title,
+        entityType: treeData.entityType,
+        entityTitle: treeData.title,
         operationType: event.operationType
       });
 
-      this.handleLessonAdded(event.entity);
+      this.handleLessonAdded(treeData);
     } catch (error) {
       console.error(`❌ [TreeWrapper-${this.instanceId}] Incremental update failed, falling back:`, error);
       this.syncDataOnly();
     }
-  }
-
-  /**
-   * ✅ Check if event affects this course
-   */
-  private isEventForThisCourse(event: EntitySignalPayload): boolean {
-    return this.isNodeInCourse(event.entity, this.courseId);
-  }
-
-  /**
-   * ✅ Check if node belongs to this course
-   */
-  private isNodeInCourse(node: any, courseId: number): boolean {
-    // Handle different node structures
-    const actualNode = node.node ? node.node : node;
-    return actualNode.courseId === courseId;
   }
 
   // ===== TREE OPERATION METHODS =====
@@ -331,15 +282,14 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
     this.course = course;
     if (this.isViewInitialized) {
-      // Simple data sync - Observable subscriptions handle intelligent updates
       this.syncDataOnly();
     }
   }
 
-  private handleLessonAdded(lessonNode: any): void {
+  private handleLessonAdded(treeData: TreeData): void {
     if (!this.syncFuncTree || !this.isViewInitialized) return;
 
-    const parentNodeId = this.determineParentNodeId(lessonNode);
+    const parentNodeId = this.determineParentNodeId(treeData);
 
     if (parentNodeId === null) {
       console.warn(`[TreeWrapper] Could not determine parent for lesson, falling back to full sync`);
@@ -347,8 +297,9 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    // ✅ BOUNDARY: TreeData → API/Service calls (services expect Entity or TreeData)
     const result = this.treeSyncService.addLessonNode(
-      lessonNode,
+      treeData.entity, // Pass Entity to service
       this.syncFuncTree,
       parentNodeId,
       this.courseId
@@ -358,7 +309,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       console.error(`[TreeWrapper] Incremental add failed, falling back to full sync:`, result.error);
       this.syncDataOnly();
     } else {
-      console.log(`✅ [TreeWrapper] Successfully added lesson incrementally:`, lessonNode.title);
+      console.log(`✅ [TreeWrapper] Successfully added lesson incrementally:`, treeData.title);
     }
   }
 
@@ -371,29 +322,27 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private handleInternalTreeChange(): void {
     if (!this.isViewInitialized) return;
-    // Internal changes handled by state monitoring - no direct action needed
     console.log(`🔄 [TreeWrapper-${this.instanceId}] Internal tree change detected`);
   }
 
-  private determineParentNodeId(lessonNode: any): string {
-    if (lessonNode.subTopicId) {
-      return `subtopic_${lessonNode.subTopicId}`;
+  private determineParentNodeId(treeData: TreeData): string | null {
+    const entity = treeData.entity;
+
+    // Handle Lesson entity
+    if (entity.entityType === 'Lesson') {
+      const lesson = entity as any; // Cast for property access
+
+      if (lesson.subTopicId) {
+        return `subtopic_${lesson.subTopicId}`;
+      }
+
+      if (lesson.topicId) {
+        return `topic_${lesson.topicId}`;
+      }
     }
 
-    if (lessonNode.topicId) {
-      return `topic_${lessonNode.topicId}`;
-    }
-
-    if (lessonNode.SubTopicId) {
-      return `subtopic_${lessonNode.SubTopicId}`;
-    }
-
-    if (lessonNode.TopicId) {
-      return `topic_${lessonNode.TopicId}`;
-    }
-
-    console.error('[TreeWrapper] Could not determine parent node ID for lesson:', lessonNode);
-    throw new Error(`Could not determine parent node ID for lesson: ${lessonNode.title || lessonNode.id || 'unknown'}`);
+    console.error('[TreeWrapper] Could not determine parent node ID for entity:', entity);
+    return null;
   }
 
   private syncDataOnly(): void {
@@ -408,11 +357,11 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       if (!result.success) {
         console.error(`[TreeWrapper] Sync failed:`, result.error);
       } else {
+        // ✅ BOUNDARY: Update local TreeNode array from SyncFusion
         this.treeData = (this.syncFuncTree.fields as any)?.dataSource || [];
-        console.log('[TreeWrapper] Data synced successfully (no rebind)', {
+        console.log('[TreeWrapper] Data synced successfully', {
           courseId: this.courseId,
-          nodeCount: this.treeData.length,
-          timestamp: new Date().toISOString()
+          nodeCount: this.treeData.length
         });
       }
     }
@@ -432,13 +381,13 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     this.treeSyncService.updateTreeData(this.course, this.syncFuncTree, this.courseId)
       .then(result => {
         if (result.success && this.syncFuncTree?.fields) {
+          // ✅ BOUNDARY: Update local TreeNode array from SyncFusion
           this.treeData = (this.syncFuncTree.fields as any).dataSource || [];
           this.treeFields = this.syncFuncTree.fields;
 
           console.log('[TreeWrapper] Tree data bound successfully (initial load)', {
             courseId: this.courseId,
-            localTreeDataLength: this.treeData.length,
-            timestamp: new Date().toISOString()
+            nodeCount: this.treeData.length
           });
         } else if (!result.success) {
           console.error(`[TreeWrapper] Update failed:`, result.error);
@@ -446,7 +395,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       });
   }
 
-  // ===== UI EVENT HANDLERS =====
+  // ===== BOUNDARY: SyncFusion Event Handlers =====
 
   public onDataBound(): void {
     const syncFusionData = (this.syncFuncTree?.fields as any)?.dataSource || [];
@@ -454,8 +403,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     console.log('[TreeWrapper] onDataBound called', {
       courseId: this.courseId,
       localTreeDataLength: this.treeData.length,
-      syncFusionDataLength: syncFusionData.length,
-      timestamp: new Date().toISOString()
+      syncFusionDataLength: syncFusionData.length
     });
 
     this.treeSyncService.handleDataBound(syncFusionData, this.course?.id);
@@ -463,17 +411,23 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   public emitNodeSelected(args: any): void {
     if (!this.isViewInitialized) return;
+
+    // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
+    const syncFusionNode: TreeNode = args.nodeData;
+    const treeData = treeNodeToTreeData(syncFusionNode);
+
     const result = this.treeNodeActionsService.handleNodeSelected(args, this.treeData, this.courseId);
+
     if (!result.success) {
       console.error(`[TreeWrapper] Selection failed:`, result.error);
     }
   }
 
-  private async handleExternalSelection(node: TreeData): Promise<void> {
+  private async handleExternalSelection(treeData: TreeData): Promise<void> {
     if (!this.isViewInitialized) return;
 
     const result = await this.treeExpansionService.handleExternalSelection(
-      node, this.syncFuncTree, this.treeData, this.courseId
+      treeData, this.syncFuncTree, this.treeData, this.courseId
     );
 
     if (!result.success) {
@@ -481,13 +435,15 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // ===== DRAG AND DROP HANDLERS =====
+  // ===== BOUNDARY: Drag and Drop Handlers =====
 
   public onNodeDragStart(args: any): void {
     if (!this.isViewInitialized) {
       args.cancel = true;
       return;
     }
+
+    // ✅ BOUNDARY: SyncFusion provides TreeNode, convert to TreeData for internal processing
     this.treeDragDropService.handleDragStart(args, this.dragState);
   }
 
@@ -505,9 +461,17 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
+    // ✅ BOUNDARY: SyncFusion TreeNode → NodeMovedEvent with TreeData
+    const draggedTreeNode: TreeNode = args.draggedNode;
+    const targetTreeNode: TreeNode = args.droppedNode;
+
+    const draggedTreeData = treeNodeToTreeData(draggedTreeNode);
+    const targetTreeData = targetTreeNode ? treeNodeToTreeData(targetTreeNode) : null;
+
     const operation = this.treeDragDropService.handleDragStop(
       args, this.dragState, this.treeData, this.courseId
     );
+
 
     if (operation) {
       operation.subscribe({
@@ -516,30 +480,46 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     }
   }
 
-  // ===== NODE ACTION HANDLERS =====
+  // ===== BOUNDARY: Node Action Handlers =====
 
-  public initiateAddChildNode(data: any, childType: EntityType): void {
+  public initiateAddChildNode(syncFusionNodeData: any, childType: EntityType): void {
     if (!this.isViewInitialized) return;
-    const result = this.treeNodeActionsService.initiateAddChildNode(data, childType, this.treeData, this.courseId);
+
+    // ✅ BOUNDARY: SyncFusion node data → TreeData conversion
+    const treeData = treeNodeToTreeData(syncFusionNodeData);
+
+    const result = this.treeNodeActionsService.initiateAddChildNode(
+      syncFusionNodeData, childType, this.treeData, this.courseId
+    );
     if (!result.success) {
       console.error(`[TreeWrapper] Add child failed:`, result.error);
     }
   }
 
-  public deleteNode(data: any): void {
+  public deleteNode(syncFusionNodeData: any): void {
     if (!this.isViewInitialized) return;
-    const result = this.treeNodeActionsService.deleteNode(data, this.treeData, this.courseId);
+
+    // ✅ BOUNDARY: SyncFusion node data → TreeData conversion
+    const treeData = treeNodeToTreeData(syncFusionNodeData);
+
+    const result = this.treeNodeActionsService.deleteNode(
+      syncFusionNodeData, this.treeData, this.courseId
+    );
     if (!result.success) {
       console.error(`[TreeWrapper] Delete failed:`, result.error);
     }
   }
 
-  public getNodeTypeIcon(nodeType: string): string {
-    return this.treeNodeActionsService.getNodeTypeIcon(nodeType);
+  public getEntityTypeIcon(entityType: string): string {
+    return this.treeNodeActionsService.getEntityTypeIcon(entityType);
   }
 
   public onNodeExpanded(args: any): void {
     if (!this.isViewInitialized) return;
+
+    // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
+    const syncFusionNode: TreeNode = args.nodeData;
+    const treeData = treeNodeToTreeData(syncFusionNode);
 
     const result = this.treeNodeActionsService.handleAutoSelectOnExpand(
       args, this.treeData, this.courseId, this.nodeSelectionService.hasSelection()
@@ -552,6 +532,18 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         console.warn('[TreeWrapper] Failed to update selectedNodes:', err);
       }
     }
+  }
+
+  // ===== UTILITY METHODS =====
+
+  private isEventForThisCourse(event: EntitySignalPayload): boolean {
+    return this.isEntityInCourse(event.entity, this.courseId);
+  }
+
+  private isEntityInCourse(entity: Entity, courseId: number): boolean {
+    // ✅ BOUNDARY: Entity property access
+    const entityCourseId = (entity as any).courseId || entity.id;
+    return entityCourseId === courseId;
   }
 }
 

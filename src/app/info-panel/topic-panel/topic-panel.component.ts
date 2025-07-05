@@ -21,9 +21,9 @@ export class TopicPanelComponent implements OnChanges, OnInit {
   @Input()
   set data(value: Topic | null) {
     this._data = value;
-    console.log(`[TopicPanel] Data set`, { 
-      title: this._data?.title ?? 'New Topic', 
-      timestamp: new Date().toISOString() 
+    console.log(`[TopicPanel] Data set`, {
+      title: this._data?.title ?? 'New Topic',
+      timestamp: new Date().toISOString()
     });
   }
   get data(): Topic | null {
@@ -51,15 +51,15 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     private panelStateService: PanelStateService,
     private toastr: ToastrService
   ) {
-    console.log('[TopicPanel] Component initialized with signals optimization', { 
-      timestamp: new Date().toISOString() 
+    console.log('[TopicPanel] Component initialized with signals optimization', {
+      timestamp: new Date().toISOString()
     });
 
     // React to mode changes
     effect(() => {
       const currentMode = this.panelStateService.panelMode();
-      console.log(`[TopicPanel] Mode changed to: ${currentMode}`, { 
-        timestamp: new Date().toISOString() 
+      console.log(`[TopicPanel] Mode changed to: ${currentMode}`, {
+        timestamp: new Date().toISOString()
       });
       this.updateEditingState();
     });
@@ -68,11 +68,11 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     effect(() => {
       const template = this.panelStateService.nodeTemplate();
       const mode = this.panelStateService.panelMode();
-      
-      if (mode === 'add' && template && template.nodeType === 'Topic') {
+
+      if (mode === 'add' && template && template.entityType  === 'Topic') {
         this._data = template as Topic;
-        console.log(`[TopicPanel] Using template for new topic`, { 
-          timestamp: new Date().toISOString() 
+        console.log(`[TopicPanel] Using template for new topic`, {
+          timestamp: new Date().toISOString()
         });
       }
     });
@@ -90,7 +90,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
 
   private updateEditingState() {
     if (this.mode === 'edit' && this.data && !this.originalData) {
-      this.originalData = { ...this.data };
+      this.originalData = this.data.clone();
       console.log(`[TopicPanel] Stored original data for editing: ${this.originalData.title}`);
     } else if (this.mode === 'add' && this.data) {
       this.data.archived = false;
@@ -104,7 +104,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
 
   enterEditMode() {
     if (this.data) {
-      this.originalData = { ...this.data };
+      this.originalData = this.data.clone();
       this.panelStateService.setMode('edit');
       console.log(`[TopicPanel] Entered edit mode for ${this.data.title}`);
     }
@@ -118,16 +118,16 @@ export class TopicPanelComponent implements OnChanges, OnInit {
         next: (createdTopic) => {
           this.data = createdTopic;
           this.panelStateService.setMode('view');
-          console.log(`[TopicPanel] Topic created`, { 
-            title: createdTopic.title, 
-            timestamp: new Date().toISOString() 
+          console.log(`[TopicPanel] Topic created`, {
+            title: createdTopic.title,
+            timestamp: new Date().toISOString()
           });
           this.toastr.success(`Topic "${createdTopic.title}" created successfully`);
         },
         error: (error) => {
-          console.error(`[TopicPanel] Error creating topic`, { 
-            error, 
-            timestamp: new Date().toISOString() 
+          console.error(`[TopicPanel] Error creating topic`, {
+            error,
+            timestamp: new Date().toISOString()
           });
           this.toastr.error('Failed to create topic: ' + error.message, 'Error');
         }
@@ -137,16 +137,16 @@ export class TopicPanelComponent implements OnChanges, OnInit {
         next: (updatedTopic) => {
           this.panelStateService.setMode('view');
           this.originalData = null;
-          console.log(`[TopicPanel] Topic updated`, { 
-            title: updatedTopic.title, 
-            timestamp: new Date().toISOString() 
+          console.log(`[TopicPanel] Topic updated`, {
+            title: updatedTopic.title,
+            timestamp: new Date().toISOString()
           });
           this.toastr.success(`Topic "${updatedTopic.title}" updated successfully`);
         },
         error: (error) => {
-          console.error(`[TopicPanel] Error updating topic`, { 
-            error, 
-            timestamp: new Date().toISOString() 
+          console.error(`[TopicPanel] Error updating topic`, {
+            error,
+            timestamp: new Date().toISOString()
           });
           this.toastr.error('Failed to update topic: ' + error.message, 'Error');
         }

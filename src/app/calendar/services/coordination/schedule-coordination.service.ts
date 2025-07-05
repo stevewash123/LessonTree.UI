@@ -88,15 +88,15 @@ export class ScheduleCoordinationService implements OnDestroy {
     const lessonAddedSub = this.courseSignalService.entityAdded$.subscribe((entityAddedEvent: EntitySignalPayload) => {
       console.log('🔄 [ScheduleCoordinationService] === OBSERVABLE EVENT RECEIVED ===', {
         eventType: 'entityAdded',
-        nodeType: entityAddedEvent.entity.nodeType,
-        nodeId: entityAddedEvent.entity.nodeId,
+        entityType: entityAddedEvent.entity.entityType,
+        entityId: entityAddedEvent.entity.id,
         nodeTitle: entityAddedEvent.entity.title,
         source: entityAddedEvent.source,
         operationType: entityAddedEvent.operationType,
         timestamp: entityAddedEvent.timestamp.toISOString()
       });
 
-      if (entityAddedEvent.entity.nodeType === 'Lesson' && entityAddedEvent.source === 'infopanel') {
+      if (entityAddedEvent.entity.entityType === 'Lesson' && entityAddedEvent.source === 'infopanel') {
         console.log('🎯 [ScheduleCoordinationService] PROCESSING lesson event - checking for schedule integration');
         this.handleLessonCreationWithCoordination(entityAddedEvent.entity as LessonDetail);
       } else {

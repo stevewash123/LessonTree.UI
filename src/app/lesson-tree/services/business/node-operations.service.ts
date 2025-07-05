@@ -8,10 +8,10 @@ import { catchError, map, Observable, of, switchMap, tap } from 'rxjs';
 import { CourseCrudService } from '../course-operations/course-crud.service';
 import { NodePositioningService } from './node-positioning.service';
 import { ToastrService } from 'ngx-toastr';
-import { TreeData, NodeMovedEvent } from '../../../models/tree-node';
 import { ApiService } from '../../../shared/services/api.service';
 import { CourseDataService } from '../course-data/course-data.service';
 import {DragMode, NodeDragModeService} from '../state/node-drag-mode.service';
+import {NodeMovedEvent, TreeData} from '../../../models/tree-node';
 
 export interface NodeCopyEvent {
   node: TreeData;
@@ -81,7 +81,7 @@ export class NodeOperationsService {
     const operationType = this.isDragModeCopy ? 'copy' : 'move';
 
     console.log(`[NodeOperationsService] Starting ${operationType} operation:`, {
-      nodeType: event.node.entityType,
+      entityType : event.node.entityType,
       nodeId: event.node.id,
       nodeTitle: this.getNodeTitle(event.node)
     });

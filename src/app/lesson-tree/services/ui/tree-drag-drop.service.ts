@@ -1,5 +1,5 @@
-// **COMPLETE FILE** - TreeDragDropService - Observable Infrastructure REMOVED
-// RESPONSIBILITY: Handles tree drag & drop operations with clean delegation
+// **COMPLETE FILE** - TreeDragDropService - Entity Boundary Fixed
+// RESPONSIBILITY: Handles tree drag & drop operations with clean Entity/TreeData boundary management
 // DOES NOT: Manage tree UI state, store drag state, or handle data persistence - delegates appropriately
 // CALLED BY: TreeWrapper drag event handlers for drag operation management
 
@@ -9,8 +9,8 @@ import { Course } from '../../../models/course';
 import { Lesson } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
 import { Topic } from '../../../models/topic';
-import { TreeNode, NodeMovedEvent } from '../../../models/tree-node';
-import {TreeDataService} from './tree-data.service';
+import { TreeNode, NodeMovedEvent, createTreeData } from '../../../models/tree-node';
+import {TreeNodeBuilderService} from './tree-node-builder.service';
 import {NodeOperationsService} from '../business/node-operations.service';
 import {DragMode, NodeDragModeService} from '../state/node-drag-mode.service';
 
@@ -27,7 +27,7 @@ export class TreeDragDropService {
 
   constructor(
     private nodeOperationsService: NodeOperationsService,
-    private treeDataService: TreeDataService,
+    private treeNodeBuilderService: TreeNodeBuilderService,
     private nodeDragModeService: NodeDragModeService
   ) {
     console.log('[TreeDragDropService] Initialized for drag operation management');
@@ -47,7 +47,7 @@ export class TreeDragDropService {
     dragState.allowDrag = false;
 
     console.log('[TreeDragDropService] Drag started:', {
-      nodeType: args.draggedNodeData?.nodeType,
+      entityType: args.draggedNodeData?.entityType,
       nodeId: args.draggedNodeData?.id
     });
   }
@@ -93,20 +93,20 @@ export class TreeDragDropService {
       return null;
     }
 
-    const draggedNode = this.treeDataService.findNodeById(treeData, draggedNodeId);
+    const draggedNode = this.treeNodeBuilderService.findNodeById(treeData, draggedNodeId);
     if (!draggedNode) {
       console.warn('[TreeDragDropService] Dragged node not found:', draggedNodeId);
       return null;
     }
 
-    const targetNode = this.treeDataService.findNodeById(treeData, targetNodeId);
+    const targetNode = this.treeNodeBuilderService.findNodeById(treeData, targetNodeId);
     if (!targetNode) {
       console.warn('[TreeDragDropService] Target node not found:', targetNodeId);
       return null;
     }
 
-    const draggedNodeType = draggedNode.nodeType || 'Unknown';
-    const targetNodeType = targetNode.nodeType || 'Unknown';
+    const draggedEntityType = draggedNode.entityType || 'Unknown';
+    const targetEntityType = targetNode.entityType || 'Unknown';
 
     const dragValidation = this.validateDragOperation(draggedNode, targetNode);
     if (!dragValidation.isValid) {
@@ -117,12 +117,12 @@ export class TreeDragDropService {
     dragState.allowDrag = false;
 
     console.log('[TreeDragDropService] Processing drag operation:', {
-      draggedType: draggedNodeType,
-      targetType: targetNodeType,
+      draggedType: draggedEntityType,
+      targetType: targetEntityType,
       operation: this.getDragOperationDescription(draggedNode, targetNode)
     });
 
-    switch (draggedNodeType) {
+    switch (draggedEntityType) {
       case 'Lesson':
         return this.handleLessonDragWithPosition(draggedNode, targetNode, dropPosition, dropIndex);
       case 'SubTopic':
@@ -130,21 +130,21 @@ export class TreeDragDropService {
       case 'Topic':
         return this.handleTopicDragWithPosition(draggedNode, targetNode, dropPosition, dropIndex, courseId);
       default:
-        console.warn('[TreeDragDropService] Unsupported node type for drag operation:', draggedNodeType);
+        console.warn('[TreeDragDropService] Unsupported node type for drag operation:', draggedEntityType);
         return null;
     }
   }
 
   private validateDragOperation(draggedNode: TreeNode, targetNode: TreeNode): { isValid: boolean; reason: string } {
-    const draggedNodeType = draggedNode.nodeType || 'Unknown';
-    const targetNodeType = targetNode.nodeType || 'Unknown';
+    const draggedEntityType = draggedNode.entityType || 'Unknown';
+    const targetEntityType = targetNode.entityType || 'Unknown';
 
-    if (!this.canDragNode(draggedNodeType)) {
-      return { isValid: false, reason: `Cannot drag ${draggedNodeType} nodes` };
+    if (!this.canDragNode(draggedEntityType)) {
+      return { isValid: false, reason: `Cannot drag ${draggedEntityType} nodes` };
     }
 
-    if (!this.canDropOnTarget(draggedNodeType, targetNodeType)) {
-      return { isValid: false, reason: `Cannot drop ${draggedNodeType} on ${targetNodeType}` };
+    if (!this.canDropOnTarget(draggedEntityType, targetEntityType)) {
+      return { isValid: false, reason: `Cannot drop ${draggedEntityType} on ${targetEntityType}` };
     }
 
     return { isValid: true, reason: 'Valid drag operation' };
@@ -157,15 +157,15 @@ export class TreeDragDropService {
     dropIndex: number
   ): Observable<any> | null {
     const lesson = draggedNode.original as Lesson;
-    const targetNodeType = targetNode.nodeType || 'Unknown';
+    const targetEntityType = targetNode.entityType || 'Unknown';
 
-    if (dropPosition === 'Inside' && targetNodeType === 'SubTopic') {
+    if (dropPosition === 'Inside' && targetEntityType === 'SubTopic') {
       const targetSubTopic = targetNode.original as SubTopic;
       return this.performSimpleLessonMove(lesson, targetSubTopic.id, undefined);
     }
 
     if (dropPosition === 'Before' || dropPosition === 'After') {
-      if (targetNodeType === 'Lesson') {
+      if (targetEntityType === 'Lesson') {
         const targetLesson = targetNode.original as Lesson;
 
         if (targetLesson.subTopicId) {
@@ -189,7 +189,7 @@ export class TreeDragDropService {
         }
       }
 
-      if (targetNodeType === 'SubTopic') {
+      if (targetEntityType === 'SubTopic') {
         const targetSubTopic = targetNode.original as SubTopic;
         return this.performPositionalLessonMove(
           lesson,
@@ -201,7 +201,7 @@ export class TreeDragDropService {
         );
       }
 
-      if (targetNodeType === 'Topic') {
+      if (targetEntityType === 'Topic') {
         const targetTopic = targetNode.original as Topic;
         if (dropPosition === 'After') {
           console.log(`[TreeDragDropService] Moving lesson to be first child of topic ${targetTopic.id}`);
@@ -212,7 +212,7 @@ export class TreeDragDropService {
 
     console.warn('[TreeDragDropService] Unsupported lesson drop scenario:', {
       dropPosition,
-      targetType: targetNodeType
+      targetType: targetEntityType
     });
     return null;
   }
@@ -222,8 +222,11 @@ export class TreeDragDropService {
     targetSubTopicId?: number,
     targetTopicId?: number
   ): Observable<any> {
+    // ✅ FIXED: Convert Entity to TreeData for NodeMovedEvent
+    const lessonTreeData = createTreeData(lesson);
+
     const event: NodeMovedEvent = {
-      node: lesson,
+      node: lessonTreeData,
       sourceParentId: lesson.subTopicId || lesson.topicId,
       sourceParentType: lesson.subTopicId ? 'SubTopic' : 'Topic',
       targetParentId: targetSubTopicId || targetTopicId,
@@ -250,8 +253,11 @@ export class TreeDragDropService {
       relativeToType
     });
 
+    // ✅ FIXED: Convert Entity to TreeData for NodeMovedEvent
+    const lessonTreeData = createTreeData(lesson);
+
     const event: NodeMovedEvent = {
-      node: lesson,
+      node: lessonTreeData,
       sourceParentId: lesson.subTopicId || lesson.topicId,
       sourceParentType: lesson.subTopicId ? 'SubTopic' : 'Topic',
       targetParentId: targetParentId,
@@ -286,18 +292,21 @@ export class TreeDragDropService {
   }
 
   private handleSubTopicDrag(draggedNode: TreeNode, targetNode: TreeNode): Observable<any> | null {
-    const targetNodeType = targetNode.nodeType || 'Unknown';
+    const targetEntityType = targetNode.entityType || 'Unknown';
 
-    if (targetNodeType !== 'Topic') {
-      console.warn('[TreeDragDropService] SubTopic can only be dropped on Topic:', targetNodeType);
+    if (targetEntityType !== 'Topic') {
+      console.warn('[TreeDragDropService] SubTopic can only be dropped on Topic:', targetEntityType);
       return null;
     }
 
     const subTopic = draggedNode.original as SubTopic;
     const targetTopic = targetNode.original as Topic;
 
+    // ✅ FIXED: Convert Entity to TreeData for NodeMovedEvent
+    const subTopicTreeData = createTreeData(subTopic);
+
     const event: NodeMovedEvent = {
-      node: subTopic,
+      node: subTopicTreeData,
       sourceParentId: subTopic.topicId,
       sourceParentType: 'Topic',
       targetParentId: targetTopic.id,
@@ -312,10 +321,10 @@ export class TreeDragDropService {
     targetNode: TreeNode,
     courseId: number
   ): Observable<any> | null {
-    const targetNodeType = targetNode.nodeType || 'Unknown';
+    const targetEntityType = targetNode.entityType || 'Unknown';
 
-    if (targetNodeType !== 'Course') {
-      console.warn('[TreeDragDropService] Topic can only be dropped on Course:', targetNodeType);
+    if (targetEntityType !== 'Course') {
+      console.warn('[TreeDragDropService] Topic can only be dropped on Course:', targetEntityType);
       return null;
     }
 
@@ -323,9 +332,12 @@ export class TreeDragDropService {
     const sourceCourseId = courseId;
     const targetCourseId = parseInt(targetNode.id);
 
+    // ✅ FIXED: Convert Entity to TreeData for NodeMovedEvent
+    const topicTreeData = createTreeData(topic);
+
     if (sourceCourseId === targetCourseId) {
       const event: NodeMovedEvent = {
-        node: topic,
+        node: topicTreeData,
         sourceParentId: sourceCourseId,
         sourceParentType: 'Course',
         targetParentId: targetCourseId,
@@ -339,7 +351,7 @@ export class TreeDragDropService {
       console.log('[TreeDragDropService] Cross-course topic move');
 
       const event: NodeMovedEvent = {
-        node: topic,
+        node: topicTreeData,
         sourceCourseId,
         targetCourseId,
         targetParentType: 'Course',
@@ -350,20 +362,20 @@ export class TreeDragDropService {
     }
   }
 
-  canDragNode(nodeType: string): boolean {
+  canDragNode(entityType: string): boolean {
     const allowedTypes = ['Lesson', 'SubTopic', 'Topic'];
-    return allowedTypes.includes(nodeType);
+    return allowedTypes.includes(entityType);
   }
 
-  canDropOnTarget(draggedNodeType: string, targetNodeType: string): boolean {
+  canDropOnTarget(draggedEntityType: string, targetEntityType: string): boolean {
     const validDropTargets: Record<string, string[]> = {
       'Lesson': ['SubTopic', 'Topic', 'Lesson'],
       'SubTopic': ['Topic'],
       'Topic': ['Course']
     };
 
-    const allowedTargets = validDropTargets[draggedNodeType] || [];
-    return allowedTargets.includes(targetNodeType);
+    const allowedTargets = validDropTargets[draggedEntityType] || [];
+    return allowedTargets.includes(targetEntityType);
   }
 
   getDragOperationDescription(
@@ -373,11 +385,11 @@ export class TreeDragDropService {
     const draggedTitle = this.getNodeTitle(draggedNode);
     const targetTitle = this.getNodeTitle(targetNode);
 
-    return `Moving ${draggedNode.nodeType || 'Unknown'} "${draggedTitle}" to ${targetNode.nodeType || 'Unknown'} "${targetTitle}"`;
+    return `Moving ${draggedNode.entityType || 'Unknown'} "${draggedTitle}" to ${targetNode.entityType || 'Unknown'} "${targetTitle}"`;
   }
 
   private getNodeTitle(node: TreeNode): string {
-    switch (node.nodeType) {
+    switch (node.entityType) {
       case 'Course':
         return (node.original as Course).title;
       case 'Topic':
@@ -437,7 +449,7 @@ export class TreeDragDropService {
       validationRules: this.getDragOperationStats(),
       dependencies: {
         nodeOperationsService: 'Drag operation execution',
-        treeDataService: 'Node lookup and tree navigation',
+        treeNodeBuilderService: 'Node lookup and tree navigation',
         nodeDragModeService: 'Drag mode state management'
       }
     };

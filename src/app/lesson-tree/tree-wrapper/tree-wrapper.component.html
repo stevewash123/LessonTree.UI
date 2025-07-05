@@ -21,29 +21,29 @@
     (dataBound)="onDataBound()"
     ></ejs-treeview>
   </div>
-  
+
 <ng-template #nodeTemplate let-data>
     <div class="treeviewdiv">
-      <div class="node-container" [ngClass]="data.nodeType.toLowerCase()">
-        <span class="node-type-icon">{{ getNodeTypeIcon(data.nodeType) }}</span>
+      <div class="node-container" [ngClass]="data.entityType .toLowerCase()">
+        <span class="node-type-icon">{{ getEntityTypeIcon(data.entityType ) }}</span>
         <div class="node-content">
           <span class="node-title">{{ data.text }}</span>
-          @if (data.nodeType === 'Lesson' && data.original?.objective && data.original.objective !== '[No objective available]') {
+          @if (data.entityType  === 'Lesson' && data.original?.objective && data.original.objective !== '[No objective available]') {
             <span class="node-description">{{ data.original.objective }}</span>
-          } @else if (data.nodeType !== 'Lesson' && data.original?.description && data.original.description !== '[No description available]') {
+          } @else if (data.entityType  !== 'Lesson' && data.original?.description && data.original.description !== '[No description available]') {
             <span class="node-description">{{ data.original.description }}</span>
           }
         </div>
         <div class="node-actions">
           <!-- Different actions depending on node type -->
-          @if (data.nodeType === 'Course') {
+          @if (data.entityType  === 'Course') {
             <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this Course">
               <mat-icon>delete</mat-icon>
             </button>
             <button mat-icon-button (click)="initiateAddChildNode(data, 'Topic'); $event.stopPropagation()" matTooltip="Add new Topic to this Course">
               <mat-icon>add_circle</mat-icon>
             </button>
-          } @else if (data.nodeType === 'Topic') {
+          } @else if (data.entityType  === 'Topic') {
             <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this Topic">
               <mat-icon>delete</mat-icon>
             </button>
@@ -53,14 +53,14 @@
             <button mat-icon-button (click)="initiateAddChildNode(data, 'Lesson'); $event.stopPropagation()" matTooltip="Add new Lesson to this Topic">
               <mat-icon>school</mat-icon>
             </button>
-          } @else if (data.nodeType === 'SubTopic') {
+          } @else if (data.entityType  === 'SubTopic') {
             <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this SubTopic">
               <mat-icon>delete</mat-icon>
             </button>
             <button mat-icon-button (click)="initiateAddChildNode(data, 'Lesson'); $event.stopPropagation()" matTooltip="Add new Lesson to this SubTopic">
               <mat-icon>school</mat-icon>
             </button>
-          } @else if (data.nodeType === 'Lesson') {
+          } @else if (data.entityType  === 'Lesson') {
             <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this Lesson">
               <mat-icon>delete</mat-icon>
             </button>

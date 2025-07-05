@@ -1,3 +1,4 @@
+// **COMPLETE FILE** - course-data/course-tree-mutation.service.ts
 // RESPONSIBILITY: Pure tree mutation logic for course hierarchy. Handles all add/update/remove operations.
 // DOES NOT: Handle data storage, queries, or signal emission.
 // CALLED BY: CourseDataService
@@ -7,7 +8,7 @@ import { Course } from '../../../models/course';
 import { Lesson, LessonDetail } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
 import { Topic } from '../../../models/topic';
-import { TreeData } from '../../../models/tree-node';
+import { Entity } from '../../../models/entity';
 import { CourseDataStorageService } from './course-data-storage.service';
 
 @Injectable({
@@ -19,12 +20,30 @@ export class CourseTreeMutationService {
     console.log('[CourseTreeMutationService] Tree mutation service initialized');
   }
 
+  // === TYPE GUARDS ===
+
+  private isCourseEntity(entity: Entity): entity is Course {
+    return entity.entityType === 'Course';
+  }
+
+  private isTopicEntity(entity: Entity): entity is Topic {
+    return entity.entityType === 'Topic';
+  }
+
+  private isSubTopicEntity(entity: Entity): entity is SubTopic {
+    return entity.entityType === 'SubTopic';
+  }
+
+  private isLessonEntity(entity: Entity): entity is Lesson {
+    return entity.entityType === 'Lesson';
+  }
+
   // === GENERIC MUTATION HELPERS ===
 
   /**
    * Generic helper to find and update any entity in the courses tree
    */
-  mutateTree<T extends TreeData>(
+  mutateTree<T extends Entity>(
     entity: T,
     operation: 'add' | 'update' | 'remove'
   ): void {
@@ -36,21 +55,41 @@ export class CourseTreeMutationService {
   /**
    * Process the courses array, routing to appropriate handler based on entity type
    */
-  private processCoursesArray<T extends TreeData>(
+  private processCoursesArray<T extends Entity>(
     courses: Course[],
     entity: T,
     operation: 'add' | 'update' | 'remove'
   ): Course[] {
-    if (entity.entityType === 'Course') {
-      return this.mutateCourseArray(courses, entity as Course, operation);
+    // ✅ FIXED: Use type guard instead of unsafe casting
+    if (this.isCourseEntity(entity)) {
+      return this.mutateCourseArray(courses, entity, operation);
     }
 
     return courses.map((course: Course) => {
-      if (course.id === entity.courseId) {
+      const entityCourseId = this.getEntityCourseId(entity);
+      if (course.id === entityCourseId) {
         return this.mutateCourse(course, entity, operation);
       }
       return course;
     });
+  }
+
+  /**
+   * Extract courseId from any Entity type
+   */
+  private getEntityCourseId(entity: Entity): number {
+    switch (entity.entityType) {
+      case 'Course':
+        return entity.id;
+      case 'Topic':
+        return (entity as Topic).courseId;
+      case 'SubTopic':
+        return (entity as SubTopic).courseId;
+      case 'Lesson':
+        return (entity as Lesson).courseId;
+      default:
+        return 0;
+    }
   }
 
   /**
@@ -70,22 +109,23 @@ export class CourseTreeMutationService {
   /**
    * Handle mutations within a specific course
    */
-  private mutateCourse<T extends TreeData>(course: Course, entity: T, operation: 'add' | 'update' | 'remove'): Course {
-    const newCourse = { ...course };
+  private mutateCourse<T extends Entity>(course: Course, entity: T, operation: 'add' | 'update' | 'remove'): Course {
+    const updatedCourse = course.clone();
 
-    if (entity.entityType === 'Topic') {
-      newCourse.topics = this.mutateTopicArray(newCourse.topics || [], entity as Topic, operation);
-      return newCourse;
+    // ✅ FIXED: Use type guard instead of unsafe casting
+    if (this.isTopicEntity(entity)) {
+      updatedCourse.topics = this.mutateTopicArray(updatedCourse.topics || [], entity, operation);
+      return updatedCourse;
     }
 
-    if (entity.entityType === 'SubTopic' || entity.entityType === 'Lesson') {
-      newCourse.topics = (newCourse.topics || []).map((topic: Topic) =>
+    if (this.isSubTopicEntity(entity) || this.isLessonEntity(entity)) {
+      updatedCourse.topics = (updatedCourse.topics || []).map((topic: Topic) =>
         this.mutateTopic(topic, entity, operation)
       );
-      return newCourse;
+      return updatedCourse;
     }
 
-    return newCourse;
+    return updatedCourse;
   }
 
   /**
@@ -103,39 +143,37 @@ export class CourseTreeMutationService {
   }
 
   /**
-   * Handle mutations within a specific topic - FIXED: Proper lesson type handling
+   * Handle mutations within a specific topic
    */
-  private mutateTopic<T extends TreeData>(topic: Topic, entity: T, operation: 'add' | 'update' | 'remove'): Topic {
-    const newTopic = { ...topic };
+  private mutateTopic<T extends Entity>(topic: Topic, entity: T, operation: 'add' | 'update' | 'remove'): Topic {
+    const updatedTopic = topic.clone();
 
-    if (entity.entityType === 'SubTopic') {
-      const subTopic = entity as unknown as SubTopic;
-      if (subTopic.topicId === topic.id) {
-        newTopic.subTopics = this.mutateSubTopicArray(newTopic.subTopics || [], subTopic, operation);
+    // ✅ FIXED: Use type guard instead of unsafe casting
+    if (this.isSubTopicEntity(entity)) {
+      if (entity.topicId === topic.id) {
+        updatedTopic.subTopics = this.mutateSubTopicArray(updatedTopic.subTopics || [], entity, operation);
       }
-      return newTopic;
+      return updatedTopic;
     }
 
-    if (entity.entityType === 'Lesson') {
-      // FIXED: Accept both Lesson and LessonDetail, but store as Lesson
-      const lesson = entity as unknown as Lesson | LessonDetail;
-
+    // ✅ FIXED: Use type guard for lesson handling
+    if (this.isLessonEntity(entity)) {
       // Lesson belongs directly to this topic
-      if (lesson.topicId === topic.id && !lesson.subTopicId) {
-        const basicLesson = this.toLessonBasic(lesson);
-        newTopic.lessons = this.mutateLessonArray(newTopic.lessons || [], basicLesson, operation);
-        return newTopic;
+      if (entity.topicId === topic.id && !entity.subTopicId) {
+        const basicLesson = this.toLessonBasic(entity);
+        updatedTopic.lessons = this.mutateLessonArray(updatedTopic.lessons || [], basicLesson, operation);
+        return updatedTopic;
       }
 
       // Lesson belongs to a subtopic within this topic
-      if (lesson.subTopicId) {
-        newTopic.subTopics = (newTopic.subTopics || []).map((subTopic: SubTopic) =>
-          this.mutateSubTopic(subTopic, lesson, operation)
+      if (entity.subTopicId) {
+        updatedTopic.subTopics = (updatedTopic.subTopics || []).map((subTopic: SubTopic) =>
+          this.mutateSubTopic(subTopic, entity, operation)
         );
       }
     }
 
-    return newTopic;
+    return updatedTopic;
   }
 
   /**
@@ -153,20 +191,20 @@ export class CourseTreeMutationService {
   }
 
   /**
-   * Handle mutations within a specific subtopic - FIXED: Proper lesson type handling
+   * Handle mutations within a specific subtopic
    */
-  private mutateSubTopic(subTopic: SubTopic, lesson: Lesson | LessonDetail, operation: 'add' | 'update' | 'remove'): SubTopic {
+  private mutateSubTopic(subTopic: SubTopic, lesson: Lesson, operation: 'add' | 'update' | 'remove'): SubTopic {
     if (lesson.subTopicId === subTopic.id) {
-      const newSubTopic = { ...subTopic };
+      const updatedSubTopic = subTopic.clone();
       const basicLesson = this.toLessonBasic(lesson);
-      newSubTopic.lessons = this.mutateLessonArray(newSubTopic.lessons || [], basicLesson, operation);
-      return newSubTopic;
+      updatedSubTopic.lessons = this.mutateLessonArray(updatedSubTopic.lessons || [], basicLesson, operation);
+      return updatedSubTopic;
     }
     return subTopic;
   }
 
   /**
-   * Handle lesson array mutations - FIXED: Only work with Lesson type
+   * Handle lesson array mutations
    */
   private mutateLessonArray(lessons: Lesson[], lesson: Lesson, operation: 'add' | 'update' | 'remove'): Lesson[] {
     switch (operation) {
@@ -183,48 +221,46 @@ export class CourseTreeMutationService {
    * Convert LessonDetail to basic Lesson for tree storage
    */
   private toLessonBasic(lesson: Lesson | LessonDetail): Lesson {
-    return {
+    // ✅ Use proper Lesson constructor instead of object literal
+    return new Lesson({
       id: lesson.id,
-      nodeId: lesson.nodeId,
       courseId: lesson.courseId,
       subTopicId: lesson.subTopicId,
       topicId: lesson.topicId,
       title: lesson.title,
       objective: lesson.objective,
-      entityType: 'Lesson',
       description: lesson.description,
       archived: lesson.archived,
       visibility: lesson.visibility,
       userId: lesson.userId,
-      sortOrder: lesson.sortOrder,
-      hasChildren: false
-    } as Lesson;
+      sortOrder: lesson.sortOrder
+    });
   }
 
   // === PUBLIC MUTATION METHODS ===
 
-  addEntity<T extends TreeData>(entity: T): void {
+  addEntity<T extends Entity>(entity: T): void {
     console.log('[CourseTreeMutationService] Adding entity', {
       entityType: entity.entityType,
-      entityId: entity.id,  // ✅ Use entity.id (EntityFramework primary key)
+      entityId: entity.id,
       timestamp: new Date().toISOString()
     });
     this.mutateTree(entity, 'add');
   }
 
-  updateEntity<T extends TreeData>(entity: T): void {
+  updateEntity<T extends Entity>(entity: T): void {
     console.log('[CourseTreeMutationService] Updating entity', {
       entityType: entity.entityType,
-      entityId: entity.id,  // ✅ Use entity.id (EntityFramework primary key)
+      entityId: entity.id,
       timestamp: new Date().toISOString()
     });
     this.mutateTree(entity, 'update');
   }
 
-  removeEntity<T extends TreeData>(entity: T): void {
+  removeEntity<T extends Entity>(entity: T): void {
     console.log('[CourseTreeMutationService] Removing entity', {
       entityType: entity.entityType,
-      entityId: entity.id,  // ✅ Use entity.id (EntityFramework primary key)
+      entityId: entity.id,
       timestamp: new Date().toISOString()
     });
     this.mutateTree(entity, 'remove');

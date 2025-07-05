@@ -11,7 +11,7 @@ export enum ArchiveFilter {
 }
 
 // Tree node types for navigation (used in multiple domains)
-export type NodeType = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
+export type entityType  = 'Course' | 'Topic' | 'SubTopic' | 'Lesson';
 
 // Selection source tracking (used across calendar and tree)
 export type SelectionSource = 'tree' | 'calendar' | 'api' | 'initial';

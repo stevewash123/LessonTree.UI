@@ -5,9 +5,9 @@
 
 import { Injectable } from '@angular/core';
 import { TreeViewComponent } from '@syncfusion/ej2-angular-navigations';
-import { TreeDataService } from './tree-data.service';
 import { Course } from '../../../models/course';
 import { TreeNode } from '../../../models/tree-node';
+import {TreeNodeBuilderService} from './tree-node-builder.service';
 
 export interface SyncResult {
   success: boolean;
@@ -21,7 +21,7 @@ export interface SyncResult {
 })
 export class TreeSyncService {
 
-  constructor(private treeDataService: TreeDataService) {
+  constructor(private treeNodeBuilderService: TreeNodeBuilderService) {
     console.log('[TreeSyncService] Service initialized for SyncFusion component integration');
   }
 
@@ -61,7 +61,7 @@ export class TreeSyncService {
 
     try {
       // Create the new lesson node using TreeDataService
-      const newLessonNode = this.treeDataService.createLessonNode(lesson);
+      const newLessonNode = this.treeNodeBuilderService.createLessonNode(lesson);
 
       console.log(`[TreeSyncService] Adding lesson node "${lesson.title}" to parent "${parentNodeId}" for course ${courseId}`);
 
@@ -126,7 +126,7 @@ export class TreeSyncService {
     }
 
     // Use TreeDataService to build tree structure
-    const treeData = this.treeDataService.buildTreeFromCourse(course, courseId);
+    const treeData = this.treeNodeBuilderService.buildTreeFromCourse(course, courseId);
 
     // Queue the binding operation for next tick to ensure DOM is ready
     return new Promise((resolve) => {
@@ -214,7 +214,7 @@ export class TreeSyncService {
 
     try {
       // WARNING: This WILL trigger dataBind() and cause tree collapse
-      const treeData = this.treeDataService.buildTreeFromCourse(course, courseId);
+      const treeData = this.treeNodeBuilderService.buildTreeFromCourse(course, courseId);
 
       syncFuncTree.fields = {
         ...syncFuncTree.fields,
@@ -307,7 +307,7 @@ export class TreeSyncService {
 
     // Use TreeDataService for logging statistics
     if (treeData && treeData.length > 0) {
-      this.treeDataService.logTreeStatistics(treeData);
+      this.treeNodeBuilderService.logTreeStatistics(treeData);
 
       console.log('[TreeSyncService] Data bound handled', {
         courseId,
@@ -336,7 +336,7 @@ export class TreeSyncService {
     }
 
     try {
-      this.treeDataService.sortTreeData(treeData);
+      this.treeNodeBuilderService.sortTreeData(treeData);
 
       syncFuncTree.dataBind();
 

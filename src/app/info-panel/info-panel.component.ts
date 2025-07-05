@@ -2,7 +2,7 @@
 // DOES NOT: Handle data mutations or API calls directly
 // CALLED BY: Container components, manages panel content based on selection
 
-import { Component, effect, computed } from '@angular/core';
+import {Component, effect, computed, signal} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { parseId } from '../shared/utils/type-conversion.utils';
@@ -18,6 +18,8 @@ import { SubtopicPanelComponent } from './subtopic-panel/subtopic-panel.componen
 import { TopicPanelComponent } from './topic-panel/topic-panel.component';
 import { CalendarInteractionService } from '../calendar/services/ui/calendar-interaction.service';
 import {EntitySelectionService} from '../lesson-tree/services/state/entity-selection.service';
+import {ApiService} from '../shared/services/api.service';
+import {take} from 'rxjs';
 
 @Component({
   selector: 'info-panel',
@@ -38,11 +40,16 @@ export class InfoPanelComponent {
   readonly selectedEntity: any;
   readonly hasSelection: any;
 
+
+// ✅ CORRECT: Signal for reactive state
+  private _currentLessonDetail = signal<LessonDetail | null>(null);
+
   constructor(
     private entitySelectionService: EntitySelectionService,
     private panelStateService: PanelStateService,
     private courseDataService: CourseDataService,
-    private calendarInteractionService: CalendarInteractionService
+    private calendarInteractionService: CalendarInteractionService,
+    private apiService: ApiService,
   ) {
     console.log('[InfoPanel] Lean presentation coordinator initialized with Lesson/LessonDetail separation', {
       timestamp: new Date().toISOString()
@@ -62,7 +69,7 @@ export class InfoPanelComponent {
 
       console.log('[InfoPanel] Presentation state changed', {
         selectedNodeId: selectedEntity?.id || 'none',
-        selectedNodeType: selectedEntity?.nodeType || 'none',
+        selectedentityType : selectedEntity?.entityType  || 'none',
         mode,
         hasSelection,
         showCourse: this.showCoursePanel(),
@@ -110,10 +117,10 @@ export class InfoPanelComponent {
 
     if (mode === 'add') {
       const template = this.panelStateService.nodeTemplate();
-      return template?.nodeType === 'Course' ? (template as Course) : null;
+      return template?.entityType  === 'Course' ? (template as Course) : null;
     }
 
-    if (node?.nodeType === 'Course') {
+    if (node?.entityType  === 'Course') {
       return this.courseDataService.getCourseById(parseId(node.id));
     }
 
@@ -126,10 +133,10 @@ export class InfoPanelComponent {
 
     if (mode === 'add') {
       const template = this.panelStateService.nodeTemplate();
-      return template?.nodeType === 'Topic' ? (template as Topic) : null;
+      return template?.entityType  === 'Topic' ? (template as Topic) : null;
     }
 
-    if (node?.nodeType === 'Topic') {
+    if (node?.entityType  === 'Topic') {
       return this.courseDataService.getTopicById(parseId(node.id));
     }
 
@@ -142,10 +149,10 @@ export class InfoPanelComponent {
 
     if (mode === 'add') {
       const template = this.panelStateService.nodeTemplate();
-      return template?.nodeType === 'SubTopic' ? (template as SubTopic) : null;
+      return template?.entityType  === 'SubTopic' ? (template as SubTopic) : null;
     }
 
-    if (node?.nodeType === 'SubTopic') {
+    if (node?.entityType  === 'SubTopic') {
       return this.courseDataService.getSubTopicById(parseId(node.id));
     }
 
@@ -159,39 +166,35 @@ export class InfoPanelComponent {
 
     if (mode === 'add') {
       const template = this.panelStateService.nodeTemplate();
-      // Template should be LessonDetail for InfoPanel editing
-      return template?.nodeType === 'Lesson' ? (template as LessonDetail) : null;
+      return template?.entityType  === 'Lesson' ? (template as LessonDetail) : null;
     }
 
-    if (node?.nodeType === 'Lesson') {
-      // FIXED: Get basic Lesson from CourseDataService and convert to LessonDetail
+    if (node?.entityType  === 'Lesson') {
+      // Get basic Lesson from CourseDataService first to verify it exists
       const basicLesson = this.courseDataService.getLessonById(parseId(node.id));
       if (!basicLesson) return null;
 
-      // Convert basic Lesson to LessonDetail for InfoPanel editing
-      return this.toLessonDetail(basicLesson);
+      // Make API call to get full LessonDetail - this will be async
+      // For now, return null and handle the API call in the component lifecycle
+      this.loadLessonDetail(basicLesson.id);
+      return null; // Will be updated via API call
     }
 
     return null;
   });
 
   // NEW: Convert basic Lesson to LessonDetail for InfoPanel components
-  private toLessonDetail(lesson: Lesson): LessonDetail {
-    // In a real implementation, this might fetch additional details from API
-    // For now, create a LessonDetail with default values for missing properties
-    return {
-      ...lesson,
-      level: '',
-      materials: '',
-      classTime: '',
-      methods: '',
-      specialNeeds: '',
-      assessment: '',
-      standards: [],
-      attachments: [],
-      notes: []
-    } as LessonDetail;
+  private loadLessonDetail(lessonId: number): void {
+    this.apiService.get<LessonDetail>(`lesson/${lessonId}`)
+      .pipe(take(1))
+      .subscribe({
+        next: (detail) => {
+          this._currentLessonDetail.set(detail); // ← Signal stores result
+        },
+        error: (err) => console.error('Failed to fetch LessonDetail', err)
+      });
   }
+
 
   // Panel visibility computed signals - simple data availability check
   readonly showCoursePanel = computed(() => {
@@ -228,10 +231,10 @@ export class InfoPanelComponent {
   }
 
   // Utility method for child components that might need to initiate add mode
-  initiateAddMode(nodeType: EntityType, parentNode: any, courseId?: number) {
+  initiateAddMode(entityType : EntityType, parentNode: any, courseId?: number) {
     console.log('[InfoPanel] Initiating add mode', {
-      nodeType,
-      parentNodeType: parentNode?.nodeType,
+      entityType ,
+      parententityType : parentNode?.entityType ,
       parentNodeId: parentNode?.id,
       courseId
     });
@@ -239,7 +242,7 @@ export class InfoPanelComponent {
     // ✅ Convert TreeData to business entity
     const parentEntity = this.convertTreeDataToEntity(parentNode);
 
-    this.panelStateService.initiateAddMode(nodeType, parentEntity, courseId);
+    this.panelStateService.initiateAddMode(entityType , parentEntity, courseId);
   }
 
   /**
@@ -249,11 +252,11 @@ export class InfoPanelComponent {
     if (!treeData) return null;
 
     console.log('[InfoPanel] Converting TreeData to business entity', {
-      nodeType: treeData.nodeType,
+      entityType : treeData.entityType ,
       nodeId: treeData.id
     });
 
-    switch (treeData.nodeType) {
+    switch (treeData.entityType ) {
       case 'Course':
         return this.courseDataService.getCourseById(treeData.id);
 
@@ -264,7 +267,7 @@ export class InfoPanelComponent {
         return this.courseDataService.getSubTopicById(treeData.id);
 
       default:
-        console.warn('[InfoPanel] Unknown nodeType for conversion:', treeData.nodeType);
+        console.warn('[InfoPanel] Unknown entityType  for conversion:', treeData.entityType );
         return null;
     }
   }

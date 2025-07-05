@@ -29,10 +29,10 @@ export class NodePositioningService {
     relativeToType: 'Lesson' | 'SubTopic'
   ): Observable<{ success: boolean; sortOrder?: number }> {
     const { node, targetParentId, targetParentType } = event;
-    
+
     console.log(`[NodePositioningService] Using enhanced moveLesson API:`, {
       nodeId: node.id,
-      nodeType: node.entityType,
+      entityType : node.entityType,
       targetParentId,
       targetParentType,
       relativeToId,
@@ -77,7 +77,7 @@ export class NodePositioningService {
   /**
    * Check if positional moves are supported for this node type
    */
-  supportsPositionalMove(nodeType: string): boolean {
-    return nodeType === 'Lesson';
+  supportsPositionalMove(entityType : string): boolean {
+    return entityType  === 'Lesson';
   }
 }
