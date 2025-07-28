@@ -12,7 +12,7 @@
     <!-- Main Calendar Content -->
     @if (hasCoursesAvailable()) {
         <div class="calendar-content-wrapper" style="position: relative;">
-          
+
           <!-- Loading Overlay -->
           @if (isLoadingSchedule()) {
             <div class="calendar-loading-overlay">
@@ -26,15 +26,16 @@
               </div>
             </div>
           }
-      
+
           <!-- Full Calendar -->
-          <full-calendar 
-            #calendar 
-            [options]="calendarOptions()">
+          <full-calendar
+            #calendar
+            [options]="calendarOptions"
+            [deepChangeDetection]="true">
           </full-calendar>
-          
+
         </div>
-        
+
         <!-- Material Design Context Menu (unchanged) -->
         <div style="visibility: hidden; position: fixed;"
              [style.left]="contextMenuPosition.x"
@@ -42,7 +43,7 @@
              [matMenuTriggerFor]="contextMenu"
              #contextMenuTrigger="matMenuTrigger">
         </div>
-      
+
 
       <mat-menu #contextMenu="matMenu" class="calendar-context-menu">
         @for (action of contextMenuActions; track action.id) {
@@ -66,8 +67,8 @@
 
       <!-- Subtle Create Schedule Link (bottom right) -->
       <div class="calendar-footer">
-        <button 
-          mat-button 
+        <button
+          mat-button
           class="create-schedule-link"
           (click)="openConfigModal()"
           matTooltip="Create a new schedule (rarely needed)">
@@ -75,8 +76,8 @@
         </button>
       </div>
       <div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
-        <button 
-          mat-raised-button 
+        <button
+          mat-raised-button
           color="warn"
           (click)="testContextMenu()"
           matTooltip="Test context menu (diagnostic)">
@@ -85,4 +86,58 @@
       </div>
     }
   </div>
-  
+
+
+<!-- **DEBUG TEST BUTTONS** - Add this section to your template -->
+
+<!-- Debug Panel (only show when debugging) -->
+@if (debugMode || true) {
+  <div class="debug-panel" style="position: fixed; bottom: 20px; right: 20px; z-index: 10000; background: white; border: 1px solid #ccc; padding: 10px; border-radius: 4px; min-width: 150px;">
+    <h5 style="margin: 0 0 10px 0;">Official Pattern Test</h5>
+
+    <div style="display: flex; flex-direction: column; gap: 5px;">
+
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="testBasicUpdate()"
+        style="font-size: 11px;">
+        Basic Update
+      </button>
+
+      <button
+        mat-stroked-button
+        color="warn"
+        (click)="testBasicUpdateWithChangeDetection()"
+        style="font-size: 11px;">
+        Force Detection
+      </button>
+
+      <button
+        mat-stroked-button
+        color="accent"
+        (click)="testAddEvent()"
+        style="font-size: 11px;">
+        Add Event
+      </button>
+
+      <button
+        mat-flat-button
+        (click)="inspectCalendarState()"
+        style="font-size: 11px;">
+        Inspect
+      </button>
+
+      <hr style="margin: 5px 0;">
+
+      <button
+        mat-raised-button
+        color="warn"
+        (click)="connectToMockServices()"
+        style="font-size: 11px;">
+        Use Service Data
+      </button>
+    </div>
+  </div>
+}
+

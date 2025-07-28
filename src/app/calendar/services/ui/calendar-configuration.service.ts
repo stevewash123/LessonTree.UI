@@ -74,99 +74,83 @@ export class CalendarConfigurationService {
 
 
 
+  // **PARTIAL FILE** - Add view-specific configuration method to CalendarConfigurationService
+
+  // **PARTIAL FILE** - Add these height configurations to createCalendarOptions() method
+// Replace the current height/time configuration section with this enhanced version
+
+  // **PARTIAL FILE** - Current TimeGrid height fix for CalendarConfigurationService
+
   createCalendarOptions(
-  handleEventClick: (arg: any) => void,
-  handleEventContextMenu: (eventInfo: any, jsEvent: MouseEvent) => void,
-  handleEventDrop: (arg: any) => void
-): CalendarOptions {
-  const periodsCount = this.periodsPerDay();
+    handleEventClick: (arg: any) => void,
+    handleEventContextMenu: (eventInfo: any, jsEvent: MouseEvent) => void,
+    handleEventDrop: (arg: any) => void
+  ): CalendarOptions {
+    const periodsCount = this.periodsPerDay();
 
-  return {
-    plugins: [timeGridPlugin, interactionPlugin],
-    initialView: 'timeGridWeek',
-    headerToolbar: {
-      left: 'prev,next today',
-      center: 'title',
-      right: 'timeGridWeek,timeGridDay'
-    },
+    return {
+      plugins: [timeGridPlugin, interactionPlugin],
+      initialView: 'timeGridWeek',
+      headerToolbar: {
+        left: 'prev,next today',
+        center: 'title',
+        right: 'timeGridWeek,timeGridDay'
+      },
 
-    // === PERIOD CONFIGURATION ===
-    slotLabelFormat: (date) => {
-      const currentHour = date.date.hour;
-      const startHour = 8;
-      const periodNumber = currentHour - startHour + 1;
+      // === PERIOD CONFIGURATION ===
+      slotLabelFormat: (date) => {
+        const currentHour = date.date.hour;
+        const startHour = 8;
+        const periodNumber = currentHour - startHour + 1;
 
-      if (periodNumber > 0 && periodNumber <= periodsCount) {
-        return `Period ${periodNumber}`;
-      }
-      return '';
-    },
+        if (periodNumber > 0 && periodNumber <= periodsCount) {
+          return `Period ${periodNumber}`;
+        }
+        return '';
+      },
 
-    // === TIME CONFIGURATION ===
-    height: 'auto',
-    slotDuration: '01:00:00',
-    slotMinTime: '08:00:00',
-    slotMaxTime: `${8 + periodsCount}:00:00`,
-    hiddenDays: this.hiddenDays(),
-    expandRows: true,
-
-    // === EVENT CONFIGURATION (Delegated) ===
-    eventContent: (arg) => {
-      const scheduleEvent = arg.event.extendedProps?.['scheduleEvent'];
-      const periodAssignment = this.getPeriodAssignmentForEvent(scheduleEvent);
-      const html = this.templateService.generateEventHTML(scheduleEvent, periodAssignment);
-      return { html };
-    },
-
-    eventDidMount: (info) => {
-      this.interactionService.mountEvent(info, handleEventContextMenu);
-    },
-
-    dayCellDidMount: (arg) => {
-        this.dayCellService.mountDayCell(arg, this.teachingDays(), periodsCount);
-
-        // Add context menu support to day cells
-        if (arg.el) {
-          const contextHandler = (e: Event) => {
-            const mouseEvent = e as MouseEvent;
-
-            // Only handle context menu if not clicking on an event
-            if (!(e.target as Element).closest('.fc-event')) {
-              mouseEvent.preventDefault();
-              mouseEvent.stopPropagation();
-
-              console.log('[CalendarConfiguration] Day cell context menu triggered for:', arg.date);
-
-              // Create a synthetic event info for day cell context
-              const dayContextInfo = {
-                date: arg.date,
-                el: arg.el,
-                view: arg.view
-              };
-
-              // Call the context menu handler with day context
-              handleEventContextMenu(dayContextInfo, mouseEvent);
-            }
-          };
-
-          arg.el.addEventListener('contextmenu', contextHandler, { passive: false });
-          (arg.el as any).__dayContextHandler = contextHandler;
+      // === VIEW-SPECIFIC CONFIGURATION ===
+      views: {
+        timeGrid: {
+          allDaySlot: false,  // ✅ CRITICAL: Hide All Day row in TimeGrid views
+          slotDuration: '01:00:00',
+          slotMinTime: '08:00:00',
+          slotMaxTime: `${8 + periodsCount}:00:00`,
+          eventMinHeight: 20,  // Minimum event height for better readability
+          expandRows: true,    // Make rows expand to fill space
         }
       },
 
-    // === EVENT HANDLERS ===
-    eventClick: handleEventClick,
-    eventDrop: handleEventDrop,
+      // === GLOBAL CONFIGURATION ===
+      height: 'auto',
+      hiddenDays: this.hiddenDays(),
 
-    // === CALENDAR BEHAVIOR ===
-    editable: true,
-    selectable: true,
-    selectMirror: true,
-    dayMaxEvents: true,
-    allDaySlot: false,
-    eventDisplay: 'block',
-  };
-}
+      // === EVENT CONFIGURATION (Delegated) ===
+      eventContent: (arg) => {
+        const scheduleEvent = arg.event.extendedProps?.['scheduleEvent'];
+        const periodAssignment = this.getPeriodAssignmentForEvent(scheduleEvent);
+        const html = this.templateService.generateEventHTML(scheduleEvent, periodAssignment);
+        return { html };
+      },
+
+      eventDidMount: (info) => {
+        this.interactionService.mountEvent(info, handleEventContextMenu);
+      },
+
+      // === EVENT HANDLERS ===
+      eventClick: handleEventClick,
+      eventDrop: handleEventDrop,
+
+      // === CALENDAR BEHAVIOR ===
+      editable: true,
+      selectable: true,
+      selectMirror: true,
+      dayMaxEvents: true,
+      eventDisplay: 'block',
+
+      // Rest of existing configuration...
+    };
+  }
 
   // **ADD THIS HELPER METHOD** to calendar-configuration.service.ts
   private getPeriodAssignmentForEvent(scheduleEvent: any): any | null {

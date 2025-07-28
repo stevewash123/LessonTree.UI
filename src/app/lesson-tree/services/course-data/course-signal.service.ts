@@ -31,6 +31,7 @@ export interface EntityMoveSignalPayload {
     oldSortOrder?: number;
     newSortOrder?: number;
     moveType?: 'drag-drop' | 'api-move' | 'bulk-operation';
+    apiResponse?: any;  // ← ADD THIS LINE
   };
   timestamp: Date;
 }
@@ -169,28 +170,33 @@ export class CourseSignalService {
    * Emit entity moved event (hybrid: Observable + Signal)
    */
   emitEntityMoved(
-    entity: Entity,  // ✅ FIXED: Entity object parameter
+    entity: Entity,
     sourceLocation: string,
     targetLocation: string,
     source: string,
-    metadata?: any
+    metadata?: {
+      oldSortOrder?: number;
+      newSortOrder?: number;
+      moveType?: 'drag-drop' | 'api-move' | 'bulk-operation';  // ✅ ALIGN WITH INTERFACE
+    }
   ): void {
     const payload: EntityMoveSignalPayload = {
       entity: entity,
       sourceLocation,
       targetLocation,
       source,
-      metadata,
+      metadata,  // ✅ NOW INCLUDES SORT ORDER DATA
       timestamp: new Date()
     };
 
     console.log('📡 [CourseSignalService] Entity moved emitted (hybrid)', {
-      entityType: entity.entityType,   // ✅ FIXED: Access from Entity object
-      entityId: entity.id,             // ✅ FIXED: Access from Entity object
-      entityTitle: entity.title,       // ✅ FIXED: Access from Entity object
+      entityType: entity.entityType,
+      entityId: entity.id,
+      entityTitle: entity.title,
       sourceLocation,
       targetLocation,
-      source
+      source,
+      metadata  // ✅ LOG THE METADATA INCLUDING SORT ORDERS
     });
 
     this._nodeMovedSubject.next(payload);

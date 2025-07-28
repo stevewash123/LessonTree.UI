@@ -50,6 +50,24 @@ export class ScheduleStateService {
   // === SCHEDULE MANAGEMENT ===
 
   setSchedule(schedule: Schedule | null, isInMemory: boolean = false): void {
+    console.log('[ScheduleStateService] 📊 SETTING SCHEDULE:', {
+      scheduleId: schedule?.id,
+      title: schedule?.title,
+      eventCount: schedule?.scheduleEvents?.length || 0
+    });
+
+    const lessonEvents = (schedule?.scheduleEvents || []).filter(e => e.eventCategory === 'Lesson');
+    console.log('[ScheduleStateService] 📚 LESSON EVENTS IN SCHEDULE STATE:', {
+      totalLessonEvents: lessonEvents.length,
+      lessonEventDetails: lessonEvents.map(e => ({
+        scheduleEventId: e.id,
+        date: e.date,
+        lessonId: e.lessonId,
+        lessonTitle: e.lessonTitle,
+        lessonSort: e.lessonSort,
+        courseId: e.courseId
+      }))
+    });
     this._schedule.set(schedule);
     this._isInMemorySchedule.set(isInMemory);
     this._hasUnsavedChanges.set(false);

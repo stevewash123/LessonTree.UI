@@ -34,6 +34,10 @@ export class TreeEffectsService {
   private activeEffects: Map<string, EffectRef[]> = new Map();
   private activeSubscriptions: Map<string, Subscription[]> = new Map();
   private readonly injector = inject(Injector);
+  private lastOperationSource: Map<number, string> = new Map(); // courseId -> source
+  private initialLoadComplete: Map<number, boolean> = new Map(); // courseId -> initialized
+  private successfulIncrementalOps: Map<number, number> = new Map(); // courseId -> timestamp
+  private readonly INCREMENTAL_COOLDOWN_MS = 50; // 50ms cooldown for incremental success
 
   constructor(
     private courseDataService: CourseDataService,
@@ -103,6 +107,29 @@ export class TreeEffectsService {
         const updatedCourse = activeCourses.find((c: Course) => c.id === courseId);
 
         if (updatedCourse) {
+          // ✅ CHECK: Was there a recent successful incremental operation?
+          const lastIncrementalTime = this.successfulIncrementalOps.get(courseId) || 0;
+          const timeSinceIncremental = Date.now() - lastIncrementalTime;
+
+          if (timeSinceIncremental < this.INCREMENTAL_COOLDOWN_MS) {
+            console.log('🌳 [TreeEffectsService] SKIPPING course data sync - recent successful incremental operation', {
+              courseId,
+              timeSinceIncremental: `${timeSinceIncremental}ms`,
+              reason: 'Incremental operation just succeeded, no need for redundant full sync'
+            });
+
+            // Clear the tracking for next operation
+            this.successfulIncrementalOps.delete(courseId);
+            return; // ← Skip the sync
+          }
+
+          // ✅ For operations that need full sync (edits, deletes, failed incrementals, etc.)
+          console.log('🌳 [TreeEffectsService] Processing course data sync - requires full refresh', {
+            courseId,
+            timeSinceLastIncremental: `${timeSinceIncremental}ms`,
+            reason: 'No recent incremental success or operation requires full sync'
+          });
+
           callbacks.onCourseDataUpdated(updatedCourse);
         } else {
           callbacks.onCourseCleared();
@@ -112,6 +139,49 @@ export class TreeEffectsService {
       }
     });
   }
+
+  /**
+   * ✅ NEW: Mark that an incremental operation succeeded
+   * Call this from TreeWrapper after successful incremental operations
+   */
+  markIncrementalSuccess(courseId: number): void {
+    this.successfulIncrementalOps.set(courseId, Date.now());
+    console.log('🌳 [TreeEffectsService] Marked incremental operation successful', {
+      courseId,
+      timestamp: Date.now(),
+      cooldownMs: this.INCREMENTAL_COOLDOWN_MS,
+      effect: 'Will skip next course data sync'
+    });
+  }
+
+  /**
+   * ✅ UPDATED: Clear incremental success tracking (for cleanup)
+   */
+  private clearIncrementalTracking(courseId: number): void {
+    this.successfulIncrementalOps.delete(courseId);
+  }
+  trackOperationSource(courseId: number, source: string): void {
+    this.lastOperationSource.set(courseId, source);
+    console.log('🌳 [TreeEffectsService] Tracked operation source', {
+      courseId,
+      source,
+      pattern: 'Source-based sync prevention'
+    });
+  }
+
+  /**
+   * ✅ NEW: Clear operation tracking (for cleanup)
+   */
+  private clearOperationTracking(courseId: number): void {
+    this.lastOperationSource.delete(courseId);
+    this.initialLoadComplete.delete(courseId); // ✅ Also clear initial load tracking
+  }
+
+  /**
+   * Destroy effects and subscriptions for a specific course
+   * ✅ UPDATED: Include operation tracking cleanup
+   */
+
 
   /**
    * Setup external selection effect - Signal pattern for state monitoring
@@ -272,6 +342,9 @@ export class TreeEffectsService {
       });
       this.activeSubscriptions.delete(effectKey);
     }
+
+    // ✅ UPDATED: Clear incremental success tracking
+    this.clearIncrementalTracking(courseId);
   }
 
   /**

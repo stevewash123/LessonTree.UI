@@ -31,7 +31,7 @@ export class CourseCrudBusinessService {
   loadCourses(): Observable<Course[]> {
     console.log('[CourseCrudBusinessService] Loading courses');
 
-    return this.apiService.get<Course[]>('/api/Course').pipe(
+    return this.apiService.get<Course[]>('Course').pipe(
       tap((courses: Course[]) => {
         console.log(`[CourseCrudBusinessService] Loaded ${courses.length} courses`);
         this.courseDataService.setCourses(courses);
@@ -46,10 +46,13 @@ export class CourseCrudBusinessService {
   createCourse(course: Course): Observable<Course> {
     console.log(`[CourseCrudBusinessService] Creating course: ${course.title}`);
 
-    return this.apiService.post<Course>('/api/Course', course).pipe(
+    return this.apiService.post<Course>('Course', course).pipe(
       tap((createdCourse: Course) => {
         console.log(`[CourseCrudBusinessService] Course created: ${createdCourse.title} (ID: ${createdCourse.id})`);
-        this.courseDataService.addEntity(createdCourse, 'infopanel', 'USER_ADD');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const courseInstance = new Course(createdCourse);
+        this.courseDataService.addEntity(courseInstance, 'infopanel', 'USER_ADD');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error creating course: ${course.title}`, error);
@@ -61,10 +64,13 @@ export class CourseCrudBusinessService {
   updateCourse(course: Course): Observable<Course> {
     console.log(`[CourseCrudBusinessService] Updating course: ${course.title}`);
 
-    return this.apiService.put<Course>(`/api/Course/${course.id}`, course).pipe(
+    return this.apiService.put<Course>(`Course/${course.id}`, course).pipe(
       tap((updatedCourse: Course) => {
         console.log(`[CourseCrudBusinessService] Course updated: ${updatedCourse.title}`);
-        this.courseDataService.updateEntity(updatedCourse, 'infopanel');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const courseInstance = new Course(updatedCourse);
+        this.courseDataService.updateEntity(courseInstance, 'infopanel');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error updating course: ${course.title}`, error);
@@ -76,7 +82,7 @@ export class CourseCrudBusinessService {
   deleteCourse(courseId: number): Observable<void> {
     console.log(`[CourseCrudBusinessService] Deleting course ID: ${courseId}`);
 
-    return this.apiService.delete<void>(`/api/Course/${courseId}`).pipe(
+    return this.apiService.delete<void>(`Course/${courseId}`).pipe(
       tap(() => {
         console.log(`[CourseCrudBusinessService] Course deleted: ID ${courseId}`);
       }),
@@ -90,9 +96,10 @@ export class CourseCrudBusinessService {
   getCourseById(courseId: number): Observable<Course> {
     console.log(`[CourseCrudBusinessService] Fetching course ID: ${courseId}`);
 
-    return this.apiService.get<Course>(`/api/Course/${courseId}`).pipe(
+    return this.apiService.get<Course>(`Course/${courseId}`).pipe(
       tap((course: Course) => {
         console.log(`[CourseCrudBusinessService] Course fetched: ${course.title} (ID: ${course.id})`);
+        // Note: getCourseById doesn't add to data service, it just fetches
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error fetching course ID: ${courseId}`, error);
@@ -106,10 +113,13 @@ export class CourseCrudBusinessService {
   createTopic(topic: Topic): Observable<Topic> {
     console.log(`[CourseCrudBusinessService] Creating topic: ${topic.title}`);
 
-    return this.apiService.post<Topic>('/api/Topic', topic).pipe(
+    return this.apiService.post<Topic>('Topic', topic).pipe(
       tap((createdTopic: Topic) => {
         console.log(`[CourseCrudBusinessService] Topic created: ${createdTopic.title} (ID: ${createdTopic.id})`);
-        this.courseDataService.addEntity(createdTopic, 'infopanel', 'USER_ADD');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const topicInstance = new Topic(createdTopic);
+        this.courseDataService.addEntity(topicInstance, 'infopanel', 'USER_ADD');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error creating topic: ${topic.title}`, error);
@@ -121,10 +131,13 @@ export class CourseCrudBusinessService {
   updateTopic(topic: Topic): Observable<Topic> {
     console.log(`[CourseCrudBusinessService] Updating topic: ${topic.title}`);
 
-    return this.apiService.put<Topic>(`/api/Topic/${topic.id}`, topic).pipe(
+    return this.apiService.put<Topic>(`Topic/${topic.id}`, topic).pipe(
       tap((updatedTopic: Topic) => {
         console.log(`[CourseCrudBusinessService] Topic updated: ${updatedTopic.title}`);
-        this.courseDataService.updateEntity(updatedTopic, 'infopanel');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const topicInstance = new Topic(updatedTopic);
+        this.courseDataService.updateEntity(topicInstance, 'infopanel');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error updating topic: ${topic.title}`, error);
@@ -136,7 +149,7 @@ export class CourseCrudBusinessService {
   deleteTopic(topicId: number): Observable<void> {
     console.log(`[CourseCrudBusinessService] Deleting topic ID: ${topicId}`);
 
-    return this.apiService.delete<void>(`/api/Topic/${topicId}`).pipe(
+    return this.apiService.delete<void>(`Topic/${topicId}`).pipe(
       tap(() => {
         console.log(`[CourseCrudBusinessService] Topic deleted: ID ${topicId}`);
       }),
@@ -152,10 +165,13 @@ export class CourseCrudBusinessService {
   createSubTopic(subTopic: SubTopic): Observable<SubTopic> {
     console.log(`[CourseCrudBusinessService] Creating subtopic: ${subTopic.title}`);
 
-    return this.apiService.post<SubTopic>('/api/SubTopic', subTopic).pipe(
+    return this.apiService.post<SubTopic>('SubTopic', subTopic).pipe(
       tap((createdSubTopic: SubTopic) => {
         console.log(`[CourseCrudBusinessService] SubTopic created: ${createdSubTopic.title} (ID: ${createdSubTopic.id})`);
-        this.courseDataService.addEntity(createdSubTopic, 'infopanel', 'USER_ADD');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const subTopicInstance = new SubTopic(createdSubTopic);
+        this.courseDataService.addEntity(subTopicInstance, 'infopanel', 'USER_ADD');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error creating subtopic: ${subTopic.title}`, error);
@@ -167,10 +183,13 @@ export class CourseCrudBusinessService {
   updateSubTopic(subTopic: SubTopic): Observable<SubTopic> {
     console.log(`[CourseCrudBusinessService] Updating subtopic: ${subTopic.title}`);
 
-    return this.apiService.put<SubTopic>(`/api/SubTopic/${subTopic.id}`, subTopic).pipe(
+    return this.apiService.put<SubTopic>(`SubTopic/${subTopic.id}`, subTopic).pipe(
       tap((updatedSubTopic: SubTopic) => {
         console.log(`[CourseCrudBusinessService] SubTopic updated: ${updatedSubTopic.title}`);
-        this.courseDataService.updateEntity(updatedSubTopic, 'infopanel');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const subTopicInstance = new SubTopic(updatedSubTopic);
+        this.courseDataService.updateEntity(subTopicInstance, 'infopanel');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error updating subtopic: ${subTopic.title}`, error);
@@ -182,7 +201,7 @@ export class CourseCrudBusinessService {
   deleteSubTopic(subTopicId: number): Observable<void> {
     console.log(`[CourseCrudBusinessService] Deleting subtopic ID: ${subTopicId}`);
 
-    return this.apiService.delete<void>(`/api/SubTopic/${subTopicId}`).pipe(
+    return this.apiService.delete<void>(`SubTopic/${subTopicId}`).pipe(
       tap(() => {
         console.log(`[CourseCrudBusinessService] SubTopic deleted: ID ${subTopicId}`);
       }),
@@ -198,10 +217,13 @@ export class CourseCrudBusinessService {
   createLesson(lessonDetail: LessonDetail): Observable<LessonDetail> {
     console.log(`[CourseCrudBusinessService] Creating lesson: ${lessonDetail.title}`);
 
-    return this.apiService.post<LessonDetail>('/api/Lesson', lessonDetail).pipe(
+    return this.apiService.post<LessonDetail>('Lesson', lessonDetail).pipe(
       tap((createdLesson: LessonDetail) => {
         console.log(`[CourseCrudBusinessService] Lesson created: ${createdLesson.title} (ID: ${createdLesson.id})`);
-        this.courseDataService.addEntity(createdLesson, 'infopanel', 'USER_ADD');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const lessonInstance = new LessonDetail(createdLesson);
+        this.courseDataService.addEntity(lessonInstance, 'infopanel', 'USER_ADD');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error creating lesson: ${lessonDetail.title}`, error);
@@ -213,10 +235,13 @@ export class CourseCrudBusinessService {
   updateLesson(lessonDetail: LessonDetail): Observable<LessonDetail> {
     console.log(`[CourseCrudBusinessService] Updating lesson: ${lessonDetail.title}`);
 
-    return this.apiService.put<LessonDetail>(`/api/Lesson/${lessonDetail.id}`, lessonDetail).pipe(
+    return this.apiService.put<LessonDetail>(`Lesson/${lessonDetail.id}`, lessonDetail).pipe(
       tap((updatedLesson: LessonDetail) => {
         console.log(`[CourseCrudBusinessService] Lesson updated: ${updatedLesson.title}`);
-        this.courseDataService.updateEntity(updatedLesson, 'infopanel');
+
+        // ✅ FIXED: Convert API response to proper class instance
+        const lessonInstance = new LessonDetail(updatedLesson);
+        this.courseDataService.updateEntity(lessonInstance, 'infopanel');
       }),
       catchError((error) => {
         console.error(`[CourseCrudBusinessService] Error updating lesson: ${lessonDetail.title}`, error);
@@ -228,7 +253,7 @@ export class CourseCrudBusinessService {
   deleteLesson(lessonId: number): Observable<void> {
     console.log(`[CourseCrudBusinessService] Deleting lesson ID: ${lessonId}`);
 
-    return this.apiService.delete<void>(`/api/Lesson/${lessonId}`).pipe(
+    return this.apiService.delete<void>(`Lesson/${lessonId}`).pipe(
       tap(() => {
         console.log(`[CourseCrudBusinessService] Lesson deleted: ID ${lessonId}`);
       }),

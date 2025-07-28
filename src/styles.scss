@@ -10,27 +10,27 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 
 /* ================================================================
  * FULLCALENDAR STYLING ARCHITECTURE NOTES
- * ================================================================ 
- * 
+ * ================================================================
+ *
  * FullCalendar requires DOM manipulation for day cell styling, not just CSS.
- * 
+ *
  * LESSON LEARNED: Regular CSS classes don't work for day cells because
  * FullCalendar controls the DOM structure. We must modify DOM elements directly.
- * 
+ *
  * SUCCESSFUL PATTERN:
  * 1. Use eventDidMount in CalendarConfigurationService.setDayCellBackgroundColor()
- * 2. Find day cell: info.el.closest('.fc-daygrid-day')  
+ * 2. Find day cell: info.el.closest('.fc-daygrid-day')
  * 3. Set styles directly: dayCell.style.backgroundColor = '#color'
  * 4. This modifies existing DOM elements, doesn't recreate them
- * 
+ *
  * EXAMPLES:
  * - Light blue lessons: #e3f2fd (working)
  * - Selected lessons: #bbdefb + border (working)
  * - Error days: #ffebee (working)
- * 
- * DO NOT try to use CSS classes alone for day cell backgrounds - 
+ *
+ * DO NOT try to use CSS classes alone for day cell backgrounds -
  * FullCalendar's specificity will override them.
- * 
+ *
  * KEY FILE: calendar-configuration.service.ts -> setDayCellBackgroundColor()
  * ================================================================ */
 
@@ -38,8 +38,10 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 .fc-event {
     /* Event styling goes here */
   }
-  
+
   /* Day cell classes (for reference, but DOM manipulation required for backgrounds) */
   .fc-daygrid-day {
     /* Structure only - background colors set via DOM manipulation */
   }
+
+.fc-timegrid-slot { min-height: 80px !important; }

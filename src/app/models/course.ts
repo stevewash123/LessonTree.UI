@@ -55,12 +55,12 @@ export class Course extends Entity {
   /**
    * Override clone to handle Course-specific collections
    */
-  clone(): Course {
+  override clone(): this {
     return new Course({
       ...this.toJSON(),
       topics: this.topics,      // Shallow reference for editing scenarios
       standards: this.standards // Shallow reference for editing scenarios
-    });
+    }) as this;
   }
 
   /**

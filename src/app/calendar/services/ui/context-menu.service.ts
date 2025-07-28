@@ -68,7 +68,7 @@ export class ContextMenuService implements OnDestroy {
    * FACADE: Get context menu actions
    */
   getContextMenuActions(): ContextMenuAction[] {
-    console.log('[ContextMenuService] FACADE: Delegating getContextMenuActions to coordination service');
+    //console.log('[ContextMenuService] FACADE: Delegating getContextMenuActions to coordination service');
     return this.coordinationService.getContextMenuActions();
   }
 

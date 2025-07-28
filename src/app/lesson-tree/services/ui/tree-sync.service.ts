@@ -92,13 +92,146 @@ export class TreeSyncService {
     }
   }
 
+  addTopicNode(
+    topic: any,
+    syncFuncTree: TreeViewComponent | null,
+    parentNodeId: string,
+    courseId: number
+  ): SyncResult {
+    console.log('[TreeSyncService] Adding topic node incrementally');
+
+    if (!syncFuncTree) {
+      const errorMessage = 'SyncFusion component not available';
+      console.warn(`[TreeSyncService] addTopicNode: ${errorMessage} for course ${courseId}`);
+
+      return {
+        success: false,
+        operation: 'add',
+        error: errorMessage
+      };
+    }
+
+    if (!this.isComponentReady(syncFuncTree)) {
+      const errorMessage = 'SyncFusion component not ready';
+      console.warn(`[TreeSyncService] addTopicNode: ${errorMessage} for course ${courseId}`);
+
+      return {
+        success: false,
+        operation: 'add',
+        error: errorMessage
+      };
+    }
+
+    try {
+      // Create the new topic node using TreeNodeBuilderService
+      const newTopicNode = this.treeNodeBuilderService.createTopicNode(topic);
+
+      console.log(`[TreeSyncService] Adding topic node "${topic.title}" to parent "${parentNodeId}" for course ${courseId}`);
+
+      // Use SyncFusion's addNodes() method - preserves tree state
+      syncFuncTree.addNodes([newTopicNode], parentNodeId);
+
+      console.log('[TreeSyncService] Topic node added successfully', {
+        courseId,
+        topicTitle: topic.title,
+        parentNodeId,
+        preservedState: true
+      });
+
+      return {
+        success: true,
+        operation: 'add',
+        nodeCount: 1
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Add topic node error';
+      console.error(`[TreeSyncService] Error adding topic node for course ${courseId}:`, error);
+
+      return {
+        success: false,
+        operation: 'add',
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * Add subtopic node incrementally - preserves tree state
+   * FOLLOWS PATTERN: Same approach as addLessonNode using SyncFusion's addNodes()
+   */
+  addSubTopicNode(
+    subTopic: any,
+    syncFuncTree: TreeViewComponent | null,
+    parentNodeId: string,
+    courseId: number
+  ): SyncResult {
+    console.log('[TreeSyncService] Adding subtopic node incrementally');
+
+    if (!syncFuncTree) {
+      const errorMessage = 'SyncFusion component not available';
+      console.warn(`[TreeSyncService] addSubTopicNode: ${errorMessage} for course ${courseId}`);
+
+      return {
+        success: false,
+        operation: 'add',
+        error: errorMessage
+      };
+    }
+
+    if (!this.isComponentReady(syncFuncTree)) {
+      const errorMessage = 'SyncFusion component not ready';
+      console.warn(`[TreeSyncService] addSubTopicNode: ${errorMessage} for course ${courseId}`);
+
+      return {
+        success: false,
+        operation: 'add',
+        error: errorMessage
+      };
+    }
+
+    try {
+      // Create the new subtopic node using TreeNodeBuilderService
+      const newSubTopicNode = this.treeNodeBuilderService.createSubTopicNode(subTopic);
+
+      console.log(`[TreeSyncService] Adding subtopic node "${subTopic.title}" to parent "${parentNodeId}" for course ${courseId}`);
+
+      // Use SyncFusion's addNodes() method - preserves tree state
+      syncFuncTree.addNodes([newSubTopicNode], parentNodeId);
+
+      console.log('[TreeSyncService] SubTopic node added successfully', {
+        courseId,
+        subTopicTitle: subTopic.title,
+        parentNodeId,
+        preservedState: true
+      });
+
+      return {
+        success: true,
+        operation: 'add',
+        nodeCount: 1
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Add subtopic node error';
+      console.error(`[TreeSyncService] Error adding subtopic node for course ${courseId}:`, error);
+
+      return {
+        success: false,
+        operation: 'add',
+        error: errorMessage
+      };
+    }
+  }
+
+  /**
+   * Build tree data and bind to component
+   */
   /**
    * Build tree data and bind to component
    */
   updateTreeData(
-    course: Course | null,
-    syncFuncTree: TreeViewComponent | null,
-    courseId: number
+      course: Course | null,
+      syncFuncTree: TreeViewComponent | null,
+      courseId: number
   ): Promise<SyncResult> {
     console.log('[TreeSyncService] Updating tree data');
 
@@ -125,8 +258,31 @@ export class TreeSyncService {
       });
     }
 
-    // Use TreeDataService to build tree structure
+    // Use TreeNodeBuilderService to build tree structure
     const treeData = this.treeNodeBuilderService.buildTreeFromCourse(course, courseId);
+
+    // 🔍 DEBUG: Check treeData before SyncFusion binding
+    console.log('🔍 [TreeSyncService] updateTreeData - TreeData BEFORE SyncFusion binding:', {
+      courseId,
+      treeDataLength: treeData.length,
+      firstNodeSample: treeData[0] ? {
+        id: treeData[0].id,
+        text: treeData[0].text,
+        hasOriginal: !!treeData[0].original,
+        originalType: typeof treeData[0].original,
+        originalKeys: Object.keys(treeData[0].original || {}),
+        allKeys: Object.keys(treeData[0])
+      } : 'No nodes',
+      // Check a sample child node if it exists
+      firstChildSample: treeData[0]?.child?.[0] ? {
+        id: treeData[0].child[0].id,
+        text: treeData[0].child[0].text,
+        hasOriginal: !!treeData[0].child[0].original,
+        originalType: typeof treeData[0].child[0].original,
+        originalKeys: Object.keys(treeData[0].child[0].original || {}),
+        allKeys: Object.keys(treeData[0].child[0])
+      } : 'No child nodes'
+    });
 
     // Queue the binding operation for next tick to ensure DOM is ready
     return new Promise((resolve) => {
@@ -151,10 +307,27 @@ export class TreeSyncService {
             text: 'text',
             child: 'child',
             hasChildren: 'hasChildren',
-            iconCss: 'iconCss',
+            iconCss: 'iconCss'
           };
 
           syncFuncTree.dataBind();
+
+          // 🔍 DEBUG: Check what SyncFusion actually bound
+          setTimeout(() => {
+            const boundData = (syncFuncTree.fields as any)?.dataSource;
+            console.log('🔍 [TreeSyncService] updateTreeData - Data AFTER SyncFusion binding:', {
+              courseId,
+              boundDataLength: boundData?.length || 0,
+              firstBoundNodeSample: boundData?.[0] ? {
+                id: boundData[0].id,
+                text: boundData[0].text,
+                hasOriginal: !!boundData[0].original,
+                originalType: typeof boundData[0].original,
+                originalKeys: Object.keys(boundData[0].original || {}),
+                allKeys: Object.keys(boundData[0])
+              } : 'No bound nodes'
+            });
+          }, 50); // Small delay to let SyncFusion finish processing
 
           console.log('[TreeSyncService] Tree data updated successfully', {
             courseId,

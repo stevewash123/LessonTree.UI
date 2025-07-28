@@ -154,7 +154,7 @@ export class ContextMenuBusinessService {
   // === CONTEXT MENU GENERATION LOGIC ===
 
   generateContextMenuActions(): ContextMenuResult {
-    console.log('[ContextMenuBusinessService] Generating context menu actions');
+    //console.log('[ContextMenuBusinessService] Generating context menu actions');
 
     const actions: ContextMenuAction[] = [];
     let contextType: 'lesson-event' | 'special-day-event' | 'error-event' | 'free-period' | 'date-only' | 'no-context' = 'no-context';
@@ -287,7 +287,7 @@ export class ContextMenuBusinessService {
       contextType = 'no-context';
     }
 
-    console.log(`[ContextMenuBusinessService] Generated ${actions.length} actions for context type: ${contextType}`);
+    //console.log(`[ContextMenuBusinessService] Generated ${actions.length} actions for context type: ${contextType}`);
 
     return {
       actions,

@@ -63,4 +63,14 @@ export abstract class Entity {
       entityType: this.entityType
     };
   }
+
+  /**
+   * Create a shallow clone of the entity
+   * Subclasses should override for deep cloning of collections
+   */
+  clone(): this {
+    // Use the constructor of the actual class (Course, Topic, etc.)
+    const constructor = this.constructor as new (data: any) => this;
+    return new constructor(this.toJSON());
+  }
 }

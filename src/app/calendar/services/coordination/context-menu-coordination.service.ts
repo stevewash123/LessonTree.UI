@@ -139,7 +139,7 @@ export class ContextMenuCoordinationService implements OnDestroy {
   // === COORDINATED MENU GENERATION ===
 
   getContextMenuActionsWithCoordination(): LegacyContextMenuAction[] {
-    console.log('[ContextMenuCoordinationService] Generating context menu actions with coordination');
+    //console.log('[ContextMenuCoordinationService] Generating context menu actions with coordination');
 
     const result = this.businessService.generateContextMenuActions();
 

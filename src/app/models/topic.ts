@@ -39,27 +39,40 @@ export class Topic extends Entity {
     }
 
 
-  /**
-   * Clone method to handle Topic-specific properties
-   */
-  clone(): Topic {
-    return new Topic({
-      ...this.toJSON(),
-      courseId: this.courseId,
-      subTopics: this.subTopics,    // Shallow reference
-      lessons: this.lessons         // Shallow reference
-    });
+    /**
+     * Clone method to handle Topic-specific properties
+     */
+    override clone(): this {
+      return new Topic({
+        ...this.toJSON(),
+        courseId: this.courseId,
+        subTopics: this.subTopics,    // Shallow reference
+        lessons: this.lessons         // Shallow reference
+      }) as this;
+    }
+
+    /**
+     * Override toJSON to include Topic-specific properties
+     */
+    override toJSON(): Record<string, any> {
+      return {
+        ...super.toJSON(),
+        courseId: this.courseId,
+        subTopics: this.subTopics,
+        lessons: this.lessons
+      };
+    }
   }
 
-  /**
-   * Override toJSON to include Topic-specific properties
-   */
-  override toJSON(): Record<string, any> {
-    return {
-      ...super.toJSON(),
-      courseId: this.courseId,
-      subTopics: this.subTopics,
-      lessons: this.lessons
-    };
-  }
-  }
+
+/**
+ * Simplified Topic move resource - cross-course moves deferred
+ * Matches API DTO structure after EntityPositioningService refactor
+ */
+export interface TopicMoveResource {
+  topicId: number;
+  newCourseId: number;                        // ✅ MATCH API: Required course target
+  relativeToId?: number | null;               // ✅ MATCH API: Optional positioning
+  position?: 'before' | 'after' | null;      // ✅ MATCH API: Optional positioning
+  relativeToType?: 'Topic' | null;            // ✅ MATCH API: Optional positioning
+}

@@ -97,6 +97,13 @@ export function treeDataToTreeNode<T extends Entity>(treeData: TreeData<T>): Tre
   const entity = treeData.entity;
   const nodeId = `${entity.entityType.toLowerCase()}_${entity.id}`;
 
+  console.log('🔍 [DEBUG] treeDataToTreeNode - Creating TreeNode:', {
+    entityType: entity.entityType,
+    entityId: entity.id,
+    nodeId,
+    originalEntity: entity
+  });
+
   return {
     id: nodeId,
     text: entity.title || 'Unknown',
@@ -113,7 +120,36 @@ export function treeDataToTreeNode<T extends Entity>(treeData: TreeData<T>): Tre
  * Convert TreeNode to TreeData for internal operations
  */
 export function treeNodeToTreeData(treeNode: TreeNode): TreeData {
+  console.log('🔍 [DEBUG] treeNodeToTreeData input:', {
+    treeNode,
+    keys: Object.keys(treeNode || {}),
+    original: treeNode?.original,
+    originalType: typeof treeNode?.original,
+    originalKeys: Object.keys(treeNode?.original || {})
+  });
+
   const entity = treeNode.original;
+  console.log('🔍 [DEBUG] extracted entity:', {
+    entity,
+    entityType: typeof entity,
+    entityKeys: Object.keys(entity || {}),
+    hasEntityType: entity?.entityType,
+    entityTypeValue: entity?.entityType
+  });
+
+  // Line 126 area - this is where it fails
+  if (!entity) {
+    console.error('🚨 [DEBUG] Entity is undefined/null in treeNodeToTreeData!');
+    throw new Error('Entity is undefined in treeNode.original');
+  }
+
+  if (!entity.entityType) {
+    console.error('🚨 [DEBUG] Entity exists but entityType is undefined!', {
+      entity,
+      entityKeys: Object.keys(entity)
+    });
+    throw new Error('Entity.entityType is undefined');
+  }
 
   return {
     entity,
@@ -121,9 +157,7 @@ export function treeNodeToTreeData(treeNode: TreeNode): TreeData {
     selected: false,
     level: 0,
     parentNodeId: undefined,
-
-    // ✅ Computed properties implemented here
-    entityType: entity.entityType,
+    entityType: entity.entityType,  // This is line 126
     id: entity.id,
     title: entity.title || 'Unknown'
   };

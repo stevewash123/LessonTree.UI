@@ -4,13 +4,13 @@
 
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import {Observable, tap, throwError} from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ToastrService } from 'ngx-toastr';
 import { environment } from '../../../environments/environment';
-import { Topic } from '../../models/topic';
-import { SubTopic } from '../../models/subTopic';
-import { Lesson, LessonDetail } from '../../models/lesson';
+import {Topic, TopicMoveResource} from '../../models/topic';
+import {SubTopic, SubTopicMoveResource} from '../../models/subTopic';
+import {Lesson, LessonDetail, LessonMoveResource} from '../../models/lesson';
 import { Course } from '../../models/course';
 import { Attachment } from '../../models/attachment';
 import { Note } from '../../models/note';
@@ -182,60 +182,83 @@ export class ApiService {
     }
 
     moveLesson(
-        lessonId: number,
-        targetSubTopicId?: number,
-        targetTopicId?: number,
-        relativeToId?: number,
-        position?: 'before' | 'after',
-        relativeToType?: 'Lesson' | 'SubTopic'
-      ): Observable<any> {
-        const payload: any = {
-          lessonId,
-          newSubTopicId: targetSubTopicId,
-          newTopicId: targetTopicId
-        };
+      lessonId: number,
+      targetSubTopicId?: number,
+      targetTopicId?: number,
+      relativeToId?: number,
+      position?: 'before' | 'after',
+      relativeToType?: 'Lesson' | 'SubTopic'
+    ): Observable<any> {
+      // ✅ NEW: Construct resource object matching API expectations
+      const moveResource: LessonMoveResource = {
+        lessonId,
+        newSubTopicId: targetSubTopicId || null,
+        newTopicId: targetTopicId || null,
+        relativeToId: relativeToId || null,
+        position: position || null,
+        relativeToType: relativeToType || null
+      };
 
-        // Add positioning parameters if provided
-        if (relativeToId !== undefined) {
-          payload.relativeToId = relativeToId;
-          payload.position = position;
-          payload.relativeToType = relativeToType;
-        }
+      console.log('[ApiService] Moving lesson with resource object:', moveResource);
 
-        console.log('[ApiService] Moving lesson:', payload);
-        return this.post('Lesson/move', payload);
-      }
-
-      // REMOVE this method (if it exists):
-      /*
-      updateLessonSortOrder(lessonId: number, sortOrder: number): Observable<any> {
-        // ... remove this entire method
-      }
-
-    /** Move a subtopic to a new topic */
-    moveSubTopic(subTopicId: number, newTopicId: number): Observable<any> {
-        const body = { subTopicId, newTopicId };
-        console.log('ApiService: POST moveSubTopic', {
-            url: `${this.baseUrl}/subtopic/move`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.post<any>(`${this.baseUrl}/subtopic/move`, body).pipe(
-            catchError(error => this.handleError(error))
-        );
+      return this.http.post<any>(`${this.baseUrl}/Lesson/move`, moveResource).pipe(
+        tap(result => console.log('[ApiService] Lesson move result:', result)),
+        catchError(error => this.handleError(error))
+      );
     }
 
-    /** Move a topic to a new course */
-    moveTopic(topicId: number, newCourseId: number): Observable<any> {
-        const body = { topicId, newCourseId };
-        console.log('ApiService: POST moveTopic', {
-            url: `${this.baseUrl}/topic/move`,
-            body,
-            timestamp: new Date().toISOString()
-        });
-        return this.http.post<any>(`${this.baseUrl}/topic/move`, body).pipe(
-            catchError(error => this.handleError(error))
-        );
+    /**
+     * ✅ FIXED: Move subtopic using resource object matching API structure
+     */
+    moveSubTopic(
+      subTopicId: number,
+      newTopicId: number,
+      relativeToId?: number,
+      position?: 'before' | 'after',
+      relativeToType?: 'SubTopic' | 'Lesson'
+    ): Observable<any> {
+      // ✅ NEW: Construct resource object matching API expectations
+      const moveResource: SubTopicMoveResource = {
+        subTopicId,
+        newTopicId,
+        relativeToId: relativeToId || null,
+        position: position || null,
+        relativeToType: relativeToType || null
+      };
+
+      console.log('[ApiService] Moving subtopic with resource object:', moveResource);
+
+      return this.http.post<any>(`${this.baseUrl}/subtopic/move`, moveResource).pipe(
+        tap(result => console.log('[ApiService] SubTopic move result:', result)),
+        catchError(error => this.handleError(error))
+      );
+    }
+
+    /**
+     * ✅ FIXED: Move topic using resource object matching API structure
+     */
+    moveTopic(
+      topicId: number,
+      newCourseId: number,
+      relativeToId?: number,
+      position?: 'before' | 'after',
+      relativeToType?: 'Topic'
+    ): Observable<any> {
+      // ✅ NEW: Construct resource object matching API expectations
+      const moveResource: TopicMoveResource = {
+        topicId,
+        newCourseId,
+        relativeToId: relativeToId || null,
+        position: position || null,
+        relativeToType: relativeToType || null
+      };
+
+      console.log('[ApiService] Moving topic with resource object:', moveResource);
+
+      return this.http.post<any>(`${this.baseUrl}/topic/move`, moveResource).pipe(
+        tap(result => console.log('[ApiService] Topic move result:', result)),
+        catchError(error => this.handleError(error))
+      );
     }
 
     /** Upload an attachment for a lesson */

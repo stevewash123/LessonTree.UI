@@ -126,43 +126,102 @@ export class CourseDataService {
 
   // === SIGNAL EMISSION METHODS (CORE RESPONSIBILITY) ===
 
-  emitNodeAdded(
-    node: TreeData,
-    source: ChangeSource = 'api',
-    operationType: OperationType = 'API_RESPONSE',
-    metadata?: OperationMetadata
+  /**
+   * Emit entity added signal with clean Entity interface
+   */
+  emitEntityAdded(
+      entity: Entity,  // ✅ FIXED: Direct Entity parameter
+      source: ChangeSource = 'api',
+      operationType: OperationType = 'API_RESPONSE',
+      metadata?: OperationMetadata
   ): void {
-    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
-    this.signalService.emitNodeAdded(node.entity, source, operationType);
+    console.log(`[CourseDataService] Emitting entity added signal`, {
+      entityType: entity.entityType,
+      entityId: entity.id,
+      entityTitle: entity.title,
+      source,
+      operationType,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ FIXED: Direct Entity pass-through to signal service
+    this.signalService.emitEntityAdded(entity, source, operationType);
   }
 
-  emitNodeEdited(
-    node: TreeData,
-    source: ChangeSource = 'api',
-    operationType: OperationType = 'API_RESPONSE',
-    metadata?: OperationMetadata
+  /**
+   * Emit entity edited signal with clean Entity interface
+   */
+  emitEntityEdited(
+      entity: Entity,  // ✅ FIXED: Direct Entity parameter
+      source: ChangeSource = 'api',
+      operationType: OperationType = 'API_RESPONSE',
+      metadata?: OperationMetadata
   ): void {
-    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
-    this.signalService.emitNodeEdited(node.entity, source, operationType);
+    console.log(`[CourseDataService] Emitting entity edited signal`, {
+      entityType: entity.entityType,
+      entityId: entity.id,
+      entityTitle: entity.title,
+      source,
+      operationType,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ FIXED: Direct Entity pass-through to signal service
+    this.signalService.emitEntityEdited(entity, source, operationType);
   }
 
-  emitNodeDeleted(
-    node: TreeData,
-    source: ChangeSource = 'api',
-    operationType: OperationType = 'API_RESPONSE',
-    metadata?: OperationMetadata
+  /**
+   * Emit entity deleted signal with clean Entity interface
+   */
+  emitEntityDeleted(
+      entity: Entity,  // ✅ FIXED: Direct Entity parameter
+      source: ChangeSource = 'api',
+      operationType: OperationType = 'API_RESPONSE',
+      metadata?: OperationMetadata
   ): void {
-    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
-    this.signalService.emitNodeDeleted(node.entity, source, operationType);
+    console.log(`[CourseDataService] Emitting entity deleted signal`, {
+      entityType: entity.entityType,
+      entityId: entity.id,
+      entityTitle: entity.title,
+      source,
+      operationType,
+      timestamp: new Date().toISOString()
+    });
+
+    // ✅ FIXED: Direct Entity pass-through to signal service
+    this.signalService.emitEntityDeleted(entity, source, operationType);
   }
 
-  emitNodeMoved(
-    event: {node: TreeData, sourceLocation: string, targetLocation: string},
+  /**
+   * Emit entity moved signal with clean Entity interface
+   */
+  emitEntityMoved(
+    entity: Entity,
+    sourceLocation: string,
+    targetLocation: string,
     changeSource: ChangeSource = 'api',
-    operationType: OperationType = 'DRAG_MOVE'
+    operationType: OperationType = 'DRAG_MOVE',
+    metadata?: {
+      oldSortOrder?: number;
+      newSortOrder?: number;
+      moveType?: 'drag-drop' | 'api-move' | 'bulk-operation';
+      apiResponse?: any;  // ✅ ADD: Include API response in metadata
+    }
   ): void {
-    // ✅ FIXED: Extract Entity from TreeData before passing to signal service
-    this.signalService.emitNodeMoved(event.node.entity, event.sourceLocation, event.targetLocation, changeSource);
+    console.log(`[CourseDataService] Emitting entity moved signal`, {
+      entityType: entity.entityType,
+      entityId: entity.id,
+      entityTitle: entity.title,
+      sourceLocation,
+      targetLocation,
+      changeSource,
+      operationType,
+      metadata,
+      timestamp: new Date().toISOString()
+    });
+
+    // Pass metadata through to signal service
+    this.signalService.emitEntityMoved(entity, sourceLocation, targetLocation, changeSource, metadata);
   }
 
   setCourses(courses: Course[], source: ChangeSource = 'initialization'): void {
@@ -236,13 +295,13 @@ export class CourseDataService {
   /**
    * Add entity with storage update and event emission
    */
-  addEntity(
-    entity: Entity,  // ✅ FIXED: Accept Entity directly, not TreeData
-    source: string,
-    operationType: OperationType = 'USER_ADD',
-    metadata?: OperationMetadata
+  addEntity<T extends Entity>(
+      entity: T,
+      source: ChangeSource = 'tree',
+      operationType: OperationType = 'USER_ADD',
+      metadata?: any
   ): void {
-    console.log(`[CourseDataService] Adding entity with operation context`, {
+    console.log('[CourseDataService] Adding entity with operation context', {
       entityType: entity.entityType,
       entityId: entity.id,
       source,
@@ -251,11 +310,11 @@ export class CourseDataService {
       timestamp: new Date().toISOString()
     });
 
-    // Update storage first
+    // Delegate to mutation service (fix property name)
     this.mutationService.addEntity(entity);
 
-    // ✅ FIXED: Pass Entity directly to signal service
-    this.signalService.emitEntityAdded(entity, source, operationType);
+    // Emit signal
+    this.emitEntityAdded(entity, source, operationType, metadata);
   }
 
   /**

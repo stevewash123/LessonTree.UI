@@ -7,8 +7,10 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 
 import { SpecialDayManagementService } from '../business/special-day-management.service';
-import { ScheduleEvent } from '../../../models/schedule-event.model';
 import {CalendarManagementService} from '../business/calendar-managment.service';
+import {LessonSequenceCoordinationService} from "./lesson-sequence-coordination.service";
+import {ScheduleEventCoordinationService} from "./schedule-event-coordination.service";
+import {ScheduleEventRepositioningService} from "../business/schedule-event-repositioning.service";
 
 // ✅ Observable event interfaces
 export interface CalendarRefreshEvent {
@@ -56,36 +58,51 @@ export class CalendarCoordinationService implements OnDestroy {
   // ✅ Subscription management for cross-service coordination
   private subscriptions = new Subscription();
 
+  // **PARTIAL UPDATE** - CalendarCoordinationService constructor with enhanced debugging
+// Add this enhanced logging to your existing constructor
+
   constructor(
     private managementService: CalendarManagementService,
-    private specialDayManagementService: SpecialDayManagementService
+    private specialDayManagementService: SpecialDayManagementService,
+    private lessonSequenceCoordination: LessonSequenceCoordinationService,
+    private scheduleEventCoordination: ScheduleEventCoordinationService,
+    private scheduleEventRepositioningService: ScheduleEventRepositioningService
   ) {
-    console.log('[CalendarCoordinationService] Observable coordination patterns initialized');
-    this.setupCrossServiceSubscriptions();
-  }
-
-  // === INITIALIZATION WITH EVENTS ===
-
-  initializeWithCoordination(callbacks: any): void {
-    console.log('[CalendarCoordinationService] Initialize with cross-service coordination');
-
-    // Delegate to management service
-    this.managementService.initialize(callbacks);
-
-    // ✅ Emit initialization completed event for business logic
-    this._initializationCompleted$.next({
-      initialized: true,
-      hasCallbacks: !!callbacks,
-      timestamp: new Date()
+    console.log('🚨🚨🚨 [CalendarCoordination] ===== SERVICE CONSTRUCTOR EXECUTING =====');
+    console.log('🚨 [CalendarCoordination] Timestamp:', new Date().toISOString());
+    console.log('🚨 [CalendarCoordination] Dependencies injected:', {
+      managementService: !!managementService,
+      scheduleEventCoordination: !!scheduleEventCoordination,
+      hasLessonOrderChanged$: !!scheduleEventCoordination?.lessonOrderChanged$
     });
+
+    // Test observable immediately
+    console.log('🚨 [CalendarCoordination] Testing scheduleEventCoordination.lessonOrderChanged$ observable...');
+
+    // Set up subscription SYNCHRONOUSLY
+    console.log('🚨 [CalendarCoordination] About to call setupCrossServiceSubscriptions()...');
+    this.setupCrossServiceSubscriptions();
+    console.log('🚨 [CalendarCoordination] setupCrossServiceSubscriptions() completed');
+
+    console.log('🚨🚨🚨 [CalendarCoordination] ===== CONSTRUCTOR COMPLETE =====');
   }
 
-  // === CROSS-SERVICE SUBSCRIPTIONS ===
+  // **PARTIAL UPDATE** - Replace setupCrossServiceSubscriptions with enhanced debug version
 
   private setupCrossServiceSubscriptions(): void {
+    console.log('🚨🚨🚨 [CalendarCoordination] ===== SUBSCRIPTION SETUP START =====');
+    console.log('🚨 [CalendarCoordination] Timestamp:', new Date().toISOString());
+
+    // Test observable before subscribing
+    console.log('🚨 [CalendarCoordination] Testing observable availability:', {
+      scheduleEventCoordination: !!this.scheduleEventCoordination,
+      lessonOrderChanged$: !!this.scheduleEventCoordination?.lessonOrderChanged$,
+      canSubscribe: typeof this.scheduleEventCoordination?.lessonOrderChanged$?.subscribe === 'function'
+    });
+
     console.log('[CalendarCoordinationService] Setting up cross-service subscriptions');
 
-    // ✅ Subscribe to special day operations
+    // ✅ Subscribe to special day operations (keep existing)
     this.subscriptions.add(
       this.specialDayManagementService.specialDayOperation$.subscribe(event => {
         console.log('📅 [CalendarCoordinationService] RECEIVED specialDayOperation event (Observable)', {
@@ -96,17 +113,88 @@ export class CalendarCoordinationService implements OnDestroy {
           timestamp: event.timestamp.toISOString()
         });
 
-        // Refresh calendar display when special days are created/updated/deleted
         if (event.type === 'created' || event.type === 'updated' || event.type === 'deleted') {
           console.log('📅 [CalendarCoordinationService] Refreshing calendar due to special day operation');
-
-          // Trigger business service refresh and emit coordination event
           this.refreshCalendarWithCoordination('schedule-update');
         }
       })
     );
 
-    console.log('[CalendarCoordinationService] Cross-service subscriptions setup complete');
+    // ✅ Enhanced lesson order subscription with immediate test
+    console.log('🚨🚨🚨 [CalendarCoordination] ===== SETTING UP lessonOrderChanged$ SUBSCRIPTION =====');
+
+    try {
+      const subscription = this.scheduleEventCoordination.lessonOrderChanged$.subscribe({
+        next: (event) => {
+          console.log('🚨🚨🚨 [CalendarCoordination] *** SUBSCRIPTION FIRED *** - lessonOrderChanged$ event received');
+          console.log('📚 [CalendarCoordinationService] RECEIVED lessonOrderChanged event (Observable)', {
+            lessonTitle: event.lesson.title,
+            lessonId: event.lesson.id,
+            sourceLocation: event.sourceLocation,
+            targetLocation: event.targetLocation,
+            source: event.source,
+            metadata: event.metadata,
+            timestamp: event.timestamp.toISOString()
+          });
+
+          // ✅ Process the event with repositioning
+          console.log('📚 [CalendarCoordinationService] Processing lesson order change with schedule repositioning');
+
+          const lessonOrderChange = {
+            lessonId: event.lesson.id,
+            courseId: event.lesson.courseId || 0,
+            oldSortOrder: event.metadata?.oldSortOrder || 0,
+            newSortOrder: event.metadata?.newSortOrder || 0,
+            moveType: event.sourceLocation === event.targetLocation ? 'reorder' as const : 'reparent' as const,
+            metadata: event.metadata  // ✅ FIXED: Pass entire metadata object, not just apiResponse
+          };
+
+          console.log('📚 [CalendarCoordinationService] 🎯 LESSON ORDER CHANGE DATA:', {
+            lessonOrderChange,
+            hasApiResponse: !!lessonOrderChange.metadata?.apiResponse,
+            apiResponseEntities: lessonOrderChange.metadata?.apiResponse?.modifiedEntities?.length || 0
+          });
+
+          const repositioningResult = this.scheduleEventRepositioningService.repositionScheduleEventsForLessonOrderChange(lessonOrderChange);
+
+          if (repositioningResult.success) {
+            console.log('📚 [CalendarCoordinationService] Schedule events repositioned successfully:', {
+              eventsUpdated: repositioningResult.eventsUpdated,
+              eventsShifted: repositioningResult.eventsShifted,
+              periodsAffected: repositioningResult.periodsAffected
+            });
+          } else {
+            console.error('📚 [CalendarCoordinationService] Schedule repositioning failed:', repositioningResult.errors);
+          }
+
+          // ✅ NEW: Use proven POC pattern for calendar refresh
+          console.log('🎯 [CalendarCoordinationService] Calling PROVEN calendar refresh method');
+          this.managementService.refreshCalendarEventsAfterLessonMove({
+            lesson: event.lesson,
+            lessonId: event.lesson.id,
+            metadata: event.metadata,
+            moveType: lessonOrderChange.moveType,
+            repositioningResult: repositioningResult
+          });
+
+          console.log('✅ [CalendarCoordinationService] Lesson move calendar refresh completed using proven POC pattern');
+        },
+        error: (error) => {
+          console.error('🚨 [CalendarCoordination] Subscription ERROR:', error);
+        },
+        complete: () => {
+          console.log('🚨 [CalendarCoordination] Subscription COMPLETED');
+        }
+      });
+      this.subscriptions.add(subscription);
+      console.log('🚨 [CalendarCoordination] lessonOrderChanged$ subscription SUCCESSFULLY ADDED');
+
+    } catch (error) {
+      console.error('🚨 [CalendarCoordination] FAILED to set up lessonOrderChanged$ subscription:', error);
+    }
+
+    console.log('🚨🚨🚨 [CalendarCoordination] ===== SUBSCRIPTION SETUP COMPLETE =====');
+    console.log('🚨 [CalendarCoordination] Total subscriptions:', this.subscriptions.closed ? 'CLOSED' : 'ACTIVE');
   }
 
   // === COORDINATED OPERATIONS ===

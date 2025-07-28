@@ -68,14 +68,14 @@ export class Lesson extends Entity {
   /**
    * Override clone to handle Lesson-specific properties
    */
-  clone(): Lesson {
+  override clone(): this {
     return new Lesson({
       ...this.toJSON(),
       courseId: this.courseId,
       subTopicId: this.subTopicId,
       topicId: this.topicId,
       objective: this.objective
-    });
+    }) as this;
   }
 
   /**
@@ -139,7 +139,7 @@ export class Lesson extends Entity {
     /**
      * Override clone to handle LessonDetail-specific properties
      */
-    override clone(): LessonDetail {
+    override clone(): this {
       return new LessonDetail({
         ...this.toJSON(),
         level: this.level,
@@ -151,7 +151,7 @@ export class Lesson extends Entity {
         standards: this.standards,     // Shallow reference
         attachments: this.attachments, // Shallow reference
         notes: this.notes             // Shallow reference
-      });
+      }) as this;
     }
 
     /**
@@ -190,3 +190,12 @@ export class Lesson extends Entity {
     assessment?: string | null;
     sortOrder: number;
   }
+
+export interface LessonMoveResource {
+  lessonId: number;
+  newSubTopicId?: number | null;
+  newTopicId?: number | null;
+  relativeToId?: number | null;
+  position?: 'before' | 'after' | null;
+  relativeToType?: 'Lesson' | 'SubTopic' | null;
+}

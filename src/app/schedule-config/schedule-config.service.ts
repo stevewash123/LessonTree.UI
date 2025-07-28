@@ -6,7 +6,6 @@
 import { Injectable } from '@angular/core';
 import { FormBuilder, FormGroup, FormArray, Validators, AbstractControl, ValidationErrors  } from '@angular/forms';
 import { Observable, tap, map, switchMap } from 'rxjs';
-import { ScheduleCoordinationService } from '../calendar/services/coordination/schedule-coordination.service';
 import {PeriodManagementService} from './period-management.service';
 import {ScheduleConfigurationApiService} from './schedule-config-api.service';
 import {ScheduleConfigurationStateService} from '../calendar/services/state/schedule-configuration-state.service';
@@ -15,6 +14,7 @@ import {
   ScheduleConfigurationCreateResource,
   SchedulePeriodAssignment
 } from '../models/schedule-configuration.model';
+import { ScheduleWorkflowCoordinationService } from '../calendar/services/coordination/schedule-workflow-coordination.service';
 
 
 
@@ -83,7 +83,7 @@ export class ScheduleConfigService {
     private periodMgmt: PeriodManagementService,
     private scheduleConfigApi: ScheduleConfigurationApiService,
     private scheduleConfigStateService: ScheduleConfigurationStateService,
-    private scheduleCoordinationService: ScheduleCoordinationService
+    private scheduleCoordinationService: ScheduleWorkflowCoordinationService
   ) {}
 
   /**

@@ -1,14 +1,18 @@
-﻿// **COMPLETE FILE** - LessonSequenceCoordinationService - Observable Events & Cross-Service Coordination
+﻿// **UPDATED FILE** - LessonSequenceCoordinationService - Remove Redundant Course Refresh
 // RESPONSIBILITY: Observable event management and cross-service coordination for lesson sequencing
 // SCOPE: Observable patterns and event emission only (business logic in separate service)
 // RATIONALE: Event coordination separated from sequence business logic for maintainability
+// CHANGE: Removed course data refresh for lesson moves - LessonPositioningService handles position calculation
 
 import { Injectable, OnDestroy } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { format } from 'date-fns';
 
 import { LessonSequenceBusinessService } from '../business/lesson-sequence-business.service';
-import { CourseSignalService } from '../../../lesson-tree/services/course-data/course-signal.service';
+import {
+  CourseSignalService,
+  EntityMoveSignalPayload
+} from '../../../lesson-tree/services/course-data/course-signal.service';
 import { EntitySignalPayload } from '../../../lesson-tree/services/course-data/course-signal.service';
 
 // ✅ Observable event interfaces for cross-component coordination
@@ -34,7 +38,7 @@ export interface SequenceContinuationEvent {
 }
 
 export interface SequenceAnalysisEvent {
-  analysisType: 'continuation-points-found' | 'course-data-refreshed' | 'sequence-state-analyzed';
+  analysisType: 'continuation-points-found' | 'course-data-refreshed' | 'sequence-state-analyzed' | 'lesson-order-changed';
   courseCount: number;
   periodCount: number;
   totalLessonsAnalyzed: number;
@@ -82,8 +86,8 @@ export class LessonSequenceCoordinationService implements OnDestroy {
   private subscriptions: Subscription[] = [];
 
   constructor(
-    private businessService: LessonSequenceBusinessService,
-    private courseSignalService: CourseSignalService
+      private businessService: LessonSequenceBusinessService,
+      private courseSignalService: CourseSignalService
   ) {
     console.log('[LessonSequenceCoordinationService] Observable coordination patterns for lesson sequencing');
     this.setupCrossServiceSubscriptions();
@@ -112,6 +116,51 @@ export class LessonSequenceCoordinationService implements OnDestroy {
     });
 
     this.subscriptions.push(lessonAddedSub);
+
+    // ✅ FIXED: Subscribe to lesson moved events - COORDINATE ONLY, NO DATA REFRESH
+    const lessonMovedSub = this.courseSignalService.entityMoved$.subscribe((event: EntityMoveSignalPayload) => {
+      if (event.entity.entityType === 'Lesson') {
+        console.log('[LessonSequenceCoordinationService] RECEIVED lesson moved EVENT (Observable):', {
+          lessonTitle: event.entity.title,
+          lessonId: event.entity.id,
+          courseId: this.getCourseIdFromEntity(event.entity),
+          sourceLocation: event.sourceLocation,
+          targetLocation: event.targetLocation,
+          source: event.source,
+          timestamp: event.timestamp.toISOString(),
+          pattern: 'Observable - lesson order changed, coordinating only (no data refresh needed)',
+          reason: 'LessonPositioningService already calculated position, API already updated database'
+        });
+
+        // ✅ COORDINATION ONLY: Emit sequence analysis event without data refresh
+        // The course data is already up-to-date because:
+        // 1. LessonPositioningService calculated the correct position
+        // 2. NodeOperationsService made the API call with calculated sort order
+        // 3. Database was updated correctly
+        // 4. No additional data refresh needed
+        this._sequenceAnalysis$.next({
+          analysisType: 'lesson-order-changed',
+          courseCount: 1,
+          periodCount: 0,
+          totalLessonsAnalyzed: 1,
+          continuationPointsFound: 0,
+          coursePeriodDetails: [{
+            courseId: this.getCourseIdFromEntity(event.entity),
+            courseTitle: event.entity.title,
+            period: 0,
+            totalLessons: 0,
+            assignedLessons: 0,
+            needsContinuation: false
+          }],
+          source: 'lesson-sequence',
+          timestamp: new Date()
+        });
+
+        console.log('🚨 [LessonSequenceCoordinationService] EMITTED sequenceAnalysis event for lesson move (coordination only, no refresh)');
+      }
+    });
+
+    this.subscriptions.push(lessonMovedSub);
     console.log('[LessonSequenceCoordinationService] Cross-service subscriptions setup complete');
   }
 
@@ -207,7 +256,7 @@ export class LessonSequenceCoordinationService implements OnDestroy {
           });
 
           console.log('🚨 [LessonSequenceCoordinationService] EMITTED sequenceCompletion event:',
-            cp.lessonsRemaining === 0 ? 'sequence-exhausted' : 'period-sequence-completed');
+              cp.lessonsRemaining === 0 ? 'sequence-exhausted' : 'period-sequence-completed');
         }
 
         // ✅ Emit sequence continuation completed event

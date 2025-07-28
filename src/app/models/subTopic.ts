@@ -39,13 +39,13 @@ export class SubTopic extends Entity {
   /**
    * Clone method to handle SubTopic-specific properties
    */
-  clone(): SubTopic {
+  override clone(): this {
     return new SubTopic({
       ...this.toJSON(),
       topicId: this.topicId,
       courseId: this.courseId,
       lessons: this.lessons         // Shallow reference
-    });
+    }) as this;
   }
 
   /**
@@ -60,3 +60,16 @@ export class SubTopic extends Entity {
     };
   }
   }
+
+
+/**
+ * Enhanced SubTopic move resource with positioning parameters
+ * Matches API DTO structure for consistent positioning logic
+ */
+export interface SubTopicMoveResource {
+  subTopicId: number;
+  newTopicId: number;                         // ✅ MATCH API: Required topic target
+  relativeToId?: number | null;               // ✅ MATCH API: Optional positioning
+  position?: 'before' | 'after' | null;      // ✅ MATCH API: Optional positioning
+  relativeToType?: 'SubTopic' | 'Lesson' | null; // ✅ MATCH API: Optional positioning
+}

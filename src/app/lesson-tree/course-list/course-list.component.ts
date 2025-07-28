@@ -34,37 +34,37 @@ import { CourseCrudService } from '../services/course-operations/course-crud.ser
   styleUrls: ['./course-list.component.css']
 })
 export class CourseListComponent implements OnInit {
-  
+
   // Local filter signals (private)
   private readonly _localSearchTerm = signal<string>('');
   private readonly _localCourseFilter = signal<'active' | 'archived' | 'both'>('active');
   private readonly _localVisibilityFilter = signal<'private' | 'team'>('private');
-  
+
   // Computed signal for courses to display (all local filters)
   readonly displayCourses = computed(() => {
     const allCourses = this.courseDataService.getCourses();
     const searchTerm = this._localSearchTerm().toLowerCase();
     const courseFilter = this._localCourseFilter();
     const visibilityFilter = this._localVisibilityFilter();
-    
+
     return allCourses.filter((course: Course) => {
       // Apply course filter (active/archived/both)
       if (courseFilter === 'active' && course.archived) return false;
       if (courseFilter === 'archived' && !course.archived) return false;
       // 'both' includes all courses regardless of archived status
-      
+
       // Apply visibility filter
       if (visibilityFilter === 'private' && course.visibility !== 'Private') return false;
       if (visibilityFilter === 'team' && course.visibility === 'Private') return false;
       // Note: 'team' filter includes both 'Team' and 'Public' courses
-      
+
       // Apply search filter
       if (searchTerm) {
         const matchesTitle = course.title.toLowerCase().includes(searchTerm);
         const matchesDescription = course.description?.toLowerCase().includes(searchTerm);
         if (!matchesTitle && !matchesDescription) return false;
       }
-      
+
       return true;
     });
   });
@@ -77,7 +77,18 @@ export class CourseListComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    console.log('[CourseList] Component initialized', { timestamp: new Date().toISOString() });
+    console.log('[CourseList] Component initialized');
+
+    // ✅ Self-contained data loading
+    this.courseCrudService.loadCourses().subscribe({
+      next: (courses) => {
+        console.log('[CourseList] Initial courses loaded:', courses.length);
+        // Signal architecture will handle the rest automatically
+      },
+      error: (error) => {
+        console.error('[CourseList] Failed to load courses:', error);
+      }
+    });
   }
 
   // Getters for local filter state (for template binding)
@@ -104,7 +115,7 @@ export class CourseListComponent implements OnInit {
 
     this._localCourseFilter.set(courseFilter);
     this._localVisibilityFilter.set(visibilityFilter);
-    
+
     if (searchTerm !== undefined) {
       this._localSearchTerm.set(searchTerm);
     }

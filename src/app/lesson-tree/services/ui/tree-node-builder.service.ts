@@ -9,6 +9,7 @@ import { Lesson } from '../../../models/lesson';
 import { SubTopic } from '../../../models/subTopic';
 import { Topic } from '../../../models/topic';
 import { TreeNode, TreeData, unwrapEntityFromTree } from '../../../models/tree-node';
+import {EntityType} from "../../../models/entity";
 
 @Injectable({
   providedIn: 'root'
@@ -104,45 +105,82 @@ export class TreeNodeBuilderService {
    * Create TreeNode from Topic entity
    */
   createTopicNode(topic: Topic): TreeNode {
-    return {
+    const treeNode: TreeNode = {
       id: `topic_${topic.id}`,
       text: topic.title,
-      entityType: 'Topic',
+      entityType: 'Topic' as EntityType,
       hasChildren: false, // Will be updated based on children
-      original: topic,
+      original: topic,  // ✅ This should be set
       expanded: false,
       iconCss: 'topic-icon'
     };
+
+    // 🔍 DEBUG: Verify original is set
+    console.log('🔍 [TreeNodeBuilder] createTopicNode - Created TreeNode:', {
+      id: treeNode.id,
+      text: treeNode.text,
+      hasOriginal: !!treeNode.original,
+      originalType: typeof treeNode.original,
+      originalKeys: Object.keys(treeNode.original || {}),
+      fullTreeNode: treeNode
+    });
+
+    return treeNode;
   }
+
 
   /**
    * Create TreeNode from SubTopic entity
    */
   createSubTopicNode(subTopic: SubTopic): TreeNode {
-    return {
+    const treeNode: TreeNode = {
       id: `subtopic_${subTopic.id}`,
       text: subTopic.title,
-      entityType: 'SubTopic',
+      entityType: 'SubTopic' as EntityType,
       hasChildren: false, // Will be updated based on children
-      original: subTopic,
+      original: subTopic,  // ✅ This should be set
       expanded: false,
       iconCss: 'subtopic-icon'
     };
+
+    // 🔍 DEBUG: Verify original is set
+    console.log('🔍 [TreeNodeBuilder] createSubTopicNode - Created TreeNode:', {
+      id: treeNode.id,
+      text: treeNode.text,
+      hasOriginal: !!treeNode.original,
+      originalType: typeof treeNode.original,
+      originalKeys: Object.keys(treeNode.original || {}),
+      fullTreeNode: treeNode
+    });
+
+    return treeNode;
   }
 
   /**
    * Create TreeNode from Lesson entity
    */
   createLessonNode(lesson: Lesson): TreeNode {
-    return {
+    const treeNode: TreeNode = {
       id: `lesson_${lesson.id}`,
       text: lesson.title || 'Untitled Lesson',
-      entityType: 'Lesson',
+      entityType: 'Lesson' as EntityType,
       hasChildren: false, // Lessons never have children
-      original: lesson,
+      original: lesson,  // ✅ This should be set
       expanded: false,
       iconCss: 'lesson-icon'
     };
+
+    // 🔍 DEBUG: Verify original is set
+    console.log('🔍 [TreeNodeBuilder] createLessonNode - Created TreeNode:', {
+      id: treeNode.id,
+      text: treeNode.text,
+      hasOriginal: !!treeNode.original,
+      originalType: typeof treeNode.original,
+      originalKeys: Object.keys(treeNode.original || {}),
+      fullTreeNode: treeNode
+    });
+
+    return treeNode;
   }
 
   // Find node by ID in tree structure

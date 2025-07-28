@@ -168,6 +168,9 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       source: event.source
     });
 
+    // ✅ REMOVED: No longer track operation source here (it was causing the wrong logic)
+    // this.treeEffectsService.trackOperationSource(this.courseId, event.source);
+
     // ✅ BOUNDARY: Entity → TreeData conversion
     const treeData = createTreeData(event.entity);
 
@@ -175,14 +178,20 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     this.executeUpdateStrategy(updateStrategy, treeData, event);
   }
 
+
+
   private handleEntityEditedEvent(event: EntitySignalPayload): void {
     if (!this.isEventForThisCourse(event)) return;
 
     console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED entityEdited EVENT`, {
       courseId: this.courseId,
       entityType: event.entity.entityType,
-      entityTitle: event.entity.title
+      entityTitle: event.entity.title,
+      source: event.source
     });
+
+    // ✅ NEW: Track operation source
+    this.treeEffectsService.trackOperationSource(this.courseId, event.source);
 
     // Entity edits require full sync for data consistency
     this.syncDataOnly();
@@ -194,8 +203,12 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     console.log(`🌲 [TreeWrapper-${this.instanceId}] RECEIVED entityDeleted EVENT`, {
       courseId: this.courseId,
       entityType: event.entity.entityType,
-      entityTitle: event.entity.title
+      entityTitle: event.entity.title,
+      source: event.source
     });
+
+    // ✅ NEW: Track operation source
+    this.treeEffectsService.trackOperationSource(this.courseId, event.source);
 
     // Entity deletions require full sync
     this.syncDataOnly();
@@ -214,7 +227,27 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       source: event.source
     });
 
-    // Entity moves require full sync
+    // ✅ EXISTING LOGIC: Skip refresh for tree-originated moves
+    if (event.source === 'tree') {
+      console.log(`🌲 [TreeWrapper-${this.instanceId}] ⏭️ SKIPPING REFRESH - self-originated move`, {
+        reason: 'SyncFusion already handled the visual move',
+        action: 'preserving tree expansion state',
+        apiUpdated: 'database already updated',
+        signalsWorking: 'calendar will receive updates'
+      });
+      return; // ← This prevents syncDataOnly() and tree collapse
+    }
+
+    // ✅ NEW: Track operation source for external moves
+    this.treeEffectsService.trackOperationSource(this.courseId, event.source);
+
+    // ✅ ONLY refresh for external moves (calendar, infopanel, etc.)
+    console.log(`🔄 [TreeWrapper-${this.instanceId}] 🔄 EXTERNAL MOVE - refreshing tree`, {
+      source: event.source,
+      reason: 'Tree needs to reflect external changes'
+    });
+
+    // Entity moves from external sources require full sync
     this.syncDataOnly();
   }
 
@@ -268,11 +301,115 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
         operationType: event.operationType
       });
 
-      this.handleLessonAdded(treeData);
+      // ✅ EXISTING: Lesson incremental add
+      if (treeData.entityType === 'Lesson') {
+        this.handleLessonAdded(treeData);
+        return;
+      }
+
+      // ✅ NEW: Topic incremental add
+      if (treeData.entityType === 'Topic') {
+        this.handleTopicAdded(treeData);
+        return;
+      }
+
+      // ✅ NEW: SubTopic incremental add
+      if (treeData.entityType === 'SubTopic') {
+        this.handleSubTopicAdded(treeData);
+        return;
+      }
+
+      // Fallback for unsupported types
+      console.warn(`[TreeWrapper] Unsupported incremental type: ${treeData.entityType}`);
+      this.syncDataOnly();
+
     } catch (error) {
       console.error(`❌ [TreeWrapper-${this.instanceId}] Incremental update failed, falling back:`, error);
       this.syncDataOnly();
     }
+  }
+
+// ✅ NEW: Handle Topic incremental add
+  handleTopicAdded(treeData: TreeData): void {
+    if (!this.syncFuncTree || !this.isViewInitialized) return;
+
+    // Topics are always added to the course root
+    const parentNodeId = `course_${this.courseId}`;
+
+    console.log(`🌱 [TreeWrapper] Adding topic incrementally:`, {
+      topicTitle: treeData.title,
+      parentNodeId,
+      method: 'TreeSyncService.addTopicNode()'
+    });
+
+    // ✅ PROPER: Use TreeSyncService incremental method
+    const result = this.treeSyncService.addTopicNode(
+      treeData.entity,
+      this.syncFuncTree,
+      parentNodeId,
+      this.courseId
+    );
+
+    if (!result.success) {
+      console.error(`[TreeWrapper] Incremental topic add failed, falling back to full sync:`, result.error);
+      this.syncDataOnly();
+    } else {
+      console.log(`✅ [TreeWrapper] Successfully added topic incrementally:`, treeData.title);
+      // ✅ CRITICAL: Mark incremental success to prevent second rebind
+      this.treeEffectsService.markIncrementalSuccess(this.courseId);
+    }
+  }
+
+// ✅ COMPLETE: Handle SubTopic incremental add
+  private handleSubTopicAdded(treeData: TreeData): void {
+    if (!this.syncFuncTree || !this.isViewInitialized) return;
+
+    const parentNodeId = this.determineSubTopicParentNodeId(treeData);
+
+    if (parentNodeId === null) {
+      console.warn(`[TreeWrapper] Could not determine parent for subtopic, falling back to full sync`);
+      this.syncDataOnly();
+      return;
+    }
+
+    console.log(`🌱 [TreeWrapper] Adding subtopic incrementally:`, {
+      subtopicTitle: treeData.title,
+      parentNodeId,
+      method: 'TreeSyncService.addSubTopicNode()'
+    });
+
+    // ✅ PROPER: Use TreeSyncService incremental method
+    const result = this.treeSyncService.addSubTopicNode(
+      treeData.entity,
+      this.syncFuncTree,
+      parentNodeId,
+      this.courseId
+    );
+
+    if (!result.success) {
+      console.error(`[TreeWrapper] Incremental subtopic add failed, falling back to full sync:`, result.error);
+      this.syncDataOnly();
+    } else {
+      console.log(`✅ [TreeWrapper] Successfully added subtopic incrementally:`, treeData.title);
+      // ✅ CRITICAL: Mark incremental success to prevent second rebind
+      this.treeEffectsService.markIncrementalSuccess(this.courseId);
+    }
+  }
+
+// ✅ NEW: Determine SubTopic parent node ID
+  private determineSubTopicParentNodeId(treeData: TreeData): string | null {
+    const entity = treeData.entity;
+
+    if (entity.entityType === 'SubTopic') {
+      const subTopic = entity as any;
+
+      if (subTopic.topicId) {
+        return `topic_${subTopic.topicId}`;
+      }
+    }
+
+    console.error('[TreeWrapper] Could not determine parent node ID for SubTopic:', entity);
+    return null;
   }
 
   // ===== TREE OPERATION METHODS =====
@@ -310,6 +447,9 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       this.syncDataOnly();
     } else {
       console.log(`✅ [TreeWrapper] Successfully added lesson incrementally:`, treeData.title);
+
+      // ✅ NEW: Mark incremental operation as successful to prevent redundant sync
+      this.treeEffectsService.markIncrementalSuccess(this.courseId);
     }
   }
 
@@ -347,6 +487,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   private syncDataOnly(): void {
     console.log(`🔄 [TreeWrapper-${this.instanceId}] syncDataOnly called for courseId: ${this.courseId}`);
+    console.trace('📍 CALL STACK - Who called syncDataOnly():'); // ← Add this line
 
     if (!this.courseId || !this.isViewInitialized) return;
 
@@ -405,21 +546,55 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       localTreeDataLength: this.treeData.length,
       syncFusionDataLength: syncFusionData.length
     });
+    console.trace('📍 CALL STACK - Who called onDataBound():'); // ← Add this line
+
 
     this.treeSyncService.handleDataBound(syncFusionData, this.course?.id);
   }
 
   public emitNodeSelected(args: any): void {
-    if (!this.isViewInitialized) return;
+    if (!this.isViewInitialized || !this.syncFuncTree) return;
 
-    // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
-    const syncFusionNode: TreeNode = args.nodeData;
-    const treeData = treeNodeToTreeData(syncFusionNode);
+    try {
+      // ✅ FIXED: Use SyncFusion's official getTreeData() method
+      const nodeId = args.nodeData?.id;
+      if (!nodeId) {
+        console.error('🚨 [TreeWrapper] emitNodeSelected - No node ID available');
+        return;
+      }
 
-    const result = this.treeNodeActionsService.handleNodeSelected(args, this.treeData, this.courseId);
+      // Get node data using SyncFusion's documented method for custom properties
+      const nodeDataArray = this.syncFuncTree.getTreeData(nodeId);
+      if (!nodeDataArray || nodeDataArray.length === 0) {
+        console.error('🚨 [TreeWrapper] emitNodeSelected - getTreeData returned empty array');
+        return;
+      }
 
-    if (!result.success) {
-      console.error(`[TreeWrapper] Selection failed:`, result.error);
+      // ✅ FIXED: Cast SyncFusion return type to TreeNode
+      const syncFusionNode: TreeNode = nodeDataArray[0] as TreeNode;
+
+      // 🔍 DEBUG: Verify we now have the original property
+      console.log('✅ [TreeWrapper] emitNodeSelected - Using getTreeData():', {
+        nodeId,
+        hasOriginal: !!syncFusionNode?.original,
+        originalType: typeof syncFusionNode?.original,
+        originalKeys: Object.keys(syncFusionNode?.original || {}),
+        retrievalMethod: 'getTreeData()'
+      });
+
+      // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
+      const treeData = treeNodeToTreeData(syncFusionNode);
+
+      const result = this.treeNodeActionsService.handleNodeSelected(args, this.treeData, this.courseId);
+
+      if (!result.success) {
+        console.error(`[TreeWrapper] Selection failed:`, result.error);
+      }
+    } catch (error) {
+      console.error('🚨 [TreeWrapper] emitNodeSelected - Conversion FAILED:', {
+        error: error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -438,13 +613,22 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   // ===== BOUNDARY: Drag and Drop Handlers =====
 
   public onNodeDragStart(args: any): void {
-    if (!this.isViewInitialized) {
+    if (!this.isViewInitialized || !this.syncFuncTree) {
       args.cancel = true;
       return;
     }
 
-    // ✅ BOUNDARY: SyncFusion provides TreeNode, convert to TreeData for internal processing
-    this.treeDragDropService.handleDragStart(args, this.dragState);
+    try {
+      // ✅ FIXED: Use SyncFusion's getTreeData() for drag operations if needed
+      // Note: SyncFusion drag events may already provide the correct data
+      // but we'll apply the same pattern for consistency
+
+      // ✅ BOUNDARY: SyncFusion provides TreeNode, convert to TreeData for internal processing
+      this.treeDragDropService.handleDragStart(args, this.dragState);
+    } catch (error) {
+      console.error('🚨 [TreeWrapper] onNodeDragStart - Error:', error);
+      args.cancel = true;
+    }
   }
 
   public nodeDragging(args: any): void {
@@ -455,28 +639,77 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     this.treeDragDropService.handleDragging(args, this.dragState);
   }
 
-  public onNodeDragStop(args: any): void {
-    if (!this.isViewInitialized) {
-      args.cancel = true;
-      return;
-    }
+  // **PARTIAL FILE** - tree-wrapper.component.ts
+  // Use SyncFusion's official getTreeData() method for drag operations
+  onNodeDragStop(args: any): void {
+    console.log('[TreeWrapper] onNodeDragStop called', {
+      draggedNodeData: args.draggedNodeData,
+      droppedNodeData: args.droppedNodeData,
+      courseId: this.courseId
+    });
 
-    // ✅ BOUNDARY: SyncFusion TreeNode → NodeMovedEvent with TreeData
-    const draggedTreeNode: TreeNode = args.draggedNode;
-    const targetTreeNode: TreeNode = args.droppedNode;
+    try {
+      const draggedNodeId = args.draggedNodeData?.id;
+      const targetNodeId = args.droppedNodeData?.id;
 
-    const draggedTreeData = treeNodeToTreeData(draggedTreeNode);
-    const targetTreeData = targetTreeNode ? treeNodeToTreeData(targetTreeNode) : null;
+      if (!draggedNodeId || !targetNodeId) {
+        console.warn('[TreeWrapper] Missing node IDs in drag operation');
+        return;
+      }
 
-    const operation = this.treeDragDropService.handleDragStop(
-      args, this.dragState, this.treeData, this.courseId
-    );
+      // ✅ USE SYNCFUSION'S OFFICIAL METHOD
+      const draggedTreeData = this.syncFuncTree?.getTreeData(draggedNodeId);
+      const targetTreeData = this.syncFuncTree?.getTreeData(targetNodeId);
 
-
-    if (operation) {
-      operation.subscribe({
-        error: (error) => console.error('[TreeWrapper] Drag operation failed:', error)
+      console.log(`✅ [TreeWrapper] onNodeDragStop - Using SyncFusion getTreeData():`, {
+        draggedNodeId,
+        targetNodeId,
+        draggedHasOriginal: !!draggedTreeData?.[0]?.['original'],
+        targetHasOriginal: !!targetTreeData?.[0]?.['original'],
+        retrievalMethod: 'syncFuncTree.getTreeData()'
       });
+
+      if (!draggedTreeData?.[0] || !targetTreeData?.[0]) {
+        console.warn('[TreeWrapper] getTreeData() returned invalid data');
+        return;
+      }
+
+      // ✅ FIXED: Cast SyncFusion objects to TreeNode type
+      const draggedNode = treeNodeToTreeData(draggedTreeData[0] as TreeNode);
+      const targetNode = treeNodeToTreeData(targetTreeData[0] as TreeNode);
+
+      console.log(`🔍 [TreeWrapper] Converted node data:`, {
+        draggedEntityType: draggedNode.entityType,
+        targetEntityType: targetNode.entityType,
+        draggedEntityId: draggedNode.id,
+        targetEntityId: targetNode.id
+      });
+
+      // Proceed with drag operation using TreeDragDropService
+      const result = this.treeDragDropService.handleDragStop(
+          args,
+          this.dragState,
+          this.treeData,
+          this.courseId
+      );
+
+      if (result) {
+        result.subscribe({
+          next: (success) => {
+            if (success) {
+              console.log('[TreeWrapper] Drag operation completed successfully');
+            } else {
+              console.warn('[TreeWrapper] Drag operation failed');
+            }
+          },
+          error: (error) => {
+            console.error('[TreeWrapper] Drag operation error:', error);
+          }
+        });
+      }
+
+    } catch (error) {
+      console.error(`🚨 [TreeWrapper] onNodeDragStop - Error:`, error);
     }
   }
 
@@ -515,22 +748,54 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   public onNodeExpanded(args: any): void {
-    if (!this.isViewInitialized) return;
+    if (!this.isViewInitialized || !this.syncFuncTree) return;
 
-    // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
-    const syncFusionNode: TreeNode = args.nodeData;
-    const treeData = treeNodeToTreeData(syncFusionNode);
-
-    const result = this.treeNodeActionsService.handleAutoSelectOnExpand(
-      args, this.treeData, this.courseId, this.nodeSelectionService.hasSelection()
-    );
-
-    if (result.success) {
-      try {
-        this.syncFuncTree.selectedNodes = [args.nodeData.id];
-      } catch (err) {
-        console.warn('[TreeWrapper] Failed to update selectedNodes:', err);
+    try {
+      // ✅ FIXED: Use SyncFusion's official getTreeData() method
+      const nodeId = args.nodeData?.id;
+      if (!nodeId) {
+        console.error('🚨 [TreeWrapper] onNodeExpanded - No node ID available');
+        return;
       }
+
+      // Get node data using SyncFusion's documented method for custom properties
+      const nodeDataArray = this.syncFuncTree.getTreeData(nodeId);
+      if (!nodeDataArray || nodeDataArray.length === 0) {
+        console.error('🚨 [TreeWrapper] onNodeExpanded - getTreeData returned empty array');
+        return;
+      }
+
+      // ✅ FIXED: Cast SyncFusion return type to TreeNode
+      const syncFusionNode: TreeNode = nodeDataArray[0] as TreeNode;
+
+      // 🔍 DEBUG: Verify we now have the original property
+      console.log('✅ [TreeWrapper] onNodeExpanded - Using getTreeData():', {
+        nodeId,
+        hasOriginal: !!syncFusionNode?.original,
+        originalType: typeof syncFusionNode?.original,
+        originalKeys: Object.keys(syncFusionNode?.original || {}),
+        retrievalMethod: 'getTreeData()'
+      });
+
+      // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
+      const treeData = treeNodeToTreeData(syncFusionNode);
+
+      const result = this.treeNodeActionsService.handleAutoSelectOnExpand(
+          args, this.treeData, this.courseId, this.nodeSelectionService.hasSelection()
+      );
+
+      if (result.success) {
+        try {
+          this.syncFuncTree.selectedNodes = [args.nodeData.id];
+        } catch (err) {
+          console.warn('[TreeWrapper] Failed to update selectedNodes:', err);
+        }
+      }
+    } catch (error) {
+      console.error('🚨 [TreeWrapper] onNodeExpanded - Conversion FAILED:', {
+        error: error,
+        errorMessage: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }
 
@@ -545,6 +810,29 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     const entityCourseId = (entity as any).courseId || entity.id;
     return entityCourseId === courseId;
   }
+
+  private findFirstLessonValidation(treeData: any[]): any {
+    // Find first lesson node for comparison
+    const findLesson = (nodes: any[]): any => {
+      for (const node of nodes) {
+        if (node.id && node.id.includes('lesson_')) {
+          return {
+            id: node.id,
+            text: node.text,
+            sortOrder: node['original']?.sortOrder,  // ✅ FIXED: Use bracket notation
+            parentId: node['original']?.topicId || node['original']?.subTopicId  // ✅ FIXED: Use bracket notation
+          };
+        }
+        if (node.child) {
+          const found = findLesson(node.child);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return findLesson(treeData);
+  }
+
 }
 
 export default TreeWrapperComponent;

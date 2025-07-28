@@ -132,7 +132,25 @@ export class CalendarEventService {
    * Map schedule events to calendar format - used by calendar-coordination.service
    */
   mapScheduleEventsToCalendarEvents(scheduleEvents: ScheduleEvent[]): any[] {
-    console.log(`[CalendarEventService] Mapping ${scheduleEvents.length} schedule events to calendar format`);
+    console.log('[CalendarEventService] 🔍 MAPPING SCHEDULE EVENTS TO CALENDAR:', {
+      inputEventCount: scheduleEvents.length,
+      timestamp: new Date().toISOString()
+    });
+
+    const lessonEvents = scheduleEvents.filter(e => e.eventCategory === 'Lesson');
+    console.log('[CalendarEventService] 📚 LESSON EVENTS IN SCHEDULE:', {
+      totalLessonEvents: lessonEvents.length,
+      lessonEventDetails: lessonEvents.map(e => ({
+        eventId: e.id,
+        date: e.date,
+        period: e.period,
+        lessonId: e.lessonId,
+        lessonTitle: e.lessonTitle,
+        lessonSort: e.lessonSort,
+        courseId: e.courseId
+      }))
+    });
+
     return this.transformEventsForCalendar(scheduleEvents);
   }
 }

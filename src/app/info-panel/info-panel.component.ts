@@ -78,6 +78,26 @@ export class InfoPanelComponent {
         showLesson: this.showLessonPanel(),
         timestamp: new Date().toISOString()
       });
+
+    });
+    effect(() => {
+      const selectedEntity = this.selectedEntity();
+
+      if (selectedEntity?.entityType === 'Lesson') {
+        const lessonId = parseId(selectedEntity.id);
+        const basicLesson = this.courseDataService.getLessonById(lessonId);
+
+        if (basicLesson) {
+          console.log('[InfoPanel] Loading lesson detail for selection', {
+            lessonId,
+            lessonTitle: basicLesson.title
+          });
+          this.loadLessonDetail(lessonId);
+        }
+      } else {
+        // Clear lesson detail when non-lesson is selected
+        this._currentLessonDetail.set(null);
+      }
     });
   }
 
@@ -166,37 +186,41 @@ export class InfoPanelComponent {
 
     if (mode === 'add') {
       const template = this.panelStateService.nodeTemplate();
-      return template?.entityType  === 'Lesson' ? (template as LessonDetail) : null;
+      return template?.entityType === 'Lesson' ? (template as LessonDetail) : null;
     }
 
-    if (node?.entityType  === 'Lesson') {
-      // Get basic Lesson from CourseDataService first to verify it exists
-      const basicLesson = this.courseDataService.getLessonById(parseId(node.id));
-      if (!basicLesson) return null;
-
-      // Make API call to get full LessonDetail - this will be async
-      // For now, return null and handle the API call in the component lifecycle
-      this.loadLessonDetail(basicLesson.id);
-      return null; // Will be updated via API call
+    if (node?.entityType === 'Lesson') {
+      // For existing lessons, return the loaded detail (may be null initially)
+      return this._currentLessonDetail();
     }
 
     return null;
   });
 
+
   // NEW: Convert basic Lesson to LessonDetail for InfoPanel components
   private loadLessonDetail(lessonId: number): void {
+    // Clear previous lesson detail immediately
+    this._currentLessonDetail.set(null);
+
     this.apiService.get<LessonDetail>(`lesson/${lessonId}`)
-      .pipe(take(1))
-      .subscribe({
-        next: (detail) => {
-          this._currentLessonDetail.set(detail); // ← Signal stores result
-        },
-        error: (err) => console.error('Failed to fetch LessonDetail', err)
-      });
+        .pipe(take(1))
+        .subscribe({
+          next: (detail) => {
+            console.log('[InfoPanel] LessonDetail loaded successfully', {
+              lessonId: detail.id,
+              title: detail.title,
+              timestamp: new Date().toISOString()
+            });
+            this._currentLessonDetail.set(detail);
+          },
+          error: (err) => {
+            console.error('[InfoPanel] Failed to fetch LessonDetail', err);
+            this._currentLessonDetail.set(null);
+          }
+        });
   }
 
-
-  // Panel visibility computed signals - simple data availability check
   readonly showCoursePanel = computed(() => {
     return this.currentCourse() !== null;
   });

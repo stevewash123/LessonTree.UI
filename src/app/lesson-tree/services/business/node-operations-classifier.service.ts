@@ -15,20 +15,30 @@ import { OperationType } from "../course-data/course-data.service";
       return ['BULK_LOAD', 'IMPORT'].includes(operationType);
     }
 
-    shouldUseIncrementalUpdate(operationType: OperationType, entityType : string): boolean {
-      // Only use incremental updates for user-initiated single node operations
-      if (!this.isUserInitiatedOperation(operationType)) {
-        return false;
-      }
-
-      // Only for specific operation types that we've validated work with incremental updates
-      if (operationType === 'USER_ADD' && entityType  === 'Lesson') {
-        return true;
-      }
-
-      // Default to full sync for safety
+    shouldUseIncrementalUpdate(operationType: OperationType, entityType: string): boolean {
+    // Only use incremental updates for user-initiated single node operations
+    if (!this.isUserInitiatedOperation(operationType)) {
       return false;
     }
+
+    // ✅ EXISTING: Lesson incremental support
+    if (operationType === 'USER_ADD' && entityType === 'Lesson') {
+      return true;
+    }
+
+    // ✅ NEW: Topic incremental support
+    if (operationType === 'USER_ADD' && entityType === 'Topic') {
+      return true;
+    }
+
+    // ✅ NEW: SubTopic incremental support
+    if (operationType === 'USER_ADD' && entityType === 'SubTopic') {
+      return true;
+    }
+
+    // Default to full sync for safety
+    return false;
+  }
 
     getOperationDescription(operationType: OperationType, entityType : string): string {
       switch (operationType) {
