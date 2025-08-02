@@ -14,7 +14,6 @@ import {
   ScheduleConfigurationCreateResource,
   SchedulePeriodAssignment
 } from '../models/schedule-configuration.model';
-import { ScheduleWorkflowCoordinationService } from '../calendar/services/coordination/schedule-workflow-coordination.service';
 
 
 
@@ -82,8 +81,7 @@ export class ScheduleConfigService {
     private fb: FormBuilder,
     private periodMgmt: PeriodManagementService,
     private scheduleConfigApi: ScheduleConfigurationApiService,
-    private scheduleConfigStateService: ScheduleConfigurationStateService,
-    private scheduleCoordinationService: ScheduleWorkflowCoordinationService
+    private scheduleConfigStateService: ScheduleConfigurationStateService
   ) {}
 
   /**
@@ -334,28 +332,21 @@ export class ScheduleConfigService {
       periodAssignments: periodAssignments
     };
 
-    // SIMPLIFIED: Save configuration then delegate workflow to coordination service
+    // ✅ SIMPLIFIED: Just save configuration (remove workflow coordination)
     return this.scheduleConfigApi.createConfiguration(configurationResource).pipe(
       tap((savedConfig: any) => {
         console.log('[ScheduleConfigService] Configuration saved successfully:', savedConfig.id);
         this.scheduleConfigStateService.setActiveConfiguration(savedConfig);
         this.scheduleConfigStateService.addConfiguration(savedConfig);
       }),
-
-      switchMap((savedConfig: any) => {
-        console.log('[ScheduleConfigService] Delegating workflow to coordination service');
-
-        // **NEW: Use coordination service for complete workflow**
-        return this.scheduleCoordinationService.executeConfigurationSaveWorkflow(savedConfig.id).pipe(
-          map(() => ({
-            success: true,
-            configurationId: savedConfig.id,
-            configuration: savedConfig
-          }))
-        );
-      })
+      map((savedConfig: any) => ({
+        success: true,
+        configurationId: savedConfig.id,
+        configuration: savedConfig
+      }))
     );
   }
+
   /**
    * Update existing schedule configuration and trigger schedule regeneration
    */
@@ -393,25 +384,17 @@ export class ScheduleConfigService {
       periodAssignments: periodAssignments
     };
 
-    // SIMPLIFIED: Update configuration then delegate workflow to coordination service
+    // ✅ SIMPLIFIED: Just update configuration (remove workflow coordination)
     return this.scheduleConfigApi.updateConfiguration(configurationId, configurationResource).pipe(
       tap((updatedConfig: any) => {
         console.log('[ScheduleConfigService] Configuration updated successfully:', updatedConfig.id);
         this.scheduleConfigStateService.setActiveConfiguration(updatedConfig);
       }),
-
-      switchMap((updatedConfig: any) => {
-        console.log('[ScheduleConfigService] Delegating workflow to coordination service');
-
-        // **NEW: Use coordination service for complete workflow**
-        return this.scheduleCoordinationService.executeConfigurationSaveWorkflow(updatedConfig.id).pipe(
-          map(() => ({
-            success: true,
-            configurationId: updatedConfig.id,
-            configuration: updatedConfig
-          }))
-        );
-      })
+      map((updatedConfig: any) => ({
+        success: true,
+        configurationId: updatedConfig.id,
+        configuration: updatedConfig
+      }))
     );
   }
 

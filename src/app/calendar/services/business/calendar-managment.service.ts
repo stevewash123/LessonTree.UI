@@ -14,13 +14,12 @@ import { CourseDataService } from '../../../lesson-tree/services/course-data/cou
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { parseTeachingDaysToArray } from '../../../shared/utils/shared.utils';
 import {CourseManagementService} from '../../../lesson-tree/services/coordination/course-management.service';
-import {ScheduleWorkflowBusinessService} from './schedule-workflow-business.service';
-import {ScheduleWorkflowCoordinationService} from '../coordination/schedule-workflow-coordination.service';
 
 export interface CalendarRefreshCallbacks {
   getCalendarApi: () => any;
   getCalendarOptions: () => CalendarOptions;
   setCalendarOptions: (options: CalendarOptions) => void;
+  cls?: any; // ✅ FIX: Add proper cls property (component reference)
 }
 
 @Injectable({
@@ -43,13 +42,9 @@ export class CalendarManagementService {
     private schedulePersistenceService: SchedulePersistenceService,
     private calendarEventService: CalendarEventService,
     private courseDataService: CourseDataService,
-    private courseManagementService: CourseManagementService,
-    private scheduleWorkflowBusinessService: ScheduleWorkflowBusinessService,
-    private scheduleCoordinationService: ScheduleWorkflowCoordinationService
+    private courseManagementService: CourseManagementService
   ) {
-    console.log('[CalendarManagementService] Signal-based calendar management initialized');
-
-    // ✅ MOVE: Setup effects in constructor where injection context is available
+    console.log('[CalendarManagementService] Simplified calendar management initialized');
     this.setupScheduleDisplayEffect();
     this.setupScheduleDateEffect();
     this.setupScheduleConfigurationEffect();
@@ -98,22 +93,32 @@ export class CalendarManagementService {
         return;
       }
 
-      const displayState = this.scheduleReadyForDisplay();
+      // ✅ CRITICAL: Read ALL signal dependencies first, then use untracked() for ALL side effects
+      const scheduleEvents = this.scheduleStateService.currentScheduleEvents();
+      const config = this.scheduleConfigurationStateService.activeConfiguration();
 
-      // ✅ Use untracked() to prevent circular signal dependencies
+      const canTransform = scheduleEvents.length > 0 && !!config?.periodAssignments?.length;
+      const hasEvents = scheduleEvents.length > 0;
+      const hasConfiguration = !!config?.periodAssignments?.length;
+
+      // ✅ LOOP BREAKER: Use untracked() for ALL operations that set signals
       untracked(() => {
-        if (displayState.canTransform) {
-          console.log('[CalendarManagementService] Transforming events for calendar display');
-          this.refreshCalendarEventsOnly(displayState.events);
-        } else if (displayState.hasEvents && !displayState.hasConfiguration) {
+        const currentEventCount = this._calendarEvents().length;
+
+        if (canTransform && scheduleEvents.length !== currentEventCount) {
+          console.log('[CalendarManagementService] NEW EVENTS - transforming for calendar display');
+          this.refreshCalendarEventsOnly(scheduleEvents);
+        } else if (hasEvents && !hasConfiguration && currentEventCount > 0) {
           console.log('🔍 [CalendarManagementService] Has events but no configuration - clearing calendar');
           this.refreshCalendarEventsOnly([]);
-        } else if (!displayState.hasEvents) {
+        } else if (!hasEvents && currentEventCount > 0) {
           console.log('🔍 [CalendarManagementService] No events - clearing calendar');
           this.refreshCalendarEventsOnly([]);
+        } else {
+          console.log('🔍 [CalendarManagementService] ⚠️ Skipping duplicate processing');
         }
       });
-    }, { injector: this.injector }); // ✅ CRITICAL: Provide injector explicitly
+    }, { injector: this.injector });
   }
 
   private setupScheduleDateEffect(): void {
@@ -146,87 +151,62 @@ export class CalendarManagementService {
 
   // === CALENDAR OPERATIONS ===
   refreshCalendarEventsOnly(scheduleEvents: ScheduleEvent[]): void {
-    console.log('🔍 [CalendarManagementService] refreshCalendarEventsOnly called:', {
+    console.log('🔍 [DEBUG] === refreshCalendarEventsOnly DETAILED ===');
+    console.log('🔍 [DEBUG] Input:', {
       inputEventCount: scheduleEvents.length,
-      currentSignalEventCount: this._calendarEvents().length
+      currentSignalEventCount: this._calendarEvents().length,
+      inputSample: scheduleEvents.slice(0, 2).map(e => ({
+        id: e.id,
+        date: e.date,
+        period: e.period,
+        lessonTitle: e.lessonTitle,
+        eventType: e.eventType
+      }))
     });
 
     if (scheduleEvents.length > 0) {
-      // ✅ SIMPLIFIED: Just transform and update the signal - let Angular handle the rest
       const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
 
-      console.log('🔄 [CalendarManagementService] Creating new events array for Angular change detection:', {
-        inputScheduleEvents: scheduleEvents.length,
-        outputCalendarEvents: events.length,
-        firstTwoEvents: events.slice(0, 2).map(e => ({
+      console.log('🔍 [DEBUG] After transformation:', {
+        transformedCount: events.length,
+        transformedSample: events.slice(0, 2).map(e => ({
           id: e.id,
           title: e.title,
           start: e.start,
-          lessonId: e.extendedProps?.lessonId
+          end: e.end
         }))
       });
 
-      // ✅ CRITICAL: Create completely new array reference
+      // ✅ Critical check: Validate transformed events
+      const invalidEvents = events.filter(e => !e.id || !e.title || !e.start);
+      if (invalidEvents.length > 0) {
+        console.error('🔍 [DEBUG] ❌ INVALID TRANSFORMED EVENTS:', invalidEvents);
+      }
+
       const newEventsArray = [...events];
 
-      // ✅ Update signal - this should trigger Angular change detection with deepChangeDetection="true"
-      this._calendarEvents.set(newEventsArray);
-
-      // ✅ Enhanced debug logging to verify signal content
-      const lessonEventsInOrder = newEventsArray.filter(e => {
-        const hasEventCategory = e.extendedProps?.eventCategory === 'Lesson';
-        const hasLessonId = e.extendedProps?.lessonId && typeof e.extendedProps.lessonId === 'number';
-        const isLessonByTitle = e.title && e.title.includes('Lesson');
-        return hasEventCategory || hasLessonId || isLessonByTitle;
-      }).sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
-      console.log('🎯 [CalendarManagementService] FINAL LESSON ORDER IN SIGNAL:', {
-        totalLessonEvents: lessonEventsInOrder.length,
-        chronologicalSequence: lessonEventsInOrder.map((e, index) => ({
-          position: index + 1,
-          date: e.start,
-          title: e.title,
-          lessonId: e.extendedProps?.lessonId,
-          lessonSort: e.extendedProps?.lessonSort
-        })),
-        signalArrayReference: newEventsArray.length,
-        isNewReference: this._calendarEvents() === newEventsArray
+      console.log('🔍 [DEBUG] About to set signal:', {
+        newArrayLength: newEventsArray.length,
+        isNewReference: newEventsArray !== this._calendarEvents()
       });
 
-      // ✅ NO MORE FULLCALENDAR API CALLS - Let Angular handle it!
-      console.log('🎯 [CalendarManagementService] Signal updated - Angular should handle FullCalendar refresh automatically');
+      this._calendarEvents.set(newEventsArray);
+
+      console.log('🔍 [DEBUG] Signal set. Current signal state:', {
+        signalLength: this._calendarEvents().length,
+        signalSample: this._calendarEvents().slice(0, 2).map(e => ({
+          id: e.id,
+          title: e.title,
+          start: e.start
+        }))
+      });
 
     } else {
-      console.log('[CalendarManagementService] Calendar events cleared');
+      console.log('🔍 [DEBUG] No events - clearing signal');
       this._calendarEvents.set([]);
     }
-  }
 
-  refreshCalendarEventsAfterLessonMove(lessonMoveData: any): void {
-    console.log('🎯 [CalendarManagementService] Lesson moved - refreshing calendar using PROVEN POC PATTERN:', {
-      lessonId: lessonMoveData.lessonId,
-      lessonTitle: lessonMoveData.lesson?.title,
-      oldSort: lessonMoveData.metadata?.oldSortOrder,
-      newSort: lessonMoveData.metadata?.newSortOrder,
-      moveType: lessonMoveData.moveType
-    });
-
-    // ✅ USE PROVEN POC PATTERN: Get current schedule events and refresh
-    // This is exactly the same pattern that works in your testBasicUpdate()
-    const displayState = this.scheduleReadyForDisplay();
-
-    if (displayState.canTransform && displayState.events.length > 0) {
-      console.log('🔄 [CalendarManagementService] Using proven POC pattern - refreshing with current schedule events');
-
-      // ✅ Use your proven refreshCalendarEventsOnly method
-      // This creates new array reference that triggers FullCalendar change detection
-      this.refreshCalendarEventsOnly(displayState.events);
-
-      console.log('✅ [CalendarManagementService] Calendar refreshed after lesson move using proven pattern');
-    } else {
-      console.log('📊 [CalendarManagementService] No events to refresh after lesson move');
-      this.refreshCalendarEventsOnly([]);
-    }
+    console.log('🔍 [DEBUG] === END refreshCalendarEventsOnly ===');
   }
 
   // Update calendar date
@@ -259,20 +239,19 @@ export class CalendarManagementService {
 
   // Load active schedule for current user
   loadActiveSchedule(): void {
-    console.log('[CalendarManagementService] Loading active schedule');
+    console.log('[CalendarManagementService] Loading active schedule - simplified');
 
-    this.scheduleCoordinationService.loadActiveScheduleWithConfiguration().subscribe({
-      next: (success: boolean) => {
-        if (success) {
+    // ✅ SIMPLIFIED: Direct persistence call instead of complex coordination
+    this.schedulePersistenceService.loadActiveSchedule().subscribe({
+      next: (loaded: boolean) => {
+        if (loaded) {
           console.log('[CalendarManagementService] Active schedule loaded successfully');
         } else {
-          console.log('[CalendarManagementService] No existing schedule, generating new one');
-          this.generateSchedule();
+          console.log('[CalendarManagementService] No existing schedule found');
         }
       },
       error: (error: any) => {
         console.error('[CalendarManagementService] Failed to load active schedule:', error);
-        this.generateSchedule();
       }
     });
   }
@@ -291,20 +270,6 @@ export class CalendarManagementService {
     // Return all days that are NOT teaching days
     const allDays = [0, 1, 2, 3, 4, 5, 6];
     return allDays.filter(day => !teachingDayNumbers.includes(day));
-  }
-
-  // Generate schedule using ScheduleGenerationService
-  generateSchedule(): void {
-    console.log('[CalendarManagementService] Generating schedule');
-
-    this.scheduleCoordinationService.generateAndSetSchedule().subscribe({
-      next: () => {
-        console.log('[CalendarManagementService] Schedule generated successfully');
-      },
-      error: (error: any) => {
-        console.error('[CalendarManagementService] Schedule generation failed:', error);
-      }
-    });
   }
 
   // === PUBLIC API METHODS ===
@@ -352,168 +317,32 @@ export class CalendarManagementService {
     return null;
   }
 
-  // === SCHEDULE OPERATIONS ===
+  transformScheduleEventsToCalendar(scheduleEvents: any[]): any[] {
+    console.log('[CalendarManagementService] transformScheduleEventsToCalendar');
 
-  regenerateSchedule(): void {
-    console.log('[CalendarManagementService] Regenerating schedule');
+    // ✅ Use existing calendarEventService
+    return this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
+  }
 
-    this.scheduleCoordinationService.regenerateSchedule().subscribe({
-      next: () => {
-        console.log('[CalendarManagementService] Schedule regenerated successfully');
+  debugSignalState(): any {
+    const events = this._calendarEvents();
+    const displayState = this.scheduleReadyForDisplay();
+
+    return {
+      signalEventCount: events.length,
+      signalEventsValid: events.every(e => e.id && e.title && e.start),
+      displayState: {
+        canTransform: displayState.canTransform,
+        hasEvents: displayState.hasEvents,
+        hasConfiguration: displayState.hasConfiguration
       },
-      error: (error: any) => {
-        console.error('[CalendarManagementService] Schedule regeneration failed:', error);
-      }
-    });
-  }
-
-  saveSchedule(): void {
-    console.log('[CalendarManagementService] Saving schedule');
-
-    this.scheduleCoordinationService.saveCurrentSchedule().subscribe({
-      next: () => {
-        console.log('[CalendarManagementService] Schedule saved successfully');
-      },
-      error: (error: any) => {
-        console.error('[CalendarManagementService] Schedule save failed:', error);
-      }
-    });
-  }
-
-  // ADD THIS METHOD to your CalendarManagementService class
-
-// Method to update mock data (simulates service data changes)
-  updateMockEvent(eventId: string, updates: Partial<any>): void {
-    console.log('🎭 [CalendarManagementService] Updating mock event:', { eventId, updates });
-
-    const currentMockEvents = this._mockCalendarEvents();
-
-    // Find and update the target event
-    const updatedMockEvents = currentMockEvents.map(event => {
-      if (event.id === eventId) {
-        const updatedEvent = {
-          ...event,
-          ...updates,
-          extendedProps: {
-            ...event.extendedProps,
-            ...updates['extendedProps'],
-            modifiedAt: new Date().toISOString()
-          }
-        };
-        console.log('🎭 Event updated:', { original: event.title, updated: updatedEvent.title });
-        return updatedEvent;
-      }
-      return event;
-    });
-
-    // Check if update occurred
-    const wasUpdated = updatedMockEvents.some(e =>
-      e.extendedProps?.modifiedAt && !currentMockEvents.find(orig => orig.id === e.id)?.extendedProps?.modifiedAt
-    );
-
-    if (wasUpdated) {
-      // ✅ Update the mock signal with new data
-      this._mockCalendarEvents.set([...updatedMockEvents]);
-      console.log('✅ [CalendarManagementService] Mock data signal updated');
-    } else {
-      console.log(`❌ [CalendarManagementService] Event "${eventId}" not found in mock data`);
-    }
-  }
-
-  private readonly _mockCalendarEvents = signal<any[]>([
-    {
-      id: 'mock-lesson-1',
-      title: '📚 Math Lesson 1',
-      start: '2025-08-05T10:00:00',
-      end: '2025-08-05T11:00:00',
-      backgroundColor: '#e74c3c',
-      borderColor: '#c0392b',
-      extendedProps: {
-        eventCategory: 'Lesson',
-        lessonId: 101,
-        courseId: 'math-101',
-        period: 1,
-        lessonSort: 1
-      }
-    },
-    {
-      id: 'mock-lesson-2',
-      title: '📚 Math Lesson 2',
-      start: '2025-08-06T10:00:00',
-      end: '2025-08-06T11:00:00',
-      backgroundColor: '#e74c3c',
-      borderColor: '#c0392b',
-      extendedProps: {
-        eventCategory: 'Lesson',
-        lessonId: 102,
-        courseId: 'math-101',
-        period: 1,
-        lessonSort: 2
-      }
-    },
-    {
-      id: 'mock-lesson-3',
-      title: '🔬 Science Lab',
-      start: '2025-08-07T14:00:00',
-      end: '2025-08-07T15:00:00',
-      backgroundColor: '#27ae60',
-      borderColor: '#229954',
-      extendedProps: {
-        eventCategory: 'Lesson',
-        lessonId: 201,
-        courseId: 'science-101',
-        period: 2,
-        lessonSort: 1
-      }
-    }
-  ]);
-
-// Computed signal for mock data (same signature as calendarEvents)
-  readonly mockCalendarEvents = computed(() => this._mockCalendarEvents());
-
-// Method to switch to mock data
-  useMockData(): void {
-    console.log('🎭 [CalendarManagementService] Switching to mock data');
-
-    const mockData = this._mockCalendarEvents();
-    console.log('🎭 Mock data:', {
-      count: mockData.length,
-      events: mockData.map(e => ({
+      sampleEvents: events.slice(0, 3).map(e => ({
         id: e.id,
         title: e.title,
         start: e.start,
-        extendedProps: e.extendedProps
+        period: e.extendedProps?.period
       }))
-    });
-
-    // Use same method as real service data
-    this._calendarEvents.set([...mockData]);
-  }
-
-  // === DEBUG ===
-
-  getDebugInfo() {
-    const scheduleInfo = this.getScheduleInfo();
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-
-    return {
-      initialized: this._initialized(),
-      hasScheduleConfiguration: this.hasScheduleConfiguration(),
-      hasActiveSchedule: this.hasActiveSchedule(),
-      scheduleEventCount: scheduleInfo?.eventCount || 0,
-      periodsConfigured: activeConfig?.periodAssignments?.length || 0,
-      availableCoursesCount: this.courseManagementService.getActiveCourseCount(),
-      configurationTitle: activeConfig?.title || null,
-      calendarEventCount: this._calendarEvents().length
     };
   }
 
-  // === CLEANUP ===
-
-  cleanup(): void {
-    console.log('[CalendarManagementService] cleanup');
-
-    this._callbacks = null;
-    this._initialized.set(false);
-  }
 }

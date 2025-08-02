@@ -141,6 +141,29 @@ export class ScheduleApiService {
     );
   }
 
+  getScheduleEventsByDateRange(startDate: Date, endDate: Date): Observable<ScheduleEvent[]> {
+    console.log('[ScheduleApiService] Fetching schedule events by date range:', {
+      start: startDate.toISOString().split('T')[0],
+      end: endDate.toISOString().split('T')[0]
+    });
+
+    const startDateStr = startDate.toISOString().split('T')[0];
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    return this.http.get<ScheduleEvent[]>(`${this.apiUrl}/Schedule/events`, {
+      params: {
+        startDate: startDateStr,
+        endDate: endDateStr
+      }
+    }).pipe(
+      map(response => this.transformResponse<ScheduleEvent[]>(response)),
+      catchError((error) => {
+        console.error('[ScheduleApiService] Failed to fetch schedule events by date range:', error.message);
+        return of([]); // Return empty array on error
+      })
+    );
+  }
+
   // === UTILITY METHODS ===
 
   /** Transforms API response data, handling $values and converting keys to camelCase */

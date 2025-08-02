@@ -37,8 +37,12 @@ import { ScheduleStateService } from '../services/state/schedule-state.service';
 import { CalendarConfigurationService } from '../services/ui/calendar-configuration.service';
 import { CalendarInteractionService } from '../services/ui/calendar-interaction.service';
 import {EntitySelectionService} from '../../lesson-tree/services/state/entity-selection.service';
-import {ScheduleWorkflowCoordinationService} from '../services/coordination/schedule-workflow-coordination.service';
 import { CalendarManagementService } from '../services/business/calendar-managment.service';
+import {ScheduleBasicOperationsService} from '../services/business/schedule-basic-operations.service';
+import dayGridPlugin from '@fullcalendar/daygrid';
+import interactionPlugin from '@fullcalendar/interaction';
+
+
 
 @Component({
   selector: 'app-lesson-calendar',
@@ -64,14 +68,24 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
 
   // Context menu state
   contextMenuPosition = { x: '0px', y: '0px' };
-
+  private lastProcessedEventCount = 0;
   // ✅ OFFICIAL FULLCALENDAR PATTERN: Simple CalendarOptions object (not computed signal)
   calendarOptions: CalendarOptions = {
     initialView: 'dayGridMonth',
-    plugins: [],
+    plugins: [dayGridPlugin, interactionPlugin],
     events: [
-      { title: 'Initial Event 1', start: '2025-08-05', backgroundColor: '#ff0000' },
-      { title: 'Initial Event 2', start: '2025-08-06', backgroundColor: '#00ff00' }
+      {
+        id: 'static1',
+        title: 'Static Test Event',
+        start: '2025-08-05', // Today's month
+        backgroundColor: '#ff0000'
+      },
+      {
+        id: 'static2',
+        title: 'Another Static Event',
+        start: '2025-08-06',
+        backgroundColor: '#00ff00'
+      }
     ]
   };
 
@@ -127,7 +141,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     private userService: UserService,
     private courseDataService: CourseDataService,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService,
-    private scheduleCoordinationService: ScheduleWorkflowCoordinationService,
+    private scheduleOperations: ScheduleBasicOperationsService,
     private dialog: MatDialog,
     private changeDetectorRef: ChangeDetectorRef
   ) {
@@ -145,56 +159,56 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     this.canSaveSchedule = this.scheduleStateService.canSaveSchedule;
 
     // ✅ Set up effect to watch for events changes from services
-    effect(() => {
+    /* effect(() => {
       const events = this.calendarManagementService.calendarEvents();
       const config = this.scheduleConfigurationStateService.activeConfiguration();
 
       console.log('[LessonCalendarComponent] 🔄 Service events changed:', {
         eventCount: events.length,
+        lastProcessed: this.lastProcessedEventCount,
         hasConfig: !!config,
         configId: config?.id
       });
 
-      // Only update if we have real service events (not initial empty state)
-      if (events.length > 0) {
-        console.log('[LessonCalendarComponent] 📊 Updating calendar with service events');
-        this.updateCalendarEvents(events);
+      // ✅ LOOP BREAKER: Only process if event count actually changed
+      if (events.length > 0 && events.length !== this.lastProcessedEventCount) {
+        console.log('[LessonCalendarComponent] 📊 Processing NEW event count:', events.length);
+        this.lastProcessedEventCount = events.length;
+
+        // ✅ Force FullCalendar to refetch with your events function
+        if (this.calendar) {
+          this.calendar.getApi().refetchEvents();
+        }
+      } else if (events.length === this.lastProcessedEventCount) {
+        console.log('[LessonCalendarComponent] ⚠️ Skipping duplicate event processing');
       }
-    });
+    }); */
   }
 
   ngOnInit(): void {
-    console.log('[LessonCalendarComponent] ngOnInit - setting up calendar options');
+    console.log('[LessonCalendarComponent] ngOnInit - MINIMAL TEST MODE');
 
-    // ✅ Set up plugins and base options
-    const baseOptions = this.calendarConfigService.createCalendarOptions(
-      this.handleEventClick.bind(this),
-      this.handleEventContextMenu.bind(this),
-      this.handleEventDrop.bind(this)
-    );
-
-    // ✅ Initialize with base options and initial events
+    // ✅ Absolute minimal setup - no services, no signals
     this.calendarOptions = {
-      ...baseOptions,
+      initialView: 'dayGridMonth',
+      plugins: [dayGridPlugin, interactionPlugin], // ✅ FIXED: Use imports instead of require
       events: [
-        { title: 'Initial Event 1', start: '2025-08-05', backgroundColor: '#ff0000' },
-        { title: 'Initial Event 2', start: '2025-08-06', backgroundColor: '#00ff00' }
+        {
+          id: 'test1',
+          title: 'Hard-coded Test Event 1',
+          start: '2025-08-05',
+          backgroundColor: '#ff0000'
+        },
+        {
+          id: 'test2',
+          title: 'Hard-coded Test Event 2',
+          start: '2025-08-06',
+          backgroundColor: '#00ff00'
+        }
       ]
     };
 
-    console.log('[LessonCalendarComponent] Initial calendar options set:', {
-      eventCount: Array.isArray(this.calendarOptions.events) ? this.calendarOptions.events.length : 0,
-      plugins: this.calendarOptions.plugins?.length || 0
-    });
-
-    // Initialize coordination service
-    this.calendarManagementService.initialize({
-      getCalendarApi: () => this.calendar?.getApi(),
-      getCalendarOptions: () => this.calendarOptions,
-      setCalendarOptions: (options: CalendarOptions) => {
-        this.calendarOptions = options;
-      }
-    });
+    console.log('[LessonCalendarComponent] Minimal calendar options set');
   }
 
   ngAfterViewInit(): void {
@@ -207,365 +221,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     console.log('[LessonCalendarComponent] ngOnDestroy');
     this.scheduleContextService.clearContext();
     this.calendarConfigService.cleanup();
-    this.calendarCoordination.cleanup();
   }
-
-  // ✅ OFFICIAL FULLCALENDAR EVENT UPDATE METHOD
-  updateCalendarEvents(newEvents: any[]): void {
-    const currentEvents = Array.isArray(this.calendarOptions.events) ? this.calendarOptions.events : [];
-
-    console.log('🔄 [LessonCalendarComponent] Updating calendar events using official FullCalendar pattern:', {
-      oldEventCount: currentEvents.length,
-      newEventCount: newEvents.length,
-      newEvents: newEvents.slice(0, 2).map(e => ({ id: e.id, title: e.title, start: e.start }))
-    });
-
-    // ✅ CRITICAL: Create entirely new CalendarOptions object
-    // This is the official FullCalendar pattern for Angular
-    this.calendarOptions = {
-      ...this.calendarOptions, // Keep existing options (plugins, handlers, etc.)
-      events: [...newEvents]   // New events array reference
-    };
-
-    console.log('✅ [LessonCalendarComponent] Calendar options updated with new object reference');
-  }
-
-  // ✅ BULK EVENT MANAGEMENT METHODS - Uses proven updateCalendarEvents pattern
-
-  debugReplaceAllEvents(): void {
-    console.log('🧪 [DEBUG] Replacing ALL events using proven pattern');
-
-    // Create completely new event set
-    const newEvents = [
-      {
-        id: `bulk-1-${Date.now()}`,
-        title: '🚀 NEW Event 1',
-        start: '2025-08-05',
-        backgroundColor: '#ff6b6b'
-      },
-      {
-        id: `bulk-2-${Date.now()}`,
-        title: '🎯 NEW Event 2',
-        start: '2025-08-06',
-        backgroundColor: '#4ecdc4'
-      },
-      {
-        id: `bulk-3-${Date.now()}`,
-        title: '⭐ NEW Event 3',
-        start: '2025-08-07',
-        backgroundColor: '#45b7d1'
-      }
-    ];
-
-    // Use your proven method - this WORKS
-    this.updateCalendarEvents(newEvents);
-
-    console.log('✅ Bulk replacement completed using proven pattern');
-    console.log('📊 New events:', newEvents.length);
-  }
-
-  debugAddEventToBulk(): void {
-    console.log('🧪 [DEBUG] Adding event via bulk update');
-
-    // Get current events
-    const currentEvents = Array.isArray(this.calendarOptions.events)
-      ? this.calendarOptions.events as any[]
-      : [];
-
-    // Create new event
-    const newEvent = {
-      id: `added-${Date.now()}`,
-      title: '➕ ADDED Event',
-      start: '2025-08-08',
-      backgroundColor: '#ffa500'
-    };
-
-    // Bulk update with all events + new one
-    this.updateCalendarEvents([...currentEvents, newEvent]);
-
-    console.log('✅ Event added via bulk update');
-    console.log('📊 Total events:', currentEvents.length + 1);
-  }
-
-  debugRemoveEventFromBulk(targetTitle: string = 'Initial Event 1'): void {
-    console.log('🧪 [DEBUG] Removing event via bulk update');
-
-    // Get current events
-    const currentEvents = Array.isArray(this.calendarOptions.events)
-      ? this.calendarOptions.events as any[]
-      : [];
-
-    // Filter out the target event
-    const filteredEvents = currentEvents.filter(event => event.title !== targetTitle);
-
-    if (filteredEvents.length === currentEvents.length) {
-      console.log(`❌ Event "${targetTitle}" not found`);
-      return;
-    }
-
-    // Bulk update with filtered events
-    this.updateCalendarEvents(filteredEvents);
-
-    console.log(`✅ Event "${targetTitle}" removed via bulk update`);
-    console.log('📊 Remaining events:', filteredEvents.length);
-  }
-
-  debugModifyEventInBulk(targetTitle: string = 'Initial Event 1'): void {
-    console.log('🧪 [DEBUG] Modifying event via bulk update');
-
-    // Get current events
-    const currentEvents = Array.isArray(this.calendarOptions.events)
-      ? this.calendarOptions.events as any[]
-      : [];
-
-    // Find and modify the target event
-    const modifiedEvents = currentEvents.map(event => {
-      if (event.title === targetTitle) {
-        return {
-          ...event,
-          title: '🔄 MODIFIED Event',
-          backgroundColor: '#9b59b6',
-          extendedProps: {
-            ...event.extendedProps,
-            modifiedAt: new Date().toISOString(),
-            originalTitle: targetTitle
-          }
-        };
-      }
-      return event;
-    });
-
-    // Check if anything was modified
-    const wasModified = modifiedEvents.some(event => event.title === '🔄 MODIFIED Event');
-    if (!wasModified) {
-      console.log(`❌ Event "${targetTitle}" not found for modification`);
-      return;
-    }
-
-    // Bulk update with modified events
-    this.updateCalendarEvents(modifiedEvents);
-
-    console.log(`✅ Event "${targetTitle}" modified via bulk update`);
-    console.log('📊 Total events:', modifiedEvents.length);
-  }
-
-  debugSimulateServiceUpdate(): void {
-    console.log('🧪 [DEBUG] Simulating service data update');
-
-    // Simulate getting fresh events from a service
-    const simulatedServiceEvents = [
-      {
-        id: 'service-1',
-        title: '📚 Math Lesson 1',
-        start: '2025-08-05',
-        backgroundColor: '#e74c3c',
-        extendedProps: {
-          courseId: 'math-101',
-          lessonNumber: 1,
-          period: 1
-        }
-      },
-      {
-        id: 'service-2',
-        title: '📚 Math Lesson 2',
-        start: '2025-08-06',
-        backgroundColor: '#e74c3c',
-        extendedProps: {
-          courseId: 'math-101',
-          lessonNumber: 2,
-          period: 1
-        }
-      },
-      {
-        id: 'service-3',
-        title: '🔬 Science Lab',
-        start: '2025-08-07',
-        backgroundColor: '#27ae60',
-        extendedProps: {
-          courseId: 'science-101',
-          lessonNumber: 1,
-          period: 2
-        }
-      }
-    ];
-
-    // Use your proven method - exactly like service would do
-    this.updateCalendarEvents(simulatedServiceEvents);
-
-    console.log('✅ Service data simulation completed');
-    console.log('📊 Service events loaded:', simulatedServiceEvents.length);
-  }
-
-  // ✅ EXISTING DEBUG METHODS (keep your current ones too)
-
-  // REPLACE your existing testBasicUpdate() method with this:
-
-  testBasicUpdate(): void {
-    console.log('🧪 [DEBUG] Testing basic update via mock service signal update');
-
-    // Step 1: Update mock data via service signal
-    this.calendarManagementService.updateMockEvent('mock-lesson-1', {
-      title: '🚀 UPDATED Math Lesson 1',
-      backgroundColor: '#9b59b6',
-      borderColor: '#8e44ad',
-      extendedProps: {
-        eventCategory: 'Lesson',
-        lessonId: 101,
-        courseId: 'math-101',
-        period: 1,
-        lessonSort: 1,
-        updateSource: 'testBasicUpdate'
-      }
-    });
-
-    // Step 2: Execute same code as connectToMockServices to get updated data
-    console.log('🔗 [LessonCalendarComponent] Connecting to UPDATED mock service events');
-
-    // Tell service to use the updated mock data (puts mock data into main signal)
-    this.calendarManagementService.useMockData();
-
-    // Get updated mock events (same signature as real service)
-    const updatedMockEvents = this.calendarManagementService.mockCalendarEvents();
-
-    if (updatedMockEvents.length > 0) {
-      console.log('🎯 [LessonCalendarComponent] Got UPDATED mock events from service:', {
-        count: updatedMockEvents.length,
-        events: updatedMockEvents.map(e => ({
-          title: e.title,
-          start: e.start,
-          backgroundColor: e.backgroundColor,
-          wasModified: !!e.extendedProps?.modifiedAt || !!e['extendedProps']?.['modifiedAt']
-        }))
-      });
-
-      // ✅ Use same pattern as connectToServices/connectToMockServices
-      this.updateCalendarEvents(updatedMockEvents);
-
-      console.log('✅ [LessonCalendarComponent] Mock data update completed via service signal flow');
-    } else {
-      console.log('❌ [LessonCalendarComponent] No updated mock events available');
-    }
-  }
-
-  testBasicUpdateWithChangeDetection(): void {
-    console.log('🧪 [DEBUG] Testing with manual change detection');
-
-    const newEvents = [
-      { id: 'force1', title: 'FORCED Update 1', start: '2025-08-05', backgroundColor: '#0000ff' },
-      { id: 'force2', title: 'FORCED Update 2', start: '2025-08-06', backgroundColor: '#ffff00' }
-    ];
-
-    console.log('🔄 Before update:', this.calendarOptions.events);
-
-    // Update using your method
-    this.updateCalendarEvents(newEvents);
-
-    console.log('🔄 After update:', this.calendarOptions.events);
-
-    // Force Angular change detection
-    this.changeDetectorRef.markForCheck();
-    this.changeDetectorRef.detectChanges();
-
-    console.log('✅ Manual change detection triggered');
-  }
-  testEventSwap(): void {
-    console.log('🧪 [DEBUG] Testing event swap using official pattern');
-
-    const currentEvents = Array.isArray(this.calendarOptions.events) ? this.calendarOptions.events as any[] : [];
-    if (currentEvents.length >= 2) {
-      // ✅ Swap the events
-      const swappedEvents = [
-        { ...currentEvents[1], start: '2025-08-05' },
-        { ...currentEvents[0], start: '2025-08-06' }
-      ];
-
-      this.updateCalendarEvents(swappedEvents);
-    }
-  }
-
-  testAddEvent(): void {
-    console.log('🧪 [DEBUG] Testing add event using official pattern');
-
-    const currentEvents = Array.isArray(this.calendarOptions.events) ? this.calendarOptions.events as any[] : [];
-    const newEvent = {
-      id: `new${Date.now()}`,
-      title: 'Added Event',
-      start: '2025-08-07',
-      backgroundColor: '#ff00ff'
-    };
-
-    // ✅ Add event using official pattern (new array)
-    this.updateCalendarEvents([...currentEvents, newEvent]);
-  }
-
-  inspectCalendarState(): void {
-    console.log('🧪 [DEBUG] Current calendar state:', {
-      optionsEvents: this.calendarOptions.events,
-      optionsReference: !!this.calendarOptions,
-      calendarReference: !!this.calendar
-    });
-
-    if (this.calendar) {
-      const calendarApi = this.calendar.getApi();
-      const actualEvents = calendarApi.getEvents();
-
-      console.log('🧪 [DEBUG] FullCalendar actual events:', {
-        count: actualEvents.length,
-        events: actualEvents.map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          start: e.start ? e.start.toISOString().split('T')[0] : null
-        }))
-      });
-    }
-  }
-
-  connectToServices(): void {
-    console.log('🔗 [LessonCalendarComponent] Connecting to service events');
-
-    // Get events from your service
-    const serviceEvents = this.calendarManagementService.calendarEvents();
-
-    if (serviceEvents.length > 0) {
-      console.log('📊 [LessonCalendarComponent] Got events from service:', {
-        count: serviceEvents.length,
-        firstTwo: serviceEvents.slice(0, 2).map(e => ({ title: e.title, start: e.start }))
-      });
-
-      // ✅ Use official pattern to update with service events
-      this.updateCalendarEvents(serviceEvents);
-    } else {
-      console.log('📊 [LessonCalendarComponent] No service events available');
-    }
-  }
-
-  connectToMockServices(): void {
-    console.log('🎭 [LessonCalendarComponent] Connecting to MOCK service events');
-
-    // Tell service to use mock data
-    this.calendarManagementService.useMockData();
-
-    // Get mock events (same signature as real service)
-    const mockEvents = this.calendarManagementService.mockCalendarEvents();
-
-    if (mockEvents.length > 0) {
-      console.log('🎭 [LessonCalendarComponent] Got MOCK events from service:', {
-        count: mockEvents.length,
-        events: mockEvents.map(e => ({
-          title: e.title,
-          start: e.start,
-          extendedProps: e.extendedProps?.eventCategory
-        }))
-      });
-
-      // ✅ Use same pattern as connectToServices
-      this.updateCalendarEvents(mockEvents);
-    } else {
-      console.log('🎭 [LessonCalendarComponent] No mock events available');
-    }
-  }
-
-  // ✅ EXISTING EVENT HANDLERS (unchanged)
 
   handleEventClick(arg: EventClickArg): void {
     const shouldOpenContextMenu = this.calendarInteraction.handleEventClick(arg);
@@ -678,7 +334,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   selectSchedule(scheduleId: number): void {
-    this.scheduleCoordinationService.loadActiveScheduleWithConfiguration().subscribe({
+    this.scheduleOperations.loadActiveScheduleWithConfiguration().subscribe({
       next: (success: boolean) => {
         if (!success) {
           console.error(`[LessonCalendarComponent] Failed to select schedule ${scheduleId}`);
@@ -691,7 +347,10 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   saveSchedule(): void {
-    this.scheduleCoordinationService.saveCurrentSchedule().subscribe({
+    this.scheduleOperations.saveCurrentSchedule().subscribe({
+      next: () => {
+        console.log('[LessonCalendarComponent] Schedule saved successfully');
+      },
       error: (error: any) => {
         console.error('[LessonCalendarComponent] Save schedule error:', error);
       }
@@ -740,6 +399,38 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     }
     return '';
   });
+
+  debugEventDates(): void {
+    console.log('🗓️ [DEBUG] === EVENT DATE ANALYSIS ===');
+
+    // 1. Check what dates the events are for
+    const serviceEvents = this.calendarManagementService.calendarEvents();
+    const eventDates = serviceEvents.map(e => ({
+      id: e.id,
+      title: e.title,
+      start: e.start,
+      startDate: new Date(e.start).toDateString()
+    }));
+
+    console.log('🗓️ [DEBUG] Event dates:', {
+      eventCount: serviceEvents.length,
+      uniqueDates: [...new Set(eventDates.map(e => e.startDate))],
+      firstFewEvents: eventDates.slice(0, 5)
+    });
+
+    // 2. Check what date the calendar is showing
+    if (this.calendar) {
+      const calendarApi = this.calendar.getApi();
+      const currentDate = calendarApi.getDate();
+      console.log('🗓️ [DEBUG] Calendar current date:', {
+        currentDate: currentDate.toDateString(),
+        currentMonth: currentDate.getMonth() + 1,
+        currentYear: currentDate.getFullYear()
+      });
+    }
+
+    console.log('🗓️ [DEBUG] === END DATE ANALYSIS ===');
+  }
 
   testContextMenu(): void {
     console.log('🧪 [LessonCalendarComponent] Testing context menu...');
@@ -790,5 +481,62 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
         console.log('❌ Context menu trigger itself is broken.');
       }
     }, 100);
+  }
+
+  debugDataFlow(): void {
+    console.log('🔍 [DEBUG] === CALENDAR DATA FLOW ANALYSIS ===');
+
+    // 1. Check service signal
+    const serviceEvents = this.calendarManagementService.calendarEvents();
+    console.log('🔍 [DEBUG] Service signal events:', {
+      count: serviceEvents.length,
+      firstThree: serviceEvents.slice(0, 3).map(e => ({
+        id: e.id,
+        title: e.title,
+        start: e.start,
+        backgroundColor: e.backgroundColor
+      }))
+    });
+
+    // 2. Check component calendarOptions
+    console.log('🔍 [DEBUG] Component calendarOptions:', {
+      hasEvents: !!this.calendarOptions.events,
+      eventCount: Array.isArray(this.calendarOptions.events) ? this.calendarOptions.events.length : 0,
+      eventsType: typeof this.calendarOptions.events,
+      firstThree: Array.isArray(this.calendarOptions.events)
+        ? this.calendarOptions.events.slice(0, 3).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          start: e.start
+        }))
+        : 'Not an array'
+    });
+
+    // 3. Check FullCalendar API
+    if (this.calendar) {
+      const calendarApi = this.calendar.getApi();
+      const actualEvents = calendarApi.getEvents();
+      console.log('🔍 [DEBUG] FullCalendar API events:', {
+        count: actualEvents.length,
+        firstThree: actualEvents.slice(0, 3).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          start: e.start?.toISOString(),
+          startStr: e.startStr
+        }))
+      });
+    } else {
+      console.log('🔍 [DEBUG] ❌ Calendar API not available');
+    }
+
+    // 4. Check DOM
+    const calendarElement = document.querySelector('.fc');
+    const eventElements = document.querySelectorAll('.fc-event');
+    console.log('🔍 [DEBUG] DOM state:', {
+      hasCalendarElement: !!calendarElement,
+      eventElementCount: eventElements.length
+    });
+
+    console.log('🔍 [DEBUG] === END DATA FLOW ANALYSIS ===');
   }
 }

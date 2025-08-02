@@ -8,10 +8,9 @@ import { Observable, Subject, Subscription } from 'rxjs';
 import { format } from 'date-fns';
 import { map } from 'rxjs/operators';
 
-import { LessonShiftingService } from '../business/lesson-shifting.service';
-import { LessonSequenceCoordinationService } from './lesson-sequence-coordination.service';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { SpecialDayBusinessService, SpecialDayData } from '../business/special-day-buisness.service';
+import {CalendarRefreshService} from '../business/calendar-refresh.service';
 
 // ✅ Observable event for cross-component coordination
 export interface SpecialDayOperationEvent {
@@ -57,140 +56,69 @@ export class SpecialDayCoordinationService implements OnDestroy {
 
   constructor(
       private businessService: SpecialDayBusinessService,
-      private lessonShiftingService: LessonShiftingService,
-      private lessonSequenceService: LessonSequenceCoordinationService
-  ) {
-    console.log('[SpecialDayCoordinationService] Observable coordination patterns for special day operations');
-    this.setupObservableConsumption();
-  }
-
-  // ✅ Observable consumption setup for cross-service coordination
-  private setupObservableConsumption(): void {
-    console.log('[SpecialDayCoordinationService] Setting up Observable consumption for cross-service coordination');
-
-    // ✅ Consume LessonSequenceService events
-    this.subscriptions.add(
-        this.lessonSequenceService.sequenceContinuation$.subscribe((event: any) => {
-          console.log('[SpecialDayCoordinationService] RECEIVED lesson sequence continuation event (Observable):', {
-            operationType: event.operationType,
-            periodsProcessed: event.periodsProcessed,
-            eventsCreated: event.eventsCreated,
-            success: event.success,
-            source: event.source,
-            timestamp: event.timestamp.toISOString()
-          });
-
-          // ✅ Emit coordination response
-          this._specialDayCoordinated$.next({
-            coordinationType: 'sequence-continuation-response',
-            triggerEvent: 'lesson-sequence-continuation',
-            sourceService: 'LessonSequenceCoordinationService',
-            coordinationAction: `processed-${event.periodsProcessed}-periods`,
-            specialDayDetails: {
-              date: new Date(),
-              affectedPeriods: [],
-              eventType: 'sequence-continuation'
-            },
-            success: event.success,
-            timestamp: new Date()
-          });
-        })
-    );
-
-    console.log('[SpecialDayCoordinationService] Observable consumption setup complete - monitoring cross-service events');
-  }
+      private calendarRefresh: CalendarRefreshService
+  ) { }
 
   // === COORDINATED OPERATIONS WITH LESSON INTEGRATION ===
 
   createSpecialDayWithCoordination(data: SpecialDayData): Observable<ScheduleEvent[]> {
-    console.log(`[SpecialDayCoordinationService] Creating special day with lesson coordination`);
+    console.log(`[SpecialDayCoordinationService] Creating special day with simplified coordination`);
 
     return this.businessService.createSpecialDay(data).pipe(
-        map((scheduleEvents: ScheduleEvent[]) => {
-          console.log(`[SpecialDayCoordinationService] Starting lesson shifting after special day on ${format(data.date, 'yyyy-MM-dd')}`);
+      map((scheduleEvents: ScheduleEvent[]) => {
+        console.log(`[SpecialDayCoordinationService] Special day created - triggering calendar refresh`);
 
-          // ✅ Delegate lesson shifting to dedicated service
-          scheduleEvents.forEach(event => {
-            const shiftResult = this.lessonShiftingService.shiftLessonsForward(data.date, event.period);
+        // ✅ SIMPLIFIED: Just trigger calendar refresh - API handles all logic
+        this.calendarRefresh.refreshAfterSpecialDayChange('added');
 
-            // ✅ Emit coordination event for lesson shifting
-            this._specialDayCoordinated$.next({
-              coordinationType: 'lesson-shifting-response',
-              triggerEvent: 'special-day-created',
-              sourceService: 'LessonShiftingService',
-              coordinationAction: `shifted-${shiftResult.shiftedLessons.length}-lessons`,
-              specialDayDetails: {
-                date: data.date,
-                affectedPeriods: [event.period],
-                eventType: data.eventType
-              },
-              success: shiftResult.success,
-              timestamp: new Date()
-            });
-          });
+        // ✅ Keep existing Observable emission for other components
+        this._specialDayOperation$.next({
+          type: 'created',
+          scheduleEvent: scheduleEvents[0],
+          affectedPeriods: data.periods,
+          date: data.date,
+          eventType: data.eventType,
+          title: data.title,
+          timestamp: new Date(),
+          source: 'special-day-management'
+        });
 
-          // Continue lesson sequences after shifting
-          this.lessonSequenceService.continueSequencesAfterDate(data.date);
+        console.log('🚨 [SpecialDayCoordinationService] EMITTED specialDayOperation event (Observable)');
 
-          // ✅ Emit Observable event for cross-component coordination
-          this._specialDayOperation$.next({
-            type: 'created',
-            scheduleEvent: scheduleEvents[0], // Representative event
-            affectedPeriods: data.periods,
-            date: data.date,
-            eventType: data.eventType,
-            title: data.title,
-            timestamp: new Date(),
-            source: 'special-day-management'
-          });
-
-          console.log('🚨 [SpecialDayCoordinationService] EMITTED specialDayOperation event (Observable)', {
-            type: 'created',
-            affectedPeriods: data.periods,
-            date: format(data.date, 'yyyy-MM-dd'),
-            eventType: data.eventType,
-            scheduleEventCount: scheduleEvents.length
-          });
-
-          return scheduleEvents;
-        })
+        return scheduleEvents;
+      })
     );
   }
 
+
   updateSpecialDayWithCoordination(data: SpecialDayData, originalScheduleEvent: ScheduleEvent): Observable<ScheduleEvent> {
-    console.log(`[SpecialDayCoordinationService] Updating special day with lesson coordination`);
+    console.log(`[SpecialDayCoordinationService] Updating special day with simplified coordination`);
 
     return this.businessService.updateSpecialDay(data, originalScheduleEvent).pipe(
-        map((updatedScheduleEvent: ScheduleEvent) => {
-          // ✅ Emit Observable event for cross-component coordination
-          this._specialDayOperation$.next({
-            type: 'updated',
-            scheduleEvent: updatedScheduleEvent,
-            affectedPeriods: data.periods,
-            date: data.date,
-            eventType: data.eventType,
-            title: data.title,
-            timestamp: new Date(),
-            source: 'special-day-management'
-          });
+      map((updatedScheduleEvent: ScheduleEvent) => {
+        // ✅ SIMPLIFIED: Just trigger calendar refresh
+        this.calendarRefresh.refreshAfterSpecialDayChange('updated');
 
-          console.log('🚨 [SpecialDayCoordinationService] EMITTED specialDayOperation event (Observable)', {
-            type: 'updated',
-            affectedPeriods: data.periods,
-            date: format(data.date, 'yyyy-MM-dd'),
-            eventType: data.eventType,
-            originalEventId: originalScheduleEvent.id
-          });
+        // ✅ Keep existing Observable emission
+        this._specialDayOperation$.next({
+          type: 'updated',
+          scheduleEvent: updatedScheduleEvent,
+          affectedPeriods: data.periods,
+          date: data.date,
+          eventType: data.eventType,
+          title: data.title,
+          timestamp: new Date(),
+          source: 'special-day-management'
+        });
 
-          return updatedScheduleEvent;
-        })
+        return updatedScheduleEvent;
+      })
     );
   }
 
   deleteSpecialDayWithCoordination(scheduleEvent: ScheduleEvent): Observable<void> {
-    console.log(`[SpecialDayCoordinationService] Deleting special day with lesson coordination`);
+    console.log(`[SpecialDayCoordinationService] Deleting special day with simplified coordination`);
 
-    // Store event data before removal for Observable event
     const eventData = {
       date: scheduleEvent.date,
       period: scheduleEvent.period,
@@ -199,47 +127,24 @@ export class SpecialDayCoordinationService implements OnDestroy {
     };
 
     return this.businessService.deleteSpecialDay(scheduleEvent).pipe(
-        map(() => {
-          // ✅ Delegate lesson shifting to dedicated service
-          const shiftResult = this.lessonShiftingService.shiftLessonsBackward(scheduleEvent.date, scheduleEvent.period);
+      map(() => {
+        // ✅ SIMPLIFIED: Just trigger calendar refresh - API handles all logic
+        this.calendarRefresh.refreshAfterSpecialDayChange('deleted');
 
-          // ✅ Emit coordination event for lesson shifting
-          this._specialDayCoordinated$.next({
-            coordinationType: 'lesson-shifting-response',
-            triggerEvent: 'special-day-deleted',
-            sourceService: 'LessonShiftingService',
-            coordinationAction: `shifted-${shiftResult.shiftedLessons.length}-lessons-backward`,
-            specialDayDetails: {
-              date: eventData.date,
-              affectedPeriods: [eventData.period],
-              eventType: eventData.eventType
-            },
-            success: shiftResult.success,
-            timestamp: new Date()
-          });
+        // ✅ Keep existing Observable emission
+        this._specialDayOperation$.next({
+          type: 'deleted',
+          scheduleEvent: scheduleEvent,
+          affectedPeriods: [scheduleEvent.period],
+          date: eventData.date,
+          eventType: eventData.eventType,
+          title: eventData.title,
+          timestamp: new Date(),
+          source: 'special-day-management'
+        });
 
-          this.lessonSequenceService.continueSequencesAfterDate(scheduleEvent.date);
-
-          // ✅ Emit Observable event for cross-component coordination
-          this._specialDayOperation$.next({
-            type: 'deleted',
-            scheduleEvent: scheduleEvent,
-            affectedPeriods: [scheduleEvent.period],
-            date: eventData.date,
-            eventType: eventData.eventType,
-            title: eventData.title,
-            timestamp: new Date(),
-            source: 'special-day-management'
-          });
-
-          console.log('🚨 [SpecialDayCoordinationService] EMITTED specialDayOperation event (Observable)', {
-            type: 'deleted',
-            affectedPeriods: [scheduleEvent.period],
-            date: format(new Date(eventData.date), 'yyyy-MM-dd'),
-            eventType: eventData.eventType,
-            deletedEventId: scheduleEvent.id
-          });
-        })
+        console.log('🚨 [SpecialDayCoordinationService] EMITTED specialDayOperation event (Observable)');
+      })
     );
   }
 
