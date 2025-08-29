@@ -41,7 +41,6 @@ export class CalendarManagementService {
     private scheduleConfigurationStateService: ScheduleConfigurationStateService,
     private schedulePersistenceService: SchedulePersistenceService,
     private calendarEventService: CalendarEventService,
-    private courseDataService: CourseDataService,
     private courseManagementService: CourseManagementService
   ) {
     console.log('[CalendarManagementService] Simplified calendar management initialized');
@@ -71,19 +70,21 @@ export class CalendarManagementService {
    */
   readonly scheduleReadyForDisplay = computed(() => {
     const events = this.scheduleStateService.currentScheduleEvents();
-    const config = this.scheduleConfigurationStateService.activeConfiguration();
+    const schedule = this.scheduleStateService.schedule(); // ✅ This is correct - schedule is a signal
+
+    // ✅ FIXED: schedule is already the signal value, don't call it again
+    const hasConfiguration = !!schedule?.scheduleConfiguration;
 
     return {
-      canTransform: events.length > 0 && !!config?.periodAssignments?.length,
+      canTransform: events.length > 0 && hasConfiguration,
       hasEvents: events.length > 0,
-      hasConfiguration: !!config?.periodAssignments?.length,
+      hasConfiguration: hasConfiguration,
       events,
-      config,
+      config: schedule?.scheduleConfiguration || null, // ✅ FIXED: No function call
       eventCount: events.length,
-      configTitle: config?.title || null
+      configTitle: schedule?.scheduleConfiguration?.title || null // ✅ FIXED: No function call
     };
   });
-
   // === REACTIVE EFFECTS ===
 
   private setupScheduleDisplayEffect(): void {
@@ -101,23 +102,6 @@ export class CalendarManagementService {
       const hasEvents = scheduleEvents.length > 0;
       const hasConfiguration = !!config?.periodAssignments?.length;
 
-      // ✅ LOOP BREAKER: Use untracked() for ALL operations that set signals
-      untracked(() => {
-        const currentEventCount = this._calendarEvents().length;
-
-        if (canTransform && scheduleEvents.length !== currentEventCount) {
-          console.log('[CalendarManagementService] NEW EVENTS - transforming for calendar display');
-          this.refreshCalendarEventsOnly(scheduleEvents);
-        } else if (hasEvents && !hasConfiguration && currentEventCount > 0) {
-          console.log('🔍 [CalendarManagementService] Has events but no configuration - clearing calendar');
-          this.refreshCalendarEventsOnly([]);
-        } else if (!hasEvents && currentEventCount > 0) {
-          console.log('🔍 [CalendarManagementService] No events - clearing calendar');
-          this.refreshCalendarEventsOnly([]);
-        } else {
-          console.log('🔍 [CalendarManagementService] ⚠️ Skipping duplicate processing');
-        }
-      });
     }, { injector: this.injector });
   }
 
@@ -165,7 +149,7 @@ export class CalendarManagementService {
     });
 
     if (scheduleEvents.length > 0) {
-      const events = this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
+      const events = this.calendarEventService.transformEventsForCalendar(scheduleEvents);
 
       console.log('🔍 [DEBUG] After transformation:', {
         transformedCount: events.length,
@@ -239,15 +223,25 @@ export class CalendarManagementService {
 
   // Load active schedule for current user
   loadActiveSchedule(): void {
-    console.log('[CalendarManagementService] Loading active schedule - simplified');
+    console.log('[CalendarManagementService] Loading active schedule - enhanced with configuration check');
+    const currentEvents = this._calendarEvents();
+    if (currentEvents.length > 0) {
+      console.log('[CalendarManagementService] ⏭️ SKIPPING load - already have events:', currentEvents.length);
+      return;
+    }
 
-    // ✅ SIMPLIFIED: Direct persistence call instead of complex coordination
     this.schedulePersistenceService.loadActiveSchedule().subscribe({
       next: (loaded: boolean) => {
         if (loaded) {
           console.log('[CalendarManagementService] Active schedule loaded successfully');
+
+          // ✅ Verify configuration was also loaded
+          const hasConfig = this.scheduleConfigurationStateService.hasActiveConfiguration();
+          if (!hasConfig) {
+            console.warn('[CalendarManagementService] ⚠️ Schedule loaded but configuration missing - may need manual load');
+          }
         } else {
-          console.log('[CalendarManagementService] No existing schedule found');
+          console.log('[CalendarManagementService] No existing schedule found - user will need to create configuration');
         }
       },
       error: (error: any) => {
@@ -274,31 +268,6 @@ export class CalendarManagementService {
 
   // === PUBLIC API METHODS ===
 
-  // Check if user has configured periods
-  hasScheduleConfiguration(): boolean {
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-    return activeConfig !== null &&
-      activeConfig !== undefined &&
-      (activeConfig.periodAssignments?.length || 0) > 0;
-  }
-
-  // Check if schedule is available
-  hasActiveSchedule(): boolean {
-    return this.scheduleStateService.hasActiveSchedule();
-  }
-
-  // Get schedule info for display
-  getScheduleInfo(): { title: string; eventCount: number; isInMemory: boolean } | null {
-    const schedule = this.scheduleStateService.getSchedule();
-    if (!schedule) return null;
-
-    return {
-      title: schedule.title,
-      eventCount: schedule.scheduleEvents?.length || 0,
-      isInMemory: this.scheduleStateService.isInMemorySchedule()
-    };
-  }
-
   hasCoursesAvailable(): boolean {
     return this.courseManagementService.hasCoursesAvailable();
   }
@@ -317,12 +286,12 @@ export class CalendarManagementService {
     return null;
   }
 
-  transformScheduleEventsToCalendar(scheduleEvents: any[]): any[] {
-    console.log('[CalendarManagementService] transformScheduleEventsToCalendar');
+  //transformScheduleEventsToCalendar(scheduleEvents: any[]): any[] {
+  //  console.log('[CalendarManagementService] transformScheduleEventsToCalendar');
 
     // ✅ Use existing calendarEventService
-    return this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
-  }
+  //  return this.calendarEventService.mapScheduleEventsToCalendarEvents(scheduleEvents);
+  //}
 
   debugSignalState(): any {
     const events = this._calendarEvents();

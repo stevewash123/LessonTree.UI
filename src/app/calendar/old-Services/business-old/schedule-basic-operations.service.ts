@@ -5,7 +5,7 @@
 // DOES NOT: Handle complex workflow coordination, lesson integration, Observable emission
 
 import { Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import {Observable, tap} from 'rxjs';
 import { map } from 'rxjs/operators';
 
 import { SchedulePersistenceService } from '../ui/schedule-persistence.service';
@@ -30,17 +30,27 @@ export class ScheduleBasicOperationsService {
    * SIMPLIFIED: Direct delegation to persistence service
    */
   loadActiveScheduleWithConfiguration(): Observable<boolean> {
-    console.log('[ScheduleBasicOperationsService] Loading active schedule with configuration');
+    console.log('[ScheduleBasicOperationsService] 🔍 Starting loadActiveScheduleWithConfiguration');
 
     return this.schedulePersistence.loadActiveSchedule().pipe(
-      map((loaded: boolean) => {
-        if (loaded) {
-          console.log('[ScheduleBasicOperationsService] ✅ Active schedule loaded successfully');
-        } else {
-          console.log('[ScheduleBasicOperationsService] ❌ No active schedule found');
-        }
-        return loaded;
-      })
+        tap((loaded: boolean) => {
+          console.log('[ScheduleBasicOperationsService] 📋 Persistence result:', loaded);
+
+          // ✅ Additional verification
+          const hasSchedule = this.scheduleStateService.hasActiveSchedule();
+          const hasConfig = this.scheduleConfigurationStateService.hasActiveConfiguration();
+
+          console.log('[ScheduleBasicOperationsService] 🔍 State check after load:', {
+            persistenceReturned: loaded,
+            hasScheduleState: hasSchedule,
+            hasConfigState: hasConfig,
+            mismatch: loaded !== (hasSchedule && hasConfig)
+          });
+
+          if (loaded && (!hasSchedule || !hasConfig)) {
+            console.error('[ScheduleBasicOperationsService] ❌ MISMATCH: Persistence says success but states not set');
+          }
+        })
     );
   }
 
@@ -59,39 +69,19 @@ export class ScheduleBasicOperationsService {
     );
   }
 
-  /**
-   * Check if we have a schedule that can be saved
-   */
-  canSaveSchedule(): boolean {
-    return this.scheduleStateService.canSaveSchedule();
+  hasCompleteScheduleData(): boolean {
+    const hasSchedule = this.scheduleStateService.hasActiveSchedule();
+    const hasConfig = this.scheduleConfigurationStateService.hasActiveConfiguration();
+
+    console.log('[ScheduleBasicOperationsService] 🔍 Complete data check:', {
+      hasSchedule,
+      hasConfig,
+      isComplete: hasSchedule && hasConfig,
+      scheduleId: this.scheduleStateService.getSchedule()?.id,
+      configId: this.scheduleConfigurationStateService.activeConfiguration()?.id
+    });
+
+    return hasSchedule && hasConfig;
   }
 
-  /**
-   * Check if we have an active schedule
-   */
-  hasActiveSchedule(): boolean {
-    return this.scheduleStateService.hasActiveSchedule();
-  }
-
-  /**
-   * Check if we have schedule configuration
-   */
-  hasScheduleConfiguration(): boolean {
-    const config = this.scheduleConfigurationStateService.activeConfiguration();
-    return config !== null && config !== undefined;
-  }
-
-  /**
-   * Get basic schedule info for display
-   */
-  getScheduleInfo(): { title: string; eventCount: number; isInMemory: boolean } | null {
-    const schedule = this.scheduleStateService.getSchedule();
-    if (!schedule) return null;
-
-    return {
-      title: schedule.title,
-      eventCount: schedule.scheduleEvents?.length || 0,
-      isInMemory: this.scheduleStateService.isInMemorySchedule()
-    };
-  }
 }

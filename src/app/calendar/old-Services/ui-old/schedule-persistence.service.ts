@@ -8,6 +8,7 @@ import { Observable, Subject, of, map, tap, catchError } from 'rxjs';
 import {ScheduleStateService} from '../state/schedule-state.service';
 import {ScheduleApiService} from '../api/schedule-api.service';
 import {Schedule, ScheduleCreateResource} from '../../../models/schedule';
+import {ScheduleConfigurationStateService} from '../state/schedule-configuration-state.service';
 
 // ✅ NEW: Observable event interfaces for cross-component coordination
 export interface SchedulePersistenceEvent {
@@ -59,7 +60,8 @@ export class SchedulePersistenceService {
 
   constructor(
     private scheduleStateService: ScheduleStateService,
-    private scheduleApiService: ScheduleApiService
+    private scheduleApiService: ScheduleApiService,
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService
   ) {
     console.log('[SchedulePersistenceService] Initialized with Observable events for persistence coordination');
   }
@@ -71,90 +73,78 @@ export class SchedulePersistenceService {
    * Pure HTTP operation with state update and event coordination
    */
   loadActiveSchedule(): Observable<boolean> {
-    console.log('[SchedulePersistenceService] Loading active schedule for current user');
+    console.log('[SchedulePersistenceService] 🔍 Starting loadActiveSchedule - detailed debug');
 
     return this.scheduleApiService.getActiveSchedule().pipe(
       tap(schedule => {
+        console.log('[SchedulePersistenceService] 📋 Raw API response:', {
+          hasSchedule: !!schedule,
+          scheduleId: schedule?.id,
+          scheduleTitle: schedule?.title,
+          hasEmbeddedConfig: !!(schedule as any)?.scheduleConfiguration,
+          embeddedConfigId: (schedule as any)?.scheduleConfiguration?.id,
+          embeddedConfigTitle: (schedule as any)?.scheduleConfiguration?.title,
+          rawScheduleKeys: schedule ? Object.keys(schedule) : [],
+          fullScheduleData: schedule // ⚠️ Remove this after debugging
+        });
+
         if (schedule) {
-          console.log(`[SchedulePersistenceService] Loaded active schedule: ${schedule.title}`);
+          // ✅ Set schedule state
           this.scheduleStateService.setSchedule(schedule, false);
+          console.log('[SchedulePersistenceService] ✅ Schedule state set');
 
-          // ✅ NEW: Emit load completed event
-          this._schedulePersistence$.next({
-            operationType: 'load-completed',
-            scheduleId: schedule.id,
-            scheduleTitle: schedule.title,
-            success: true,
-            isInMemory: false,
-            eventCount: schedule.scheduleEvents?.length || 0,
-            configurationId: schedule.scheduleConfigurationId || null,
-            userId: schedule.userId || null,
-            source: 'schedule-persistence',
-            timestamp: new Date()
-          });
+          // ✅ CRITICAL: Check if configuration is embedded
+          const embeddedConfig = (schedule as any).scheduleConfiguration;
+          if (embeddedConfig) {
+            console.log('[SchedulePersistenceService] ✅ Setting embedded configuration:', {
+              configId: embeddedConfig.id,
+              configTitle: embeddedConfig.title
+            });
+            this.scheduleConfigurationStateService.setActiveConfiguration(embeddedConfig);
+          } else {
+            console.warn('[SchedulePersistenceService] ⚠️ No embedded configuration found in schedule');
+            console.log('[SchedulePersistenceService] Available schedule properties:', Object.keys(schedule));
+          }
 
-          console.log('🚨 [SchedulePersistenceService] EMITTED schedulePersistence event:', 'load-completed');
-
-          // ✅ NEW: Emit status update event
-          this._persistenceStatus$.next({
-            statusType: 'state-updated',
-            scheduleId: schedule.id,
-            hasSchedule: true,
-            isInMemory: false,
-            hasUnsavedChanges: false,
-            source: 'schedule-persistence',
-            timestamp: new Date()
+          // ✅ Verify both states are set
+          const scheduleSet = this.scheduleStateService.hasActiveSchedule();
+          const configSet = this.scheduleConfigurationStateService.hasActiveConfiguration();
+          console.log('[SchedulePersistenceService] 🔍 State verification:', {
+            scheduleStateSet: scheduleSet,
+            configStateSet: configSet,
+            bothReady: scheduleSet && configSet
           });
 
         } else {
-          console.log('[SchedulePersistenceService] No existing active schedule found');
-
-          // ✅ NEW: Emit no schedule found event
-          this._schedulePersistence$.next({
-            operationType: 'load-completed',
-            scheduleId: 0,
-            scheduleTitle: 'No Schedule',
-            success: true,
-            isInMemory: false,
-            eventCount: 0,
-            configurationId: null,
-            userId: null,
-            source: 'schedule-persistence',
-            timestamp: new Date()
-          });
-
-          // ✅ NEW: Emit status update event
-          this._persistenceStatus$.next({
-            statusType: 'state-updated',
-            scheduleId: null,
-            hasSchedule: false,
-            isInMemory: false,
-            hasUnsavedChanges: false,
-            source: 'schedule-persistence',
-            timestamp: new Date()
-          });
+          console.log('[SchedulePersistenceService] ❌ No schedule returned from API');
+          this.scheduleStateService.clearSchedule();
+          this.scheduleConfigurationStateService.setActiveConfiguration(null);
         }
       }),
-      map(schedule => schedule !== null),
-      catchError((error: any) => {
-        console.warn('[SchedulePersistenceService] Failed to load active schedule:', error.message);
+      map(schedule => {
+        // ✅ CRITICAL: Return true only if BOTH schedule and embedded config exist
+        const hasSchedule = !!schedule;
+        const hasEmbeddedConfig = !!(schedule as any)?.scheduleConfiguration;
+        const result = hasSchedule && hasEmbeddedConfig;
 
-        // ✅ NEW: Emit load failed event
-        this._persistenceError$.next({
-          operationType: 'load-failed',
-          error,
-          source: 'schedule-persistence',
-          timestamp: new Date()
+        console.log('[SchedulePersistenceService] 🎯 Final load result:', {
+          hasSchedule,
+          hasEmbeddedConfig,
+          returning: result,
+          reason: result ? 'Both schedule and config loaded' : 'Missing schedule or embedded config'
         });
 
-        console.log('🚨 [SchedulePersistenceService] EMITTED persistenceError event:', 'load-failed');
-
+        return result;
+      }),
+      catchError((error: any) => {
+        console.error('[SchedulePersistenceService] ❌ Load failed:', error);
+        this.scheduleStateService.clearSchedule();
+        this.scheduleConfigurationStateService.setActiveConfiguration(null);
         return of(false);
       })
     );
   }
 
-  // === SCHEDULE SAVING ===
 
   /**
    * ✅ ENHANCED: Save current schedule with Observable event emission
@@ -189,7 +179,7 @@ export class SchedulePersistenceService {
         success: true,
         isInMemory: false,
         eventCount: currentSchedule.scheduleEvents?.length || 0,
-        configurationId: currentSchedule.scheduleConfigurationId || null,
+        configurationId: currentSchedule.scheduleConfiguration.id || null,
         userId: currentSchedule.userId || null,
         source: 'schedule-persistence',
         timestamp: new Date()
@@ -212,7 +202,7 @@ export class SchedulePersistenceService {
           success: true,
           isInMemory: false,
           eventCount: savedSchedule.scheduleEvents?.length || 0,
-          configurationId: savedSchedule.scheduleConfigurationId || null,
+          configurationId: savedSchedule.scheduleConfiguration.id || null,
           userId: savedSchedule.userId || null,
           source: 'schedule-persistence',
           timestamp: new Date()
@@ -264,7 +254,7 @@ export class SchedulePersistenceService {
       // Create new schedule with events in single API call
       const createResource: ScheduleCreateResource = {
         title: schedule.title,
-        scheduleConfigurationId: schedule.scheduleConfigurationId,
+        scheduleConfigurationId: schedule.scheduleConfiguration.id,
         scheduleEvents: schedule.scheduleEvents
       };
 

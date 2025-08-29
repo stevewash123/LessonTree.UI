@@ -7,8 +7,8 @@ import { Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import { EventClickArg } from '@fullcalendar/core';
 
-import { ContextMenuBusinessService, ContextMenuAction, ContextMenuResult } from '../business/context-menu-business.service';
 import { ContextMenuHandlerService, ActionExecutionResult } from '../ui/context-menu-handler.service';
+import {ContextMenuAction, ContextMenuBusinessService} from '../core/context-menu-business.service';
 
 // ✅ Observable event interfaces for user interaction workflows
 export interface ContextMenuInteractionEvent {
@@ -46,8 +46,8 @@ export interface ContextStateChangeEvent {
   timestamp: Date;
 }
 
-// Legacy interface for backward compatibility
-export interface LegacyContextMenuAction {
+// FIXED: Interface for component display (simple UI data)
+export interface ContextMenuDisplayItem {
   id: string;
   label: string;
   handler: () => void;
@@ -138,7 +138,7 @@ export class ContextMenuCoordinationService implements OnDestroy {
 
   // === COORDINATED MENU GENERATION ===
 
-  getContextMenuActionsWithCoordination(): LegacyContextMenuAction[] {
+  getContextMenuActionsWithCoordination(): ContextMenuDisplayItem[] {
     //console.log('[ContextMenuCoordinationService] Generating context menu actions with coordination');
 
     const result = this.businessService.generateContextMenuActions();
@@ -155,7 +155,7 @@ export class ContextMenuCoordinationService implements OnDestroy {
       timestamp: new Date()
     });
 
-    // Convert to legacy format with handlers
+    // Convert to display format with handlers
     return result.actions.map(action => ({
       id: action.id,
       label: action.label,
@@ -260,7 +260,7 @@ export class ContextMenuCoordinationService implements OnDestroy {
   /**
    * FACADE: Get context menu actions (maintains original interface)
    */
-  getContextMenuActions(): LegacyContextMenuAction[] {
+  getContextMenuActions(): ContextMenuDisplayItem[] {
     return this.getContextMenuActionsWithCoordination();
   }
 

@@ -1,7 +1,6 @@
-/* src/app/lessontree/calendar/lesson-calendar.component.ts - COMPLETE FILE WITH BULK EVENT METHODS */
-// RESPONSIBILITY: Displays lessons in calendar format using official FullCalendar Angular pattern
-// DOES NOT: Use computed signals for calendarOptions - uses simple object with reference updates
-// CALLED BY: Main application router, displays calendar view of selected course lessons.
+// lesson-calendar.component.ts - FIXED IMPORTS AND MISSING METHODS
+// RESPONSIBILITY: Display calendar and coordinate with initialization service
+// DOES: Initialize calendar, handle UI interactions, display loading states
 
 import {
   Component,
@@ -19,7 +18,6 @@ import { CommonModule } from '@angular/common';
 
 import { FullCalendarModule } from '@fullcalendar/angular';
 import { CalendarOptions, EventClickArg, EventDropArg } from '@fullcalendar/core';
-import { UserConfigComponent } from '../../user-config/user-config.component';
 
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -28,21 +26,34 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Subscription } from 'rxjs';
 
-import { ContextMenuService } from '../services/ui/context-menu.service';
-import { CourseDataService } from '../../lesson-tree/services/course-data/course-data.service';
-import { UserService } from '../../user-config/user.service';
-import { CalendarCoordinationService } from '../services/coordination/calendar-coordination.service';
-import { ScheduleConfigurationStateService } from '../services/state/schedule-configuration-state.service';
-import { ScheduleStateService } from '../services/state/schedule-state.service';
+// NEW: Core services for clean architecture
+import { CalendarInitializationService } from '../services/core/calendar-initialization.service';
+import { CalendarDateService } from '../services/core/calendar-date.service';
+import { CalendarDisplayService } from '../services/core/calendar-display.service';
+
+// UI services (preserved excellent specialized services)
 import { CalendarConfigurationService } from '../services/ui/calendar-configuration.service';
-import { CalendarInteractionService } from '../services/ui/calendar-interaction.service';
-import {EntitySelectionService} from '../../lesson-tree/services/state/entity-selection.service';
-import { CalendarManagementService } from '../services/business/calendar-managment.service';
-import {ScheduleBasicOperationsService} from '../services/business/schedule-basic-operations.service';
+
+// State services (clean)
+import { ScheduleStateService } from '../services/state/schedule-state.service';
+import { ScheduleConfigurationStateService } from '../services/state/schedule-configuration-state.service';
+
+// Other services
+import { EntitySelectionService } from '../../lesson-tree/services/state/entity-selection.service';
+import { UserService } from '../../user-config/user.service';
+
+// Plugins
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
+import timeGridPlugin from '@fullcalendar/timegrid';
 
-
+// Modals
+import { ScheduleConfigComponent } from '../../schedule-config/schedule-config.component';
+import { CalendarInteractionService } from '../services/ui/calendar-interaction.service';
+import {CalendarEventLoaderService} from '../services/core/calendar-event-loader.service';
+import {ContextMenuCoordinationService} from '../services/integration/context-menu-coordination.service';
+import {CalendarRefreshService} from '../services/integration/calendar-refresh.service';
+// REMOVED: ContextMenuService import - service was deleted
 
 @Component({
   selector: 'app-lesson-calendar',
@@ -63,85 +74,99 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   @ViewChild('contextMenuTrigger') contextMenuTrigger!: MatMenuTrigger;
   @ViewChild('calendar') calendar: any;
 
-  // Input to control schedule controls visibility
   @Input() showScheduleControls: boolean = true;
 
   // Context menu state
   contextMenuPosition = { x: '0px', y: '0px' };
-  private lastProcessedEventCount = 0;
-  // ✅ OFFICIAL FULLCALENDAR PATTERN: Simple CalendarOptions object (not computed signal)
+
+  // Calendar options - initialized by configuration service
   calendarOptions: CalendarOptions = {
-    initialView: 'dayGridMonth',
-    plugins: [dayGridPlugin, interactionPlugin],
-    events: [
-      {
-        id: 'static1',
-        title: 'Static Test Event',
-        start: '2025-08-05', // Today's month
-        backgroundColor: '#ff0000'
-      },
-      {
-        id: 'static2',
-        title: 'Another Static Event',
-        start: '2025-08-06',
-        backgroundColor: '#00ff00'
-      }
-    ]
+    initialView: 'timeGridWeek',
+    plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+    events: [] // Will be populated by display service
   };
 
-  // Debug mode flag for template
+  // Debug mode flag
   debugMode: boolean = false;
 
-  // PROPERLY FIXED: Readonly signals declared with proper initialization
+  // Subscriptions
+  private subscriptions = new Subscription();
+
+  // === COMPUTED SIGNALS (Clean and Simple) ===
+
   readonly hasSelection: Signal<boolean>;
   readonly selectedEntityType: Signal<string | null>;
   readonly selectedCourse: Signal<any | null>;
 
-  // Schedule state signals - properly typed with Signal interface
   readonly selectedSchedule: Signal<any | null>;
   readonly isInMemorySchedule: Signal<boolean>;
   readonly hasUnsavedChanges: Signal<boolean>;
   readonly canSaveSchedule: Signal<boolean>;
 
-  // Course and coordination signals
-  readonly hasCoursesAvailable = computed(() => {
-    return this.calendarCoordination.hasCoursesAvailable();
+  // Calendar-specific computed signals using new services
+  readonly isInitialized = computed(() => {
+    return this.calendarInitializationService.isCalendarReady();
   });
 
-  readonly coursesCount = computed(() => {
-    return this.calendarCoordination.getActiveCourseCount();
+  readonly calendarEvents = computed(() => {
+    return this.calendarDisplayService.calendarEvents();
   });
 
-  readonly currentCourseId = computed(() => {
-    return this.entitySelectionService.activeCourseId();
+  readonly displayState = computed(() => {
+    return this.calendarDisplayService.getDisplayState();
   });
 
-  readonly selectedCourseData = computed(() => {
-    return this.calendarCoordination.getCurrentCourse();
+  readonly isLoadingCalendar = computed(() => {
+    const state = this.displayState();
+    return !state.isReady || !state.hasConfiguration;
   });
 
-  readonly canGenerateReports = computed(() => {
-    const schedule = this.selectedSchedule();
-    return schedule && !this.isInMemorySchedule();
+  // REMOVED: isLoadingSchedule - template should use isLoadingCalendar instead
+
+  readonly loadingMessage = computed(() => {
+    const state = this.displayState();
+    if (!state.hasConfiguration) {
+      return 'Loading configuration...';
+    }
+    if (!state.isReady) {
+      return 'Initializing calendar...';
+    }
+    if (state.eventCount === 0) {
+      return 'Loading events...';
+    }
+    return '';
   });
 
-  // Get available context menu actions dynamically
-  get contextMenuActions() {
-    return this.scheduleContextService.getContextMenuActions();
+
+
+  // REMOVED: isLoadingSchedule - spinner handled by API code
+
+  // Context menu actions - FIXED TYPE (no context menu service)
+  get contextMenuActions(): Array<{id: string, label: string, handler: () => void}> {
+    return this.contextMenuService.getContextMenuActions();
   }
 
   constructor(
-    private scheduleStateService: ScheduleStateService,
+    // NEW: Core services
+    private calendarInitializationService: CalendarInitializationService,
+    private calendarDateService: CalendarDateService,
+    private calendarDisplayService: CalendarDisplayService,
+    private calendarEventLoaderService: CalendarEventLoaderService,
+    private calendarRefreshService: CalendarRefreshService,
+
+    // Preserved specialized services
     private calendarConfigService: CalendarConfigurationService,
-    private calendarCoordination: CalendarCoordinationService,
-    private calendarManagementService: CalendarManagementService,
     private calendarInteraction: CalendarInteractionService,
-    private scheduleContextService: ContextMenuService,
-    private entitySelectionService: EntitySelectionService,
-    private userService: UserService,
-    private courseDataService: CourseDataService,
+    // REMOVED: scheduleContextService: ContextMenuService,
+
+    // State services
+    private scheduleStateService: ScheduleStateService,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService,
-    private scheduleOperations: ScheduleBasicOperationsService,
+    private entitySelectionService: EntitySelectionService,
+
+    // Other services
+    private contextMenuService: ContextMenuCoordinationService,
+    private userService: UserService,
     private dialog: MatDialog,
     private changeDetectorRef: ChangeDetectorRef
   ) {
@@ -158,69 +183,206 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     this.hasUnsavedChanges = this.scheduleStateService.hasUnsavedChanges;
     this.canSaveSchedule = this.scheduleStateService.canSaveSchedule;
 
-    // ✅ Set up effect to watch for events changes from services
-    /* effect(() => {
-      const events = this.calendarManagementService.calendarEvents();
-      const config = this.scheduleConfigurationStateService.activeConfiguration();
+    // Set up effect to watch for calendar events and update FullCalendar
+    effect(() => {
+      const events = this.calendarEvents();
 
-      console.log('[LessonCalendarComponent] 🔄 Service events changed:', {
+      console.log('[LessonCalendarComponent] 📊 Calendar events changed:', {
         eventCount: events.length,
-        lastProcessed: this.lastProcessedEventCount,
-        hasConfig: !!config,
-        configId: config?.id
+        sampleEvent: events[0] ? {
+          id: events[0].id,
+          title: events[0].title,
+          start: events[0].start
+        } : null
       });
 
-      // ✅ LOOP BREAKER: Only process if event count actually changed
-      if (events.length > 0 && events.length !== this.lastProcessedEventCount) {
-        console.log('[LessonCalendarComponent] 📊 Processing NEW event count:', events.length);
-        this.lastProcessedEventCount = events.length;
-
-        // ✅ Force FullCalendar to refetch with your events function
-        if (this.calendar) {
-          this.calendar.getApi().refetchEvents();
-        }
-      } else if (events.length === this.lastProcessedEventCount) {
-        console.log('[LessonCalendarComponent] ⚠️ Skipping duplicate event processing');
+      // Update FullCalendar options with new events
+      if (events.length >= 0) { // Update even if 0 events (to clear)
+        this.calendarOptions = {
+          ...this.calendarOptions,
+          events: [...events]
+        };
+        this.changeDetectorRef.detectChanges();
       }
-    }); */
+    });
   }
 
   ngOnInit(): void {
-    console.log('[LessonCalendarComponent] ngOnInit - MINIMAL TEST MODE');
+    console.log('[LessonCalendarComponent] 🚀 Starting simplified initialization');
 
-    // ✅ Absolute minimal setup - no services, no signals
+    // Set up FullCalendar configuration using excellent existing service
+    const baseOptions = this.calendarConfigService.createCalendarOptions(
+      this.handleEventClick.bind(this),
+      this.handleEventContextMenu.bind(this),
+      this.handleEventDrop.bind(this),
+      this.handleCalendarNavigation.bind(this) // NEW: Navigation callback
+    );
+
     this.calendarOptions = {
-      initialView: 'dayGridMonth',
-      plugins: [dayGridPlugin, interactionPlugin], // ✅ FIXED: Use imports instead of require
-      events: [
-        {
-          id: 'test1',
-          title: 'Hard-coded Test Event 1',
-          start: '2025-08-05',
-          backgroundColor: '#ff0000'
-        },
-        {
-          id: 'test2',
-          title: 'Hard-coded Test Event 2',
-          start: '2025-08-06',
-          backgroundColor: '#00ff00'
-        }
-      ]
+      ...baseOptions,
+      events: [] // Start with empty events
     };
 
-    console.log('[LessonCalendarComponent] Minimal calendar options set');
+    // ✅ DEBUG: Enhanced refresh listener with detailed logging
+    console.log('[LessonCalendarComponent] 📡 CalendarRefreshService available?', !!this.calendarRefreshService);
+
+    if (this.calendarRefreshService) {
+      console.log('[LessonCalendarComponent] 📡 Setting up refresh notification listener...');
+
+      // Test that the observable exists
+      console.log('[LessonCalendarComponent] refreshRequested$ observable available?', !!this.calendarRefreshService.refreshRequested$);
+
+      this.subscriptions.add(
+        this.calendarRefreshService.refreshRequested$.subscribe({
+          next: (refreshEvent) => {
+            console.log('[LessonCalendarComponent] 🔄 ✅ Refresh notification RECEIVED:', {
+              reason: refreshEvent.reason,
+              scope: refreshEvent.scope,
+              scheduleId: refreshEvent.scheduleId,
+              timestamp: refreshEvent.timestamp
+            });
+            this.handleRefreshNotification(refreshEvent);
+          },
+          error: (error) => {
+            console.error('[LessonCalendarComponent] ❌ Refresh subscription error:', error);
+          },
+          complete: () => {
+            console.log('[LessonCalendarComponent] 📡 Refresh subscription completed');
+          }
+        })
+      );
+
+      console.log('[LessonCalendarComponent] ✅ Refresh listener subscription added successfully');
+    } else {
+      console.error('[LessonCalendarComponent] ❌ CalendarRefreshService not available in constructor!');
+    }
+
+    console.log('[LessonCalendarComponent] ✅ Calendar options configured');
   }
 
   ngAfterViewInit(): void {
-    console.log('🔍 [LessonCalendarComponent] Checking ViewChild connections...');
-    console.log('Context menu trigger:', this.contextMenuTrigger ? 'Found' : 'NOT FOUND');
-    console.log('Calendar ref:', this.calendar ? 'Found' : 'NOT FOUND');
+    console.log('[LessonCalendarComponent] 🔧 Initializing calendar services after view init');
+
+    // Initialize core services with calendar callbacks
+    this.initializeCalendarServices();
+
+    // Start the complete initialization workflow
+    this.startCalendarInitialization();
   }
 
   ngOnDestroy(): void {
-    console.log('[LessonCalendarComponent] ngOnDestroy');
-    this.scheduleContextService.clearContext();
+    console.log('[LessonCalendarComponent] 🧹 Cleaning up');
+    this.subscriptions.unsubscribe();
+    this.contextMenuService.clearContext();
     this.calendarConfigService.cleanup();
+  }
+
+  // === INITIALIZATION WORKFLOW ===
+
+  /**
+   * Initialize core services with calendar callbacks
+   */
+  private initializeCalendarServices(): void {
+    console.log('[LessonCalendarComponent] 🔧 Setting up calendar service callbacks');
+
+    // Initialize date service with calendar navigation callbacks
+    this.calendarDateService.initialize({
+      getCalendarApi: () => this.calendar?.getApi()
+    });
+
+    // Initialize display service with FullCalendar callbacks
+    this.calendarDisplayService.initialize({
+      getCalendarApi: () => this.calendar?.getApi(),
+      getCalendarOptions: () => this.calendarOptions,
+      setCalendarOptions: (options: CalendarOptions) => {
+        this.calendarOptions = options;
+        this.changeDetectorRef.detectChanges();
+      }
+    });
+
+    console.log('[LessonCalendarComponent] ✅ Calendar services initialized with callbacks');
+  }
+
+  /**
+   * Start the complete calendar initialization workflow
+   * SIMPLIFIED: Single method call to orchestrate everything
+   */
+  private startCalendarInitialization(): void {
+    console.log('[LessonCalendarComponent] 🚀 Starting calendar initialization workflow');
+
+    this.subscriptions.add(
+      this.calendarInitializationService.initializeCalendar().subscribe({
+        next: (result) => {
+          console.log('[LessonCalendarComponent] 📊 Initialization result:', result);
+
+          if (result.success) {
+            console.log('[LessonCalendarComponent] ✅ Calendar initialized successfully:', {
+              hasConfiguration: result.hasConfiguration,
+              hasSchedule: result.hasSchedule,
+              hasEvents: result.hasEvents,
+              eventCount: result.eventCount,
+              activeDate: result.activeDate?.toDateString()
+            });
+          } else {
+            console.warn('[LessonCalendarComponent] ⚠️ Calendar initialization failed:', result.error);
+          }
+        },
+        error: (error) => {
+          console.error('[LessonCalendarComponent] ❌ Initialization error:', error);
+        }
+      })
+    );
+  }
+
+  // === EVENT HANDLERS (Preserved Working Logic) ===
+
+  /**
+   * NEW: Handle calendar navigation (when user clicks < > buttons)
+   */
+  handleCalendarNavigation(dateInfo: { start: Date; end: Date; view: any }): void {
+    console.log('[LessonCalendarComponent] 🧭 Calendar navigation detected:', {
+      start: dateInfo.start.toDateString(),
+      end: dateInfo.end.toDateString(),
+      view: dateInfo.view.type
+    });
+
+    // Get current schedule ID from state
+    const currentSchedule = this.scheduleStateService.selectedSchedule();
+
+    if (!currentSchedule?.id) {
+      console.warn('[LessonCalendarComponent] ⚠️ No schedule available for navigation');
+      return;
+    }
+
+    // Load events for the new date range
+    console.log('[LessonCalendarComponent] 📊 Loading events for navigation range');
+
+    this.subscriptions.add(
+      this.calendarEventLoaderService.loadEventsForDateRange(
+        currentSchedule.id,
+        { start: dateInfo.start, end: dateInfo.end }
+      ).subscribe({
+        next: (result) => {
+          console.log('[LessonCalendarComponent] ✅ Navigation events loaded:', {
+            eventCount: result.events.length,
+            dateRange: {
+              start: result.dateRange.start.toDateString(),
+              end: result.dateRange.end.toDateString()
+            }
+          });
+
+          // Update calendar display with new events
+          const displayResult = this.calendarDisplayService.updateCalendarEvents(result.events);
+
+          if (!displayResult.success) {
+            console.error('[LessonCalendarComponent] ❌ Failed to display navigation events:', displayResult.error);
+          }
+        },
+        error: (error) => {
+          console.error('[LessonCalendarComponent] ❌ Navigation event loading failed:', error);
+        }
+      })
+    );
   }
 
   handleEventClick(arg: EventClickArg): void {
@@ -241,29 +403,17 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   handleEventContextMenu(eventInfo: any, jsEvent: MouseEvent): void {
-    console.log('🎯 [LessonCalendarComponent] Context menu handler called!', {
-      hasEvent: !!eventInfo.event,
-      hasDate: !!eventInfo.date,
-      eventTitle: eventInfo.event?.title,
-      date: eventInfo.date,
-      mouseButton: jsEvent.button,
-      clientX: jsEvent.clientX,
-      clientY: jsEvent.clientY,
-      timestamp: new Date().toISOString()
-    });
+    console.log('[LessonCalendarComponent] 🎯 Context menu triggered');
 
     jsEvent.preventDefault();
     jsEvent.stopImmediatePropagation();
 
     if (!this.contextMenuTrigger) {
-      console.error('❌ [LessonCalendarComponent] Context menu trigger not found!');
+      console.error('[LessonCalendarComponent] ❌ Context menu trigger not found');
       return;
     }
 
-    console.log('✅ [LessonCalendarComponent] Context menu trigger found, proceeding...');
-
     if (this.contextMenuTrigger?.menuOpen) {
-      console.log('🔄 [LessonCalendarComponent] Closing existing menu first');
       this.contextMenuTrigger.closeMenu();
       setTimeout(() => this.openContextMenu(eventInfo, jsEvent), 200);
       return;
@@ -273,92 +423,46 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   }
 
   private openContextMenu(eventInfo: any, jsEvent: MouseEvent): void {
-    console.log('🚀 [LessonCalendarComponent] Opening context menu...');
-
     try {
-      if (eventInfo.date && !eventInfo.event) {
-        console.log('📅 [LessonCalendarComponent] Setting day context for:', eventInfo.date);
-        this.scheduleContextService.setDateContext(eventInfo.date);
-      } else if (eventInfo.event) {
-        console.log('📋 [LessonCalendarComponent] Setting event context for:', eventInfo.event.title);
-        const eventClickArg: EventClickArg = {
-          event: eventInfo.event,
-          jsEvent: jsEvent,
-          el: eventInfo.el,
-          view: eventInfo.view
-        };
-        this.scheduleContextService.setEventContext(eventClickArg);
-      } else {
-        console.warn('⚠️ [LessonCalendarComponent] No valid context found');
-        return;
-      }
+      console.log('[LessonCalendarComponent] 🎯 Setting up context menu for event:', eventInfo.event.title);
 
-      const actions = this.scheduleContextService.getContextMenuActions();
-      console.log('📋 [LessonCalendarComponent] Available context actions:', actions.length, actions);
+      // Set the event context in the service
+      this.contextMenuService.setEventContext(eventInfo);
 
-      if (actions.length === 0) {
-        console.warn('⚠️ [LessonCalendarComponent] No context actions available');
-        return;
-      }
-
+      // Position the context menu
       const menuX = Math.min(jsEvent.clientX, window.innerWidth - 200);
       const menuY = Math.min(jsEvent.clientY, window.innerHeight - 150);
 
       this.contextMenuPosition.x = menuX + 'px';
       this.contextMenuPosition.y = menuY + 'px';
 
-      console.log('📍 [LessonCalendarComponent] Context menu position:', this.contextMenuPosition);
-
-      requestAnimationFrame(() => {
-        if (this.contextMenuTrigger && !this.contextMenuTrigger.menuOpen) {
-          console.log('🎭 [LessonCalendarComponent] Actually opening menu now...');
-          this.contextMenuTrigger.openMenu();
-
-          setTimeout(() => {
-            const isOpen = this.contextMenuTrigger.menuOpen;
-            console.log('🔍 [LessonCalendarComponent] Menu open status after attempt:', isOpen);
-          }, 100);
-        } else {
-          console.warn('⚠️ [LessonCalendarComponent] Cannot open menu - trigger unavailable or already open');
-        }
-      });
+      // Open the context menu
+      setTimeout(() => {
+        this.contextMenuTrigger?.openMenu();
+      }, 0);
 
     } catch (error) {
-      console.error('💥 [LessonCalendarComponent] Error opening context menu:', error);
+      console.error('[LessonCalendarComponent] ❌ Error opening context menu:', error);
     }
   }
 
   executeContextAction(action: any): void {
-    action.handler();
+    console.log('[LessonCalendarComponent] ✅ Executing context action:', action.id);
+
+    if (action.handler) {
+      action.handler();
+    }
+
+    // Close the context menu
     this.contextMenuTrigger?.closeMenu();
   }
 
-  selectSchedule(scheduleId: number): void {
-    this.scheduleOperations.loadActiveScheduleWithConfiguration().subscribe({
-      next: (success: boolean) => {
-        if (!success) {
-          console.error(`[LessonCalendarComponent] Failed to select schedule ${scheduleId}`);
-        }
-      },
-      error: (error: any) => {
-        console.error(`[LessonCalendarComponent] Schedule selection error:`, error);
-      }
-    });
-  }
-
-  saveSchedule(): void {
-    this.scheduleOperations.saveCurrentSchedule().subscribe({
-      next: () => {
-        console.log('[LessonCalendarComponent] Schedule saved successfully');
-      },
-      error: (error: any) => {
-        console.error('[LessonCalendarComponent] Save schedule error:', error);
-      }
-    });
-  }
+  // === CONFIGURATION MODAL ===
 
   openConfigModal(): void {
-    const dialogRef = this.dialog.open(UserConfigComponent, {
+    console.log('[LessonCalendarComponent] 📋 Opening configuration modal');
+
+    const dialogRef = this.dialog.open(ScheduleConfigComponent, {
       width: '900px',
       maxWidth: '95vw',
       height: '80vh',
@@ -368,175 +472,150 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     });
 
     dialogRef.afterClosed().subscribe(result => {
+      console.log('[LessonCalendarComponent] 📋 Configuration modal closed:', result);
+
       if (result?.saved) {
-        // Optionally refresh calendar data if needed
+        console.log('[LessonCalendarComponent] ✅ Configuration saved - reinitializing calendar');
+        // Restart initialization workflow
+        this.startCalendarInitialization();
       }
     });
   }
 
-  generateFullReport(): void {
-    console.log('[LessonCalendarComponent] generateFullReport');
+  // === SCHEDULE OPERATIONS ===
+
+  saveSchedule(): void {
+    // Delegate to appropriate service
+    console.log('[LessonCalendarComponent] 💾 Save schedule requested');
+    // Implementation would use schedule persistence service
   }
 
-  generateWeekReport(): void {
-    console.log('[LessonCalendarComponent] generateWeekReport');
+  // === DEBUG METHODS ===
+
+  debugCalendarState(): void {
+    console.log('[LessonCalendarComponent] 🔍 === CALENDAR STATE DEBUG ===');
+
+    const initStatus = this.calendarInitializationService.getInitializationStatus();
+    const displayState = this.calendarDisplayService.getDisplayState();
+    const dateDebug = this.calendarDateService.getDebugInfo();
+
+    console.log('Initialization Status:', initStatus);
+    console.log('Display State:', displayState);
+    console.log('Date Service:', dateDebug);
+    console.log('Calendar Events Count:', this.calendarEvents().length);
+
+    console.log('[LessonCalendarComponent] 🔍 === END DEBUG ===');
   }
 
-  readonly isLoadingSchedule = computed(() => {
-    const displayState = this.calendarCoordination.scheduleReadyForDisplay();
-    return this.hasCoursesAvailable() &&
-      ((!displayState.hasEvents && !displayState.hasConfiguration) ||
-        (displayState.hasEvents && !displayState.hasConfiguration));
-  });
+  forceReinitialize(): void {
+    console.log('[LessonCalendarComponent] 🔄 Forcing calendar re-initialization');
 
-  readonly loadingMessage = computed(() => {
-    const displayState = this.calendarCoordination.scheduleReadyForDisplay();
-
-    if (!displayState.hasEvents && !displayState.hasConfiguration) {
-      return 'Loading schedule...';
-    } else if (displayState.hasEvents && !displayState.hasConfiguration) {
-      return 'Loading configuration...';
-    }
-    return '';
-  });
-
-  debugEventDates(): void {
-    console.log('🗓️ [DEBUG] === EVENT DATE ANALYSIS ===');
-
-    // 1. Check what dates the events are for
-    const serviceEvents = this.calendarManagementService.calendarEvents();
-    const eventDates = serviceEvents.map(e => ({
-      id: e.id,
-      title: e.title,
-      start: e.start,
-      startDate: new Date(e.start).toDateString()
-    }));
-
-    console.log('🗓️ [DEBUG] Event dates:', {
-      eventCount: serviceEvents.length,
-      uniqueDates: [...new Set(eventDates.map(e => e.startDate))],
-      firstFewEvents: eventDates.slice(0, 5)
+    this.subscriptions.add(
+      this.calendarInitializationService.forceReinitialize().subscribe({
+        next: (result) => {
+          console.log('[LessonCalendarComponent] ✅ Force re-initialization completed:', result);
+        },
+        error: (error) => {
+          console.error('[LessonCalendarComponent] ❌ Force re-initialization failed:', error);
+        }
+      })
+    );
+  }
+  private handleRefreshNotification(refreshEvent: any): void {
+    console.log('[LessonCalendarComponent] 🔄 Processing refresh event:', {
+      reason: refreshEvent.reason,
+      scope: refreshEvent.scope,
+      scheduleId: refreshEvent.scheduleId
     });
 
-    // 2. Check what date the calendar is showing
-    if (this.calendar) {
-      const calendarApi = this.calendar.getApi();
-      const currentDate = calendarApi.getDate();
-      console.log('🗓️ [DEBUG] Calendar current date:', {
-        currentDate: currentDate.toDateString(),
-        currentMonth: currentDate.getMonth() + 1,
-        currentYear: currentDate.getFullYear()
-      });
-    }
+    switch (refreshEvent.scope) {
+      case 'full':
+        // Full calendar reinitialize (configuration changes)
+        console.log('[LessonCalendarComponent] 🔄 Full refresh - reinitializing calendar');
+        this.startCalendarInitialization();
+        break;
 
-    console.log('🗓️ [DEBUG] === END DATE ANALYSIS ===');
+      case 'current-view':
+        // Reload current month/week events
+        console.log('[LessonCalendarComponent] 🔄 Current view refresh - reloading events');
+        this.refreshCurrentViewEvents();
+        break;
+
+      case 'events-only':
+        // Just reload events without changing calendar position
+        console.log('[LessonCalendarComponent] 🔄 Events only refresh');
+        this.refreshCurrentViewEvents();
+        break;
+
+      default:
+        console.warn('[LessonCalendarComponent] ⚠️ Unknown refresh scope:', refreshEvent.scope);
+        // Default to current view refresh
+        this.refreshCurrentViewEvents();
+    }
   }
 
-  testContextMenu(): void {
-    console.log('🧪 [LessonCalendarComponent] Testing context menu...');
+  
+  private refreshCurrentViewEvents(): void {
+    const currentSchedule = this.scheduleStateService.selectedSchedule();
 
-    if (!this.contextMenuTrigger) {
-      console.error('❌ Test failed: Context menu trigger not found');
+    if (!currentSchedule?.id) {
+      console.warn('[LessonCalendarComponent] ⚠️ No schedule available for refresh');
       return;
     }
 
-    const fakeEvent = {
-      event: {
-        id: 'test',
-        title: 'Test Event',
-        extendedProps: {
-          eventType: 'special'
-        }
-      },
-      el: null,
-      view: null
-    };
-
-    const fakeMouseEvent = new MouseEvent('contextmenu', {
-      clientX: 200,
-      clientY: 200,
-      button: 2
-    });
-
-    this.scheduleContextService.setEventContext({
-      event: fakeEvent.event,
-      jsEvent: fakeMouseEvent,
-      el: null,
-      view: null
-    } as any);
-
-    this.contextMenuPosition.x = '200px';
-    this.contextMenuPosition.y = '200px';
-
-    console.log('🚀 Attempting to open test menu...');
-    this.contextMenuTrigger.openMenu();
-
-    setTimeout(() => {
-      const isOpen = this.contextMenuTrigger.menuOpen;
-      console.log('🔍 Test result - Menu opened:', isOpen);
-
-      if (isOpen) {
-        console.log('✅ Context menu trigger is working! Issue is with event listeners.');
-      } else {
-        console.log('❌ Context menu trigger itself is broken.');
-      }
-    }, 100);
-  }
-
-  debugDataFlow(): void {
-    console.log('🔍 [DEBUG] === CALENDAR DATA FLOW ANALYSIS ===');
-
-    // 1. Check service signal
-    const serviceEvents = this.calendarManagementService.calendarEvents();
-    console.log('🔍 [DEBUG] Service signal events:', {
-      count: serviceEvents.length,
-      firstThree: serviceEvents.slice(0, 3).map(e => ({
-        id: e.id,
-        title: e.title,
-        start: e.start,
-        backgroundColor: e.backgroundColor
-      }))
-    });
-
-    // 2. Check component calendarOptions
-    console.log('🔍 [DEBUG] Component calendarOptions:', {
-      hasEvents: !!this.calendarOptions.events,
-      eventCount: Array.isArray(this.calendarOptions.events) ? this.calendarOptions.events.length : 0,
-      eventsType: typeof this.calendarOptions.events,
-      firstThree: Array.isArray(this.calendarOptions.events)
-        ? this.calendarOptions.events.slice(0, 3).map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          start: e.start
-        }))
-        : 'Not an array'
-    });
-
-    // 3. Check FullCalendar API
-    if (this.calendar) {
-      const calendarApi = this.calendar.getApi();
-      const actualEvents = calendarApi.getEvents();
-      console.log('🔍 [DEBUG] FullCalendar API events:', {
-        count: actualEvents.length,
-        firstThree: actualEvents.slice(0, 3).map((e: any) => ({
-          id: e.id,
-          title: e.title,
-          start: e.start?.toISOString(),
-          startStr: e.startStr
-        }))
-      });
-    } else {
-      console.log('🔍 [DEBUG] ❌ Calendar API not available');
+    // Get current calendar date to determine what events to reload
+    const calendarApi = this.calendar?.getApi();
+    if (!calendarApi) {
+      console.warn('[LessonCalendarComponent] ⚠️ Calendar API not available for refresh');
+      return;
     }
 
-    // 4. Check DOM
-    const calendarElement = document.querySelector('.fc');
-    const eventElements = document.querySelectorAll('.fc-event');
-    console.log('🔍 [DEBUG] DOM state:', {
-      hasCalendarElement: !!calendarElement,
-      eventElementCount: eventElements.length
-    });
+    const currentDate = calendarApi.getDate();
+    console.log('[LessonCalendarComponent] 🔄 Refreshing events for current date:', currentDate.toDateString());
 
-    console.log('🔍 [DEBUG] === END DATA FLOW ANALYSIS ===');
+    // FIXED: Load fresh events for current VIEW (week) instead of always loading month
+    // TODO: When month view is added, get actual view mode from service
+    const currentViewMode = 'week'; // Hard-coded for now, will be dynamic later
+
+    this.subscriptions.add(
+      this.calendarEventLoaderService.loadEventsForCurrentView(
+        currentSchedule.id,
+        currentDate,
+        currentViewMode
+      ).subscribe({
+        next: (events) => {
+          console.log('[LessonCalendarComponent] ✅ Fresh events loaded:', {
+            eventCount: events.length,
+            currentDate: currentDate.toDateString(),
+            viewMode: currentViewMode
+          });
+
+          // Update calendar display with fresh events
+          const displayResult = this.calendarDisplayService.updateCalendarEvents(events);
+
+          if (!displayResult.success) {
+            console.error('[LessonCalendarComponent] ❌ Failed to display refreshed events:', displayResult.error);
+          }
+        },
+        error: (error) => {
+          console.error('[LessonCalendarComponent] ❌ Failed to refresh events:', error);
+        }
+      })
+    );
+  }
+
+  // === COMPUTED PROPERTIES FOR TEMPLATE ===
+
+  readonly canGenerateReports = computed(() => {
+    const schedule = this.selectedSchedule();
+    return schedule && !this.isInMemorySchedule();
+  });
+
+  generateFullReport(): void {
+    console.log('[LessonCalendarComponent] 📊 Generate full report');
+  }
+
+  generateWeekReport(): void {
+    console.log('[LessonCalendarComponent] 📊 Generate week report');
   }
 }

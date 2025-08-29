@@ -199,3 +199,15 @@ export interface LessonMoveResource {
   position?: 'before' | 'after' | null;
   relativeToType?: 'Lesson' | 'SubTopic' | null;
 }
+
+
+// ✅ Add validation function
+export function validateLessonMoveResource(resource: LessonMoveResource): string | null {
+  if (!resource.newSubTopicId && !resource.newTopicId) {
+    return "Either newSubTopicId or newTopicId must be specified";
+  }
+  if (resource.newSubTopicId && resource.newTopicId) {
+    return "Cannot specify both newSubTopicId and newTopicId";
+  }
+  return null; // Valid
+}

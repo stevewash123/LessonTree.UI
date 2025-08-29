@@ -27,11 +27,11 @@ export class AuthService {
       const decoded = this.jwtHelper.decodeToken(token);
       console.log('[AuthService] JWT token contents:', decoded);
       console.log('[AuthService] Available claims:', Object.keys(decoded));
-      
+
       // FIX: Use 'username' instead of 'unique_name'
       const username = decoded.username;
       console.log('[AuthService] Extracted username:', username);
-      
+
       if (username) {
         this.currentUserSubject.next(username);
         // Load user data if token is valid
@@ -59,24 +59,27 @@ export class AuthService {
       tap(response => {
         console.log('[AuthService] Login response received');
         localStorage.setItem('token', response.token);
-        
+
         // DEBUG: Show what's in the new token
         const decoded = this.jwtHelper.decodeToken(response.token);
         console.log('[AuthService] New JWT token contents:', decoded);
         console.log('[AuthService] Available claims:', Object.keys(decoded));
-        
+
         this.currentUserSubject.next(username);
-        
-        // Load user data after successful login
-        console.log('[AuthService] Loading user data after login for:', username);
-        this.userService.loadUserData(username).subscribe({
-          next: (user) => {
-            console.log('[AuthService] User data loaded successfully after login:', user);
-          },
-          error: (error) => {
-            console.error('[AuthService] Error loading user data after login:', error);
-          }
-        });
+
+        // 🔧 FIXED: Use setTimeout to ensure token is fully committed to localStorage
+        // This prevents the race condition where UserService checks for token before it's stored
+        setTimeout(() => {
+          console.log('[AuthService] Loading user data after login for:', username);
+          this.userService.loadUserData(username).subscribe({
+            next: (user) => {
+              console.log('[AuthService] User data loaded successfully after login:', user);
+            },
+            error: (error) => {
+              console.error('[AuthService] Error loading user data after login:', error);
+            }
+          });
+        }, 0); // Minimal delay to ensure localStorage operation completes
       })
     );
   }
@@ -92,7 +95,7 @@ export class AuthService {
     const token = localStorage.getItem('token');
     return token != null && !this.jwtHelper.isTokenExpired(token);
   }
-  
+
   hasRole(role: string): boolean {
     return this.userService.hasRole(role); // Delegate to UserService
   }

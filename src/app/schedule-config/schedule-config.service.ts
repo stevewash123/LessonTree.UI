@@ -14,6 +14,7 @@ import {
   ScheduleConfigurationCreateResource,
   SchedulePeriodAssignment
 } from '../models/schedule-configuration.model';
+import {CalendarRefreshService} from '../calendar/services/integration/calendar-refresh.service';
 
 
 
@@ -81,6 +82,7 @@ export class ScheduleConfigService {
     private fb: FormBuilder,
     private periodMgmt: PeriodManagementService,
     private scheduleConfigApi: ScheduleConfigurationApiService,
+    private calendarRefreshService: CalendarRefreshService,
     private scheduleConfigStateService: ScheduleConfigurationStateService
   ) {}
 
@@ -332,12 +334,16 @@ export class ScheduleConfigService {
       periodAssignments: periodAssignments
     };
 
-    // ✅ SIMPLIFIED: Just save configuration (remove workflow coordination)
+    // Save configuration and notify calendar
     return this.scheduleConfigApi.createConfiguration(configurationResource).pipe(
       tap((savedConfig: any) => {
         console.log('[ScheduleConfigService] Configuration saved successfully:', savedConfig.id);
         this.scheduleConfigStateService.setActiveConfiguration(savedConfig);
         this.scheduleConfigStateService.addConfiguration(savedConfig);
+
+        // ✅ FIXED: Notify calendar to refresh with new configuration
+        console.log('[ScheduleConfigService] 🔄 Notifying calendar of configuration change');
+        this.calendarRefreshService.refreshAfterConfigurationChange();
       }),
       map((savedConfig: any) => ({
         success: true,
@@ -384,11 +390,15 @@ export class ScheduleConfigService {
       periodAssignments: periodAssignments
     };
 
-    // ✅ SIMPLIFIED: Just update configuration (remove workflow coordination)
+    // Update configuration and notify calendar
     return this.scheduleConfigApi.updateConfiguration(configurationId, configurationResource).pipe(
       tap((updatedConfig: any) => {
         console.log('[ScheduleConfigService] Configuration updated successfully:', updatedConfig.id);
         this.scheduleConfigStateService.setActiveConfiguration(updatedConfig);
+
+        // ✅ FIXED: Notify calendar to refresh with updated configuration
+        console.log('[ScheduleConfigService] 🔄 Notifying calendar of configuration update');
+        this.calendarRefreshService.refreshAfterConfigurationChange();
       }),
       map((updatedConfig: any) => ({
         success: true,

@@ -69,11 +69,22 @@ export class CalendarConfigurationService {
     console.log('[CalendarConfigurationService] Initialized with extracted services');
   }
 
+
+
+
+
+
+  // **PARTIAL FILE** - Add view-specific configuration method to CalendarConfigurationService
+
+  // **PARTIAL FILE** - Add these height configurations to createCalendarOptions() method
+// Replace the current height/time configuration section with this enhanced version
+
+  // **PARTIAL FILE** - Current TimeGrid height fix for CalendarConfigurationService
+
   createCalendarOptions(
     handleEventClick: (arg: any) => void,
     handleEventContextMenu: (eventInfo: any, jsEvent: MouseEvent) => void,
-    handleEventDrop: (arg: any) => void,
-    handleDatesSet?: (dateInfo: { start: Date; end: Date; view: any }) => void // NEW: Navigation callback
+    handleEventDrop: (arg: any) => void
   ): CalendarOptions {
     const periodsCount = this.periodsPerDay();
 
@@ -130,30 +141,14 @@ export class CalendarConfigurationService {
       eventClick: handleEventClick,
       eventDrop: handleEventDrop,
 
-      // === NAVIGATION CALLBACK (NEW) ===
-      datesSet: (dateInfo) => {
-        console.log('[CalendarConfigurationService] 📅 Calendar navigation detected:', {
-          start: dateInfo.start.toDateString(),
-          end: dateInfo.end.toDateString(),
-          view: dateInfo.view.type
-        });
-
-        // Call the navigation handler if provided
-        if (handleDatesSet) {
-          handleDatesSet({
-            start: dateInfo.start,
-            end: dateInfo.end,
-            view: dateInfo.view
-          });
-        }
-      },
-
       // === CALENDAR BEHAVIOR ===
       editable: true,
       selectable: true,
       selectMirror: true,
       dayMaxEvents: true,
       eventDisplay: 'block',
+
+      // Rest of existing configuration...
     };
   }
 

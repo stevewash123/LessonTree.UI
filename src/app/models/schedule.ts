@@ -5,12 +5,13 @@
 
 import { ScheduleEvent } from "./schedule-event.model";
 import {SpecialDay} from './specialDay.model';
+import {ScheduleConfiguration} from './schedule-configuration.model';
 
 export interface Schedule {
     id: number;
     title: string;
     userId: number;
-    scheduleConfigurationId: number; // Reference to configuration
+    scheduleConfiguration: ScheduleConfiguration;
     isLocked: boolean;
     createdDate: Date;
     scheduleEvents: ScheduleEvent[]; // Event data only
@@ -21,4 +22,13 @@ export interface ScheduleCreateResource {
     title: string;
     scheduleConfigurationId: number;
     scheduleEvents?: ScheduleEvent[]; // Optional for creation
+    specialDays?: SpecialDay[];
+}
+
+export function getConfigurationFromSchedule(schedule: Schedule): ScheduleConfiguration {
+  return schedule.scheduleConfiguration;
+}
+
+export function hasValidConfiguration(schedule: Schedule | null): boolean {
+  return !!(schedule?.scheduleConfiguration?.id);
 }

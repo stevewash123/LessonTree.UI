@@ -1,6 +1,5 @@
-// **SIMPLIFIED** - NodeOperationsService - API-First, No Frontend Positioning
-// REMOVED: NodePositioningService, LessonPositioningService (deleted services)
-// PATTERN: Direct API calls → Calendar refresh → Done
+// **UPDATED** - NodeOperationsService - Simplified sibling-based positioning
+// CHANGES: Added new method signatures, updated API calls to use afterSiblingId approach
 
 import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, tap } from 'rxjs';
@@ -9,8 +8,8 @@ import { ApiService } from '../../../shared/services/api.service';
 import { CourseDataService } from '../course-data/course-data.service';
 import { NodeDragModeService, DragMode } from '../state/node-drag-mode.service';
 import { NodeMovedEvent, TreeData } from '../../../models/tree-node';
-import { Lesson } from '../../../models/lesson';
-import {CalendarRefreshService} from '../../../calendar/services/business/calendar-refresh.service';
+import { Lesson, validateLessonMoveResource } from '../../../models/lesson';
+import { CalendarRefreshService } from '../../../calendar/services/integration/calendar-refresh.service';
 
 @Injectable({
   providedIn: 'root'
@@ -24,7 +23,7 @@ export class NodeOperationsService {
     private toastr: ToastrService,
     private calendarRefresh: CalendarRefreshService
   ) {
-    console.log('[NodeOperationsService] Simplified API-first service initialized');
+    console.log('[NodeOperationsService] Simplified sibling-based service initialized');
   }
 
   // Drag mode convenience methods
@@ -48,44 +47,125 @@ export class NodeOperationsService {
     return (node as any).title || 'Unknown';
   }
 
+  // ✅ NEW: Simplified lesson move method that TreeDragDropService calls
+  performLessonMove(
+    event: NodeMovedEvent,
+    targetSubTopicId?: number,
+    targetTopicId?: number,
+    afterSiblingId?: number | null
+  ): Observable<boolean> {
+    const { node } = event;
+
+    console.log(`[NodeOperationsService] LESSON MOVE: Moving lesson ${node.id}`, {
+      targetSubTopicId,
+      targetTopicId,
+      afterSiblingId
+    });
+
+    // ✅ Validate the move request
+    const moveResource = {
+      lessonId: node.id,
+      newSubTopicId: targetSubTopicId || null,
+      newTopicId: targetTopicId || null,
+      afterSiblingId: afterSiblingId || null
+    };
+
+    const validationError = validateLessonMoveResource(moveResource);
+    if (validationError) {
+      console.error('[NodeOperationsService] Invalid lesson move:', validationError);
+      this.toastr.error(validationError, 'Invalid Move');
+      return of(false);
+    }
+
+    const courseId = this.extractCourseId(node);
+
+    return this.apiService.moveLesson(
+      node.id,
+      targetSubTopicId,
+      targetTopicId,
+      afterSiblingId || undefined  // Convert null to undefined for API
+    ).pipe(
+      tap((result: any) => this.handleApiSuccess(result, node, 'LESSON MOVE', courseId, event)),
+      map((result: any) => result.isSuccess),
+      catchError(err => this.handleApiError(err, 'move lesson'))
+    );
+  }
+
+  // ✅ NEW: Simplified subtopic move method
+  performSubTopicMove(
+    event: NodeMovedEvent,
+    targetTopicId: number,
+    afterSiblingId: number | null
+  ): Observable<boolean> {
+    const { node } = event;
+
+    console.log(`[NodeOperationsService] SUBTOPIC MOVE: Moving subtopic ${node.id}`, {
+      targetTopicId,
+      afterSiblingId
+    });
+
+    const courseId = this.extractCourseId(node);
+
+    return this.apiService.moveSubTopic(
+      node.id,
+      targetTopicId,
+      afterSiblingId || undefined  // Convert null to undefined for API
+    ).pipe(
+      tap((result: any) => this.handleApiSuccess(result, node, 'SUBTOPIC MOVE', courseId, event)),
+      map((result: any) => result.isSuccess),
+      catchError(err => this.handleApiError(err, 'move subtopic'))
+    );
+  }
+
+  // ✅ NEW: Simplified topic move method
+  performTopicMove(
+    event: NodeMovedEvent,
+    targetCourseId: number,
+    afterSiblingId: number | null
+  ): Observable<boolean> {
+    const { node } = event;
+
+    console.log(`[NodeOperationsService] TOPIC MOVE: Moving topic ${node.id}`, {
+      targetCourseId,
+      afterSiblingId
+    });
+
+    return this.apiService.moveTopic(
+      node.id,
+      targetCourseId,
+      afterSiblingId || undefined  // Convert null to undefined for API
+    ).pipe(
+      tap((result: any) => this.handleApiSuccess(result, node, 'TOPIC MOVE', targetCourseId, event)),
+      map((result: any) => result.isSuccess),
+      catchError(err => this.handleApiError(err, 'move topic'))
+    );
+  }
+
+  // ✅ LEGACY: Keep existing methods for backward compatibility during transition
   /**
-   * SIMPLIFIED: Perform REGROUP operation (move to different parent)
-   * PATTERN: API call → Calendar refresh → Signal emission
+   * LEGACY: Perform REGROUP operation (move to different parent)
+   * @deprecated Use performLessonMove, performSubTopicMove, performTopicMove instead
    */
   performMoveToGroup(event: NodeMovedEvent): Observable<boolean> {
     const { node, targetParentId, targetParentType, targetCourseId } = event;
 
-    console.log(`[NodeOperationsService] REGROUP: ${node.entityType} to ${targetParentType}:${targetParentId}`);
-
-    const courseId = this.extractCourseId(node, targetCourseId);
+    console.log(`[NodeOperationsService] LEGACY REGROUP: ${node.entityType} to ${targetParentType}:${targetParentId}`);
 
     if (node.entityType === 'Topic' && targetCourseId) {
-      return this.apiService.moveTopic(node.id, targetCourseId).pipe(
-        tap((result: any) => this.handleApiSuccess(result, node, 'REGROUP', courseId, event)),
-        map((result: any) => result.isSuccess),
-        catchError(err => this.handleApiError(err, 'move topic'))
-      );
+      return this.performTopicMove(event, targetCourseId, null);
     }
 
     if (node.entityType === 'Lesson') {
-      return this.apiService.moveLesson(
-        node.id,
+      return this.performLessonMove(
+        event,
         targetParentType === 'SubTopic' ? targetParentId : undefined,
-        targetParentType === 'Topic' ? targetParentId : undefined
-      ).pipe(
-        tap((result: any) => this.handleApiSuccess(result, node, 'REGROUP', courseId, event)),
-        map((result: any) => result.isSuccess),
-        catchError(err => this.handleApiError(err, 'move lesson'))
+        targetParentType === 'Topic' ? targetParentId : undefined,
+        null  // Append to end for legacy REGROUP operations
       );
     }
 
-    // FIX: Add null safety for targetParentId
     if (node.entityType === 'SubTopic' && targetParentType === 'Topic' && targetParentId !== undefined) {
-      return this.apiService.moveSubTopic(node.id, targetParentId).pipe(
-        tap((result: any) => this.handleApiSuccess(result, node, 'REGROUP', courseId, event)),
-        map((result: any) => result.isSuccess),
-        catchError(err => this.handleApiError(err, 'move subtopic'))
-      );
+      return this.performSubTopicMove(event, targetParentId, null);
     }
 
     console.error('[NodeOperationsService] Unsupported REGROUP operation', event);
@@ -93,10 +173,9 @@ export class NodeOperationsService {
     return of(false);
   }
 
-
   /**
-   * SIMPLIFIED: Perform SORT operation (positional move within same parent)
-   * PATTERN: API call with positioning → Calendar refresh → Signal emission
+   * LEGACY: Perform SORT operation (positional move within same parent)
+   * @deprecated Use performLessonMove, performSubTopicMove, performTopicMove instead
    */
   performMoveToSort(
     event: NodeMovedEvent,
@@ -106,52 +185,28 @@ export class NodeOperationsService {
   ): Observable<boolean> {
     const { node, targetParentId, targetParentType } = event;
 
-    console.log(`[NodeOperationsService] SORT: ${node.entityType} ${relativePosition} ${relativeToType}:${relativeToId}`);
+    console.log(`[NodeOperationsService] LEGACY SORT: ${node.entityType} ${relativePosition} ${relativeToType}:${relativeToId}`);
 
-    const courseId = this.extractCourseId(node);
+    // ✅ Convert legacy positioning to sibling approach
+    const afterSiblingId = relativePosition === 'after' ? relativeToId : null;
 
     if (node.entityType === 'Lesson') {
-      return this.apiService.moveLesson(
-        node.id,
+      return this.performLessonMove(
+        event,
         targetParentType === 'SubTopic' ? targetParentId : undefined,
         targetParentType === 'Topic' ? targetParentId : undefined,
-        relativeToId,
-        relativePosition
-      ).pipe(
-        tap((result: any) => this.handleApiSuccess(result, node, 'SORT', courseId, event)),
-        map((result: any) => result.isSuccess),
-        catchError(err => this.handleApiError(err, 'sort lesson'))
+        afterSiblingId
       );
     }
 
-    // FIX: Add null safety for targetParentId
     if (node.entityType === 'SubTopic' && targetParentId !== undefined) {
-      return this.apiService.moveSubTopic(
-        node.id,
-        targetParentId,
-        relativeToId,
-        relativePosition
-      ).pipe(
-        tap((result: any) => this.handleApiSuccess(result, node, 'SORT', courseId, event)),
-        map((result: any) => result.isSuccess),
-        catchError(err => this.handleApiError(err, 'sort subtopic'))
-      );
+      return this.performSubTopicMove(event, targetParentId, afterSiblingId);
     }
 
-    // FIX: Add null safety for course ID
     if (node.entityType === 'Topic') {
       const courseId = event.targetCourseId || event.sourceCourseId;
       if (courseId !== undefined) {
-        return this.apiService.moveTopic(
-          node.id,
-          courseId,
-          relativeToId,
-          relativePosition
-        ).pipe(
-          tap((result: any) => this.handleApiSuccess(result, node, 'SORT', courseId, event)),
-          map((result: any) => result.isSuccess),
-          catchError(err => this.handleApiError(err, 'sort topic'))
-        );
+        return this.performTopicMove(event, courseId, afterSiblingId);
       }
     }
 
@@ -180,7 +235,7 @@ export class NodeOperationsService {
   private handleApiSuccess(
     result: any,
     node: TreeData,
-    operationType: 'SORT' | 'REGROUP',
+    operationType: string,
     courseId: number | undefined,
     event: NodeMovedEvent
   ): void {
@@ -192,7 +247,7 @@ export class NodeOperationsService {
       });
 
       if (courseId) {
-        this.calendarRefresh.refreshAfterLessonChange('moved', courseId);
+        this.calendarRefresh.refreshAfterLessonMove(courseId);
         console.log(`[NodeOperationsService] ✅ Calendar refresh requested for course ${courseId}`);
       }
 
@@ -212,8 +267,7 @@ export class NodeOperationsService {
         {
           oldSortOrder,
           newSortOrder,
-          // FIX: Cast to proper type
-          moveType: operationType.toLowerCase() as "drag-drop" | "api-move" | "bulk-operation"
+          moveType: "drag-drop" as const
         }
       );
 

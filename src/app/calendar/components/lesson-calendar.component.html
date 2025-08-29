@@ -1,31 +1,9 @@
 <!-- src/app/lessontree/calendar/lesson-calendar.component.html - COMPLETE FILE -->
 <div class="calendar-container">
-    <!-- No Data State -->
-    @if (!hasCoursesAvailable()) {
-      <div class="no-data-state">
-        <mat-icon>school</mat-icon>
-        <h3>No Courses Available</h3>
-        <p>Create a course first to start scheduling lessons.</p>
-      </div>
-    }
 
     <!-- Main Calendar Content -->
-    @if (hasCoursesAvailable()) {
-        <div class="calendar-content-wrapper" style="position: relative;">
 
-          <!-- Loading Overlay -->
-          @if (isLoadingSchedule()) {
-            <div class="calendar-loading-overlay">
-              <div class="loading-content">
-                <div class="spinner">
-                  <div class="spinner-border" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-                <div class="loading-text">{{ loadingMessage() }}</div>
-              </div>
-            </div>
-          }
+      <div class="calendar-content-wrapper" style="position: relative;">
 
           <!-- Full Calendar -->
           <full-calendar
@@ -36,14 +14,13 @@
 
         </div>
 
-        <!-- Material Design Context Menu (unchanged) -->
-        <div style="visibility: hidden; position: fixed;"
+      <!-- Material Design Context Menu (unchanged) -->
+      <div style="visibility: hidden; position: fixed;"
              [style.left]="contextMenuPosition.x"
              [style.top]="contextMenuPosition.y"
              [matMenuTriggerFor]="contextMenu"
              #contextMenuTrigger="matMenuTrigger">
         </div>
-
 
       <mat-menu #contextMenu="matMenu" class="calendar-context-menu">
         @for (action of contextMenuActions; track action.id) {
@@ -75,15 +52,6 @@
           Create Schedule
         </button>
       </div>
-      <div style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;">
-        <button
-          mat-raised-button
-          color="warn"
-          (click)="testContextMenu()"
-          matTooltip="Test context menu (diagnostic)">
-          Test Menu
-        </button>
-      </div>
-    }
+
   </div>
 

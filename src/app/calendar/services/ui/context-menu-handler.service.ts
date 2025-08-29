@@ -5,9 +5,8 @@
 
 import { Injectable } from '@angular/core';
 import { EventClickArg } from '@fullcalendar/core';
+import {ContextMenuAction, ContextMenuBusinessService} from '../core/context-menu-business.service';
 
-import { ContextMenuBusinessService, ContextMenuAction } from '../business/context-menu-business.service';
-import { SpecialDayModalService } from './special-day-modal.service';
 
 export interface ActionExecutionResult {
   success: boolean;
@@ -31,7 +30,7 @@ export class ContextMenuHandlerService {
 
   constructor(
     private businessService: ContextMenuBusinessService,
-    private specialDayModalService: SpecialDayModalService
+    //private specialDayModalService: SpecialDayModalService
   ) {
     console.log('[ContextMenuHandlerService] User action execution and modal coordination initialized');
   }
@@ -137,12 +136,12 @@ export class ContextMenuHandlerService {
   private handleAddSpecialDay(action: ContextMenuAction): ActionExecutionResult {
     console.log('[ContextMenuHandlerService] Handling add special day');
 
-    const contextDate = action.metadata?.date;
+    const contextDate = null; //action.metadata?.date;
     console.log('Add special day requested for date:', contextDate);
 
     if (contextDate) {
       // Open special day modal in 'add' mode with the selected date
-      this.specialDayModalService.openSpecialDayModal('add', contextDate, undefined);
+      //this.specialDayModalService.openSpecialDayModal('add', contextDate, undefined);
 
       return {
         success: true,
@@ -160,8 +159,8 @@ export class ContextMenuHandlerService {
   private handleEditSpecialDay(action: ContextMenuAction): ActionExecutionResult {
     console.log('[ContextMenuHandlerService] Handling edit special day');
 
-    const contextState = this.businessService.getCurrentContextState();
-    if (contextState.type === 'event' && contextState.event) {
+    //const contextState = this.businessService.getCurrentContextState();
+    /*if (contextState.type === 'event' && contextState.event) {
       this.specialDayModalService.openSpecialDayModal('edit', null, contextState.event);
 
       return {
@@ -175,15 +174,15 @@ export class ContextMenuHandlerService {
           scheduleEvent: action.metadata?.scheduleEvent
         }
       };
-    } else {
+    } else {  */
       throw new Error('No event context available for special day editing');
-    }
+    //}
   }
 
   private handleDeleteSpecialDay(action: ContextMenuAction): ActionExecutionResult {
     console.log('[ContextMenuHandlerService] Handling delete special day');
 
-    const contextState = this.businessService.getCurrentContextState();
+    /* const contextState = this.businessService.getCurrentContextState();
     if (contextState.type === 'event' && contextState.event) {
       this.specialDayModalService.deleteSpecialDayFromEvent(contextState.event);
 
@@ -198,9 +197,9 @@ export class ContextMenuHandlerService {
           scheduleEvent: action.metadata?.scheduleEvent
         }
       };
-    } else {
+    } else { */
       throw new Error('No event context available for special day deletion');
-    }
+    //}
   }
 
   // === OTHER ACTION HANDLERS ===

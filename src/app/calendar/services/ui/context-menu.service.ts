@@ -10,10 +10,10 @@ import {
   ContextMenuCoordinationService,
   ContextMenuGenerationEvent,
   ContextMenuInteractionEvent, ContextStateChangeEvent
-} from '../coordination/context-menu-coordination.service';
+} from "../integration/context-menu-coordination.service";
 
-
-export interface ContextMenuAction {
+// FIXED: Clear naming - this is what the component displays
+export interface ContextMenuDisplayItem {
   id: string;
   label: string;
   handler: () => void;
@@ -65,9 +65,9 @@ export class ContextMenuService implements OnDestroy {
   }
 
   /**
-   * FACADE: Get context menu actions
+   * FACADE: Get context menu actions - FIXED TYPE
    */
-  getContextMenuActions(): ContextMenuAction[] {
+  getContextMenuActions(): ContextMenuDisplayItem[] {
     //console.log('[ContextMenuService] FACADE: Delegating getContextMenuActions to coordination service');
     return this.coordinationService.getContextMenuActions();
   }
