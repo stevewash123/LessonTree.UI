@@ -86,7 +86,7 @@ export class NodeOperationsService {
       afterSiblingId || undefined  // Convert null to undefined for API
     ).pipe(
       tap((result: any) => this.handleApiSuccess(result, node, 'LESSON MOVE', courseId, event)),
-      map((result: any) => result.isSuccess),
+      map((result: any) => result && result.isSuccess),
       catchError(err => this.handleApiError(err, 'move lesson'))
     );
   }
@@ -95,24 +95,66 @@ export class NodeOperationsService {
   performSubTopicMove(
     event: NodeMovedEvent,
     targetTopicId: number,
-    afterSiblingId: number | null
+    afterSiblingId: number | null,
+    dropPosition?: string  // Add dropPosition parameter to determine before/after
   ): Observable<boolean> {
     const { node } = event;
 
-    console.log(`[NodeOperationsService] SUBTOPIC MOVE: Moving subtopic ${node.id}`, {
-      targetTopicId,
-      afterSiblingId
+    console.log(`[NodeOperationsService] 🔍 SUBTOPIC MOVE INPUT PARAMETERS:`, {
+      'node.id': node.id,
+      'targetTopicId': targetTopicId,
+      'afterSiblingId': afterSiblingId,
+      'dropPosition': dropPosition,
+      'afterSiblingId type': typeof afterSiblingId,
+      'dropPosition type': typeof dropPosition,
+      'afterSiblingId === null': afterSiblingId === null,
+      'dropPosition === undefined': dropPosition === undefined
     });
 
     const courseId = this.extractCourseId(node);
 
+    // ✅ Calculate position and relativeToType based on drop position and sibling
+    console.log(`[NodeOperationsService] 🔍 POSITION CALCULATION LOGIC:`, {
+      'afterSiblingId': afterSiblingId,
+      'afterSiblingId truthy': !!afterSiblingId,
+      'dropPosition': dropPosition,
+      'dropPosition === "Before"': dropPosition === 'Before'
+    });
+
+    const position: 'before' | 'after' | undefined = afterSiblingId 
+      ? (dropPosition === 'Before' ? 'before' : 'after') 
+      : undefined;
+    
+    const relativeToType: 'SubTopic' | 'Lesson' | undefined = afterSiblingId ? this.determineRelativeToType(afterSiblingId) : undefined;
+
+    console.log(`[NodeOperationsService] 🔍 CALCULATED POSITIONING VALUES:`, {
+      'position': position,
+      'position type': typeof position,
+      'relativeToType': relativeToType,
+      'relativeToType type': typeof relativeToType,
+      'afterSiblingId || undefined': afterSiblingId || undefined,
+      'position || null': position || null,
+      'relativeToType || null': relativeToType || null
+    });
+
+    console.log(`[NodeOperationsService] 🚀 CALLING API SERVICE moveSubTopic WITH:`, {
+      'nodeId': node.id,
+      'targetTopicId': targetTopicId,  
+      'relativeToId': afterSiblingId || undefined,
+      'position': position,
+      'relativeToType': relativeToType,
+      'API EXPECTS': 'subTopicId, newTopicId, relativeToId, position, relativeToType'
+    });
+
     return this.apiService.moveSubTopic(
       node.id,
       targetTopicId,
-      afterSiblingId || undefined  // Convert null to undefined for API
+      afterSiblingId || undefined,  // Convert null to undefined for API
+      position,
+      relativeToType
     ).pipe(
       tap((result: any) => this.handleApiSuccess(result, node, 'SUBTOPIC MOVE', courseId, event)),
-      map((result: any) => result.isSuccess),
+      map((result: any) => result && result.isSuccess),
       catchError(err => this.handleApiError(err, 'move subtopic'))
     );
   }
@@ -136,7 +178,7 @@ export class NodeOperationsService {
       afterSiblingId || undefined  // Convert null to undefined for API
     ).pipe(
       tap((result: any) => this.handleApiSuccess(result, node, 'TOPIC MOVE', targetCourseId, event)),
-      map((result: any) => result.isSuccess),
+      map((result: any) => result && result.isSuccess),
       catchError(err => this.handleApiError(err, 'move topic'))
     );
   }
@@ -219,13 +261,23 @@ export class NodeOperationsService {
    * Extract courseId from various sources
    */
   private extractCourseId(node: TreeData, fallbackCourseId?: number): number | undefined {
-    // Try to get from lesson entity directly
+    // Try to get from entity directly - all entities should have courseId
     if (node.entityType === 'Lesson') {
       const lesson = node.entity as Lesson;
       return lesson.courseId;
     }
+    
+    if (node.entityType === 'SubTopic') {
+      const subTopic = node.entity as any; // SubTopic with courseId
+      return subTopic.courseId;
+    }
+    
+    if (node.entityType === 'Topic') {
+      const topic = node.entity as any; // Topic with courseId  
+      return topic.courseId;
+    }
 
-    // Use fallback for topics/subtopics
+    // Use fallback as last resort
     return fallbackCourseId;
   }
 
@@ -239,7 +291,7 @@ export class NodeOperationsService {
     courseId: number | undefined,
     event: NodeMovedEvent
   ): void {
-    if (result.isSuccess) {
+    if (result && result.isSuccess) {
       console.log(`[NodeOperationsService] ✅ ${operationType} API success:`, {
         entityType: node.entityType,
         totalModified: result.modifiedEntities?.length || 0,
@@ -273,8 +325,8 @@ export class NodeOperationsService {
 
       this.toastr.success(`${operationType}: ${node.entityType} "${this.getNodeTitle(node)}" moved successfully`);
     } else {
-      console.error(`[NodeOperationsService] ❌ ${operationType} failed:`, result.errorMessage);
-      this.toastr.error(`Failed to ${operationType.toLowerCase()}: ` + result.errorMessage, 'Error');
+      console.error(`[NodeOperationsService] ❌ ${operationType} failed:`, result);
+      this.toastr.error(`Failed to ${operationType.toLowerCase()}: Unexpected response format`, 'Error');
     }
   }
 
@@ -285,5 +337,15 @@ export class NodeOperationsService {
     console.error(`[NodeOperationsService] ${operation} error:`, err);
     this.toastr.error(`Failed to ${operation}: ` + err.message, 'Error');
     return of(false);
+  }
+
+  /**
+   * Determine the entity type of a sibling for relative positioning
+   * For now, simplified approach - would need tree context to determine exact type
+   */
+  private determineRelativeToType(siblingId: number): 'SubTopic' | 'Lesson' {
+    // ✅ TEMPORARY: Return 'Lesson' as default since most positioning is relative to lessons
+    // TODO: Enhance this to query the tree data structure to determine actual entity type
+    return 'Lesson';
   }
 }

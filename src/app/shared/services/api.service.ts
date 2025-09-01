@@ -217,6 +217,14 @@ export class ApiService {
       position?: 'before' | 'after',
       relativeToType?: 'SubTopic' | 'Lesson'
     ): Observable<any> {
+      console.log('[ApiService] moveSubTopic called with parameters:', {
+        subTopicId,
+        newTopicId,
+        relativeToId,
+        position,
+        relativeToType
+      });
+
       // ✅ NEW: Construct resource object matching API expectations
       const moveResource: SubTopicMoveResource = {
         subTopicId,

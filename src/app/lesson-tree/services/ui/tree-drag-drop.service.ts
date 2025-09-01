@@ -122,7 +122,7 @@ export class TreeDragDropService {
       case 'SubTopic':
         return this.handleSubTopicDrop(draggedNode, targetNode, dropPosition);
       case 'Topic':
-        return this.handleTopicDrop(draggedNode, targetNode, dropPosition, courseId);
+        return this.handleTopicDrop(draggedNode, targetNode, dropPosition);
       default:
         console.warn('[TreeDragDropService] Unsupported node type for drag operation:', draggedEntityType);
         return null;
@@ -203,14 +203,44 @@ export class TreeDragDropService {
       if (targetEntityType === 'SubTopic') {
         const targetSubTopic = targetNode.original as SubTopic;
         console.log(`[TreeDragDropService] SubTopic positioning in Topic ${targetSubTopic.topicId}, after sibling ${afterSiblingId}`);
-        return this.performSubTopicMove(subTopic, targetSubTopic.topicId, afterSiblingId);
+        console.log(`[TreeDragDropService] 📋 SUBTOPIC MOVE PARAMETERS:`, {
+          'subTopic.id': subTopic.id,
+          'targetTopicId': targetSubTopic.topicId,
+          'afterSiblingId': afterSiblingId,
+          'afterSiblingId type': typeof afterSiblingId,
+          'dropPosition': dropPosition,
+          'dropPosition type': typeof dropPosition,
+          'targetEntityType': targetEntityType
+        });
+        console.log(`[TreeDragDropService] 🚀 CALLING performSubTopicMove WITH:`, {
+          'subTopic': 'SubTopic object',
+          'targetTopicId': targetSubTopic.topicId,
+          'afterSiblingId': afterSiblingId,
+          'dropPosition': dropPosition
+        });
+        return this.performSubTopicMove(subTopic, targetSubTopic.topicId, afterSiblingId, dropPosition);
       }
 
       if (targetEntityType === 'Lesson') {
         const targetLesson = targetNode.original as Lesson;
         if (targetLesson.topicId) {
           console.log(`[TreeDragDropService] SubTopic positioning in Topic ${targetLesson.topicId}, after Lesson ${afterSiblingId}`);
-          return this.performSubTopicMove(subTopic, targetLesson.topicId, afterSiblingId);
+          console.log(`[TreeDragDropService] 📋 SUBTOPIC MOVE TO LESSON PARAMETERS:`, {
+            'subTopic.id': subTopic.id,
+            'targetLesson.topicId': targetLesson.topicId,
+            'afterSiblingId': afterSiblingId,
+            'afterSiblingId type': typeof afterSiblingId,
+            'dropPosition': dropPosition,
+            'dropPosition type': typeof dropPosition,
+            'targetEntityType': targetEntityType
+          });
+          console.log(`[TreeDragDropService] 🚀 CALLING performSubTopicMove (LESSON TARGET) WITH:`, {
+            'subTopic': 'SubTopic object',
+            'targetTopicId': targetLesson.topicId,
+            'afterSiblingId': afterSiblingId,
+            'dropPosition': dropPosition
+          });
+          return this.performSubTopicMove(subTopic, targetLesson.topicId, afterSiblingId, dropPosition);
         }
       }
     }
@@ -223,8 +253,7 @@ export class TreeDragDropService {
   private handleTopicDrop(
     draggedNode: TreeNode,
     targetNode: TreeNode,
-    dropPosition: string,
-    courseId: number
+    dropPosition: string
   ): Observable<any> | null {
     const topic = draggedNode.original as Topic;
     const targetEntityType = targetNode.entityType || 'Unknown';
@@ -248,16 +277,33 @@ export class TreeDragDropService {
     return null;
   }
 
-  // ✅ NEW: Calculate which sibling to position after based on drop position
+  // ✅ FIXED: Calculate which sibling to position after based on drop position
   private calculateAfterSiblingId(targetNode: TreeNode, dropPosition: string): number | null {
+    console.log(`[TreeDragDropService] 🔍 calculateAfterSiblingId INPUT:`, {
+      'targetNode.id': targetNode.id,
+      'targetNode.id type': typeof targetNode.id,
+      'dropPosition': dropPosition,
+      'dropPosition type': typeof dropPosition,
+      'nodeEntityType': targetNode.entityType,
+      'parseInt(targetNode.id)': parseInt(targetNode.id)
+    });
+
     if (dropPosition === 'After') {
       // Position after the target node
-      return parseInt(targetNode.id);
+      // ✅ FIX: Extract numeric part from node ID like 'lesson_41' -> 41
+      const result = parseInt(targetNode.id.split('_')[1]);
+      console.log(`[TreeDragDropService] 🎯 After positioning: returning ${result} (${typeof result}) from nodeId '${targetNode.id}'`);
+      return result;
     } else if (dropPosition === 'Before') {
-      // Position after the previous sibling (or null if target is first)
-      // For now, simplified: Before = position as first item
-      return null;
+      // ✅ For "Before" positioning, we need to position after the previous sibling
+      // But we don't have easy access to previous sibling, so we'll use a different approach
+      // We'll pass the target node ID and use 'before' position in the API call
+      // ✅ FIX: Extract numeric part from node ID like 'lesson_41' -> 41
+      const result = parseInt(targetNode.id.split('_')[1]);
+      console.log(`[TreeDragDropService] 🎯 Before positioning: returning ${result} (${typeof result}) from nodeId '${targetNode.id}' - will use position='before'`);
+      return result;
     }
+    console.log(`[TreeDragDropService] ❓ Unknown drop position '${dropPosition}': returning null`);
     return null;
   }
 
@@ -290,7 +336,8 @@ export class TreeDragDropService {
   private performSubTopicMove(
     subTopic: SubTopic,
     targetTopicId: number,
-    afterSiblingId: number | null
+    afterSiblingId: number | null,
+    dropPosition?: string
   ): Observable<any> {
     const subTopicTreeData = createTreeData(subTopic);
 
@@ -302,7 +349,7 @@ export class TreeDragDropService {
       targetParentType: 'Topic'
     };
 
-    return this.nodeOperationsService.performSubTopicMove(event, targetTopicId, afterSiblingId);
+    return this.nodeOperationsService.performSubTopicMove(event, targetTopicId, afterSiblingId, dropPosition);
   }
 
   // ✅ SIMPLIFIED: Perform Topic move
