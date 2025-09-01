@@ -8,7 +8,10 @@
         "watch": "ng build --watch --configuration development",
         "test": "ng test",
         "test:e2e": "playwright test",
-        "test:e2e:ui": "playwright test --ui"
+        "test:e2e:ui": "playwright test --ui",
+        "cypress:open": "cypress open",
+        "cypress:run": "cypress run",
+        "cypress:run:headless": "cypress run --headless"
     },
     "private": true,
     "dependencies": {
@@ -43,6 +46,7 @@
         "@playwright/test": "^1.52.0",
         "@types/date-fns": "^2.6.3",
         "@types/jasmine": "~5.1.0",
+        "cypress": "^15.0.0",
         "jasmine-core": "~5.2.0",
         "karma": "~6.4.0",
         "karma-chrome-launcher": "~3.2.0",
