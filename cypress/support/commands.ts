@@ -22,79 +22,39 @@ declare global {
   }
 }
 
-// Custom command for login - bypasses form and uses direct API authentication
-Cypress.Commands.add('login', (email: string, password: string) => {
-  cy.log('🔑 Performing direct API authentication (bypassing Angular form)')
+// Custom command for login - uses form-based authentication like a real user
+Cypress.Commands.add('login', (username: string, password: string) => {
+  cy.log('🔑 Performing form-based authentication (clicking login button like a user)')
   
   // Clear any existing session data
   cy.clearAllCookies()
   cy.clearAllSessionStorage()
   cy.clearAllLocalStorage()
   
-  // Perform direct API authentication
-  cy.request({
-    method: 'POST',
-    url: 'http://localhost:5046/account/login',
-    body: {
-      username: email,  // API expects 'username', not 'email'
-      password: password
-    },
-    failOnStatusCode: false
-  }).then((response) => {
-    cy.log(`API login response: ${response.status}`)
-    
-    if (response.status === 200 && response.body.token) {
-      cy.log('✅ API authentication successful')
-      
-      // Visit the app first to establish the domain
-      cy.visit('/')
-      
-      // Store the JWT token in localStorage and clear any existing tokens
-      cy.window().then((win) => {
-        // First clear any existing authentication data
-        win.localStorage.clear()
-        win.sessionStorage.clear()
-        
-        // Now store the new token
-        win.localStorage.setItem('token', response.body.token)
-        win.localStorage.setItem('authToken', response.body.token)
-        cy.log(`Token stored: ${response.body.token.substring(0, 50)}...`)
-        
-        // CRITICAL: Trigger Angular AuthService to reinitialize with the new token
-        if (win.angular && win.angular.getContext) {
-          try {
-            // Try to get Angular context and trigger a reinit
-            const context = win.angular.getContext(win.document.body)
-            if (context && context.injector) {
-              const authService = context.injector.get('AuthService')
-              if (authService && authService.ngOnInit) {
-                authService.ngOnInit() // Trigger reinit
-              }
-            }
-          } catch (e) {
-            cy.log('Could not trigger Angular AuthService reinit, will reload instead')
-          }
-        }
-      })
-      
-      // Store token in Cypress environment for later use
-      Cypress.env('authToken', response.body.token)
-      
-      // Also try setting as cookie if the app expects it
-      cy.setCookie('authToken', response.body.token)
-      
-      // CRITICAL: Force reload to ensure Angular picks up the new token
-      cy.reload(true)
-      cy.wait(3000) // Wait longer for full Angular reinit
-      
-      cy.log('✅ Authentication completed - tokens stored and page reloaded')
-      
-    } else {
-      cy.log(`❌ API authentication failed with status: ${response.status}`)
-      cy.log(`Response body: ${JSON.stringify(response.body)}`)
-      throw new Error(`Login failed: ${response.status}`)
-    }
-  })
+  // Visit the login page
+  cy.visit('/')
+  
+  // Wait for the login form to be visible
+  cy.get('form').should('be.visible')
+  cy.get('input[formcontrolname="username"]').should('be.visible')
+  cy.get('input[formcontrolname="password"]').should('be.visible')
+  
+  // Fill in the form fields
+  cy.get('input[formcontrolname="username"]').clear().type(username)
+  cy.get('input[formcontrolname="password"]').clear().type(password)
+  
+  // Click the login button - this triggers Angular's natural authentication flow
+  cy.get('button[type="submit"]').should('not.be.disabled').click()
+  
+  // Wait for authentication to complete - look for redirect or URL change
+  cy.url({ timeout: 10000 }).should('not.include', '/')
+  
+  // Alternative: wait for successful navigation away from login page
+  cy.get('body').should('not.contain', 'Welcome to LessonTree')
+  
+  cy.log('✅ Form-based authentication successful - navigated away from login')
+  
+  cy.log('✅ Authentication completed using form submission')
 })
 
 // Custom command to reseed database via API
