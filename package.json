@@ -11,7 +11,22 @@
         "test:e2e:ui": "playwright test --ui",
         "cypress:open": "cypress open",
         "cypress:run": "cypress run",
-        "cypress:run:headless": "cypress run --headless"
+        "cypress:run:headless": "cypress run --headless",
+        "test:auth": "node cypress/scripts/run-tests.js auth",
+        "test:auth:headless": "node cypress/scripts/run-tests.js auth --headless",
+        "test:navigation": "node cypress/scripts/run-tests.js navigation",
+        "test:navigation:headless": "node cypress/scripts/run-tests.js navigation --headless",
+        "test:crud": "node cypress/scripts/run-tests.js crud",
+        "test:crud:headless": "node cypress/scripts/run-tests.js crud --headless",
+        "test:dragdrop": "node cypress/scripts/run-tests.js dragdrop",
+        "test:dragdrop:headless": "node cypress/scripts/run-tests.js dragdrop --headless",
+        "test:legacy": "node cypress/scripts/run-tests.js legacy",
+        "test:legacy:headless": "node cypress/scripts/run-tests.js legacy --headless",
+        "test:all": "node cypress/scripts/run-tests.js all",
+        "test:all:headless": "node cypress/scripts/run-tests.js all --headless",
+        "test:master": "npx cypress run --spec 'cypress/e2e/00-master-suite.cy.ts'",
+        "test:master:headless": "npx cypress run --spec 'cypress/e2e/00-master-suite.cy.ts' --headless",
+        "test:help": "node cypress/scripts/run-tests.js --help"
     },
     "private": true,
     "dependencies": {

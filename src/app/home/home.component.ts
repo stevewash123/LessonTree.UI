@@ -47,6 +47,7 @@ import {DragMode} from '../lesson-tree/services/state/node-drag-mode.service';
 })
 export class HomeComponent implements AfterViewInit {
     @ViewChild('toolbar') toolbar!: ElementRef;
+    @ViewChild('navMenu') navMenu: any;
     toolbarHeight: number | undefined;
 
     private dialog = inject(MatDialog);
@@ -164,5 +165,11 @@ export class HomeComponent implements AfterViewInit {
 
     logout() {
         this.authService.logout();
+    }
+
+    closeNavMenu() {
+        if (this.navMenu) {
+            this.navMenu.closed.emit();
+        }
     }
 }

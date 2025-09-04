@@ -28,10 +28,10 @@
     </button>
     
     <mat-menu #navMenu="matMenu">
-      <button mat-menu-item routerLink="/home/courses">CoursesXXX</button>
-      <button mat-menu-item routerLink="/home/lessons">Lessons</button>
+      <button mat-menu-item routerLink="/home/courses" (click)="closeNavMenu()">CoursesXXX</button>
+      <button mat-menu-item routerLink="/home/lessons" (click)="closeNavMenu()">Lessons</button>
       @if (authService.hasRole('Admin')) {
-        <button mat-menu-item routerLink="/home/account">Account</button>
+        <button mat-menu-item routerLink="/home/account" (click)="closeNavMenu()">Account</button>
       }
     </mat-menu>
     
