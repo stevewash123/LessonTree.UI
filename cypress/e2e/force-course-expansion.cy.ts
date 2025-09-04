@@ -24,10 +24,12 @@ describe('Force Course Expansion', () => {
     // Wait for courses to load
     cy.get('.course-card', { timeout: 10000 }).should('exist')
 
-    // STEP 1: Expand Course 1
-    cy.get('.course-card').first().within(() => {
-      cy.get('.e-icons.e-icon-expandable.interaction').first().should('be.visible').click()
+    // STEP 1: Expand Course 1 (use aliasing to prevent re-render issues)
+    cy.get('.course-card').first().as('firstCourse')
+    cy.get('@firstCourse').within(() => {
+      cy.get('.e-icons.e-icon-expandable.interaction').first().as('courseExpandIcon')
     })
+    cy.get('@courseExpandIcon').should('be.visible').should('have.length', 1).click()
     cy.wait(1000)
     cy.screenshot('step1-course-expanded')
 
@@ -35,43 +37,36 @@ describe('Force Course Expansion', () => {
     cy.contains('Course 1 - Topic 1').should('be.visible')
     cy.contains('Course 1 - Topic 2').should('be.visible')
 
-    // STEP 2: Expand Topic 1 (should show subtopics and lessons)
-    // Try different approaches to find and click Topic 1's expand icon
-    cy.get('body').then(($body) => {
-      // Look for Topic 1 expand icon using various selectors
-      const topicExpandSelectors = [
-        'Course 1 - Topic 1',
-        'Topic 1 for course 1'
-      ]
-      
-      let clicked = false
-      
-      topicExpandSelectors.forEach(topicText => {
-        if (!clicked && $body.text().includes(topicText)) {
-          // Find the element containing this text and look for nearby expand icons
-          cy.contains(topicText).closest('li, .e-list-item, .e-node').within(() => {
-            cy.get('.e-icons.e-icon-expandable.interaction').first().click({ force: true })
-          })
-          clicked = true
-        }
-      })
-      
-      if (!clicked) {
-        // Alternative: just click any remaining expand icons after course expansion
-        cy.get('.e-icons.e-icon-expandable.interaction').eq(1).click({ force: true })
+    // STEP 2: Expand Topic 1 (use aliasing and wait for stability)
+    cy.wait(2000) // Extra wait for DOM to stabilize after course expansion
+    
+    // Try to find Topic 1's expand icon using aliasing
+    cy.contains('Course 1 - Topic 1').as('topic1')
+    cy.get('@topic1').closest('li, .e-list-item, .e-node').as('topic1Container')
+    cy.get('@topic1Container').within(() => {
+      cy.get('.e-icons.e-icon-expandable.interaction').as('topic1ExpandIcon')
+    })
+    
+    // Use force click and retry logic
+    cy.get('@topic1ExpandIcon').then(($icon) => {
+      if ($icon.length === 1) {
+        cy.get('@topic1ExpandIcon').click({ force: true })
+      } else {
+        // Fallback: click any remaining expand icons with explicit first()
+        cy.get('.e-icons.e-icon-expandable.interaction').first().click({ force: true })
       }
     })
     cy.wait(1000) 
     cy.screenshot('step2-topic1-expanded')
 
-    // STEP 3: Try to expand any remaining SubTopics if they exist
-    cy.get('body').then(($body) => {
-      // Try to find any remaining expandable icons (these might be SubTopics)
-      const remainingExpandIcons = $body.find('.e-icons.e-icon-expandable.interaction')
-      
-      if (remainingExpandIcons.length > 0) {
-        cy.log(`Found ${remainingExpandIcons.length} remaining expandable icons - clicking the first one`)
-        cy.get('.e-icons.e-icon-expandable.interaction').first().click({ force: true })
+    // STEP 3: Try to expand any remaining SubTopics if they exist (with aliasing)
+    cy.wait(2000) // Wait for DOM stabilization after topic expansion
+    
+    cy.get('.e-icons.e-icon-expandable.interaction').then(($icons) => {
+      if ($icons.length > 0) {
+        cy.log(`Found ${$icons.length} remaining expandable icons - clicking the first one`)
+        cy.get('.e-icons.e-icon-expandable.interaction').first().as('subtopicExpandIcon')
+        cy.get('@subtopicExpandIcon').click({ force: true })
         cy.wait(1000)
         cy.screenshot('step3-subtopic-expanded')
       } else {
