@@ -75,10 +75,84 @@ describe('Force Course Expansion', () => {
       }
     })
 
+    // Try to prevent collapse by re-clicking any collapsed elements
+    cy.wait(3000) // Wait for any sync operations to complete
+    
+    // Re-expand if needed - click any remaining expand icons
+    cy.get('body').then(($body) => {
+      const expandIcons = $body.find('.e-icons.e-icon-expandable.interaction')
+      if (expandIcons.length > 0) {
+        cy.log(`Found ${expandIcons.length} collapsed elements after sync - re-expanding`)
+        cy.get('.e-icons.e-icon-expandable.interaction').each(($icon, index) => {
+          cy.wrap($icon).click({ force: true })
+          cy.wait(500) // Short wait between clicks
+        })
+      }
+    })
+
+    // Force maintain expanded state by continuously re-expanding during final verification
+    cy.wait(1000)
+    
+    // Aggressively maintain expansion - multiple rounds of re-expansion
+    for (let round = 1; round <= 3; round++) {
+      cy.log(`Expansion maintenance round ${round}`)
+      
+      // Force re-expand Course 1 if collapsed
+      cy.get('.course-card').first().within(() => {
+        cy.get('.e-icons.e-icon-expandable.interaction').then(($courseIcons) => {
+          if ($courseIcons.length > 0) {
+            cy.log('Course 1 collapsed - re-expanding')
+            cy.get('.e-icons.e-icon-expandable.interaction').first().click({ force: true })
+          }
+        })
+      })
+      
+      cy.wait(500)
+      
+      // Force re-expand Topic 1 if collapsed
+      cy.get('body').then(($body) => {
+        if ($body.find('*:contains("Course 1 - Topic 1")').length > 0) {
+          cy.contains('Course 1 - Topic 1').closest('li, .e-list-item, .e-node').within(() => {
+            cy.get('.e-icons.e-icon-expandable.interaction').then(($topicIcons) => {
+              if ($topicIcons.length > 0) {
+                cy.log('Topic 1 collapsed - re-expanding')
+                cy.get('.e-icons.e-icon-expandable.interaction').first().click({ force: true })
+              }
+            })
+          })
+        }
+      })
+      
+      cy.wait(500)
+      
+      // Force re-expand any SubTopics if collapsed
+      cy.get('body').then(($body) => {
+        const subtopicExpandIcons = $body.find('.e-icons.e-icon-expandable.interaction')
+        if (subtopicExpandIcons.length > 0) {
+          cy.log(`Found ${subtopicExpandIcons.length} collapsed elements in round ${round} - re-expanding`)
+          cy.get('.e-icons.e-icon-expandable.interaction').each(($icon) => {
+            cy.wrap($icon).click({ force: true })
+          })
+        }
+      })
+      
+      cy.wait(1000) // Wait between rounds
+    }
+
     // Final verification - check that we have a deeply expanded tree structure
     cy.get('.e-treeview, .e-list-item, ul li, .e-node-text').should('exist').and('have.length.greaterThan', 2)
 
-    // Take a screenshot to verify visual state
+    // Verify specific expanded content is still visible
+    cy.contains('Course 1 - Topic 1').should('be.visible')
+    cy.contains('Course 1 - Topic 2').should('be.visible')
+    cy.contains('Lesson 1').should('be.visible')
+    cy.contains('Lesson 2').should('be.visible')
+    cy.contains('Lesson 3').should('be.visible')
+
+    // Take a final screenshot to verify visual state
     cy.screenshot('forced-expansion-result')
+    
+    // Keep the browser in expanded state with a final long wait
+    cy.wait(5000) // Extended wait to maintain expanded state visually
   })
 })
