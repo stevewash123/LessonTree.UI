@@ -41,6 +41,7 @@ import { ScheduleConfigurationStateService } from '../services/state/schedule-co
 // Other services
 import { EntitySelectionService } from '../../lesson-tree/services/state/entity-selection.service';
 import { UserService } from '../../user-config/user.service';
+import { LayoutModeService } from '../../lesson-tree-container/layout-mode.service';
 
 // Plugins
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -92,6 +93,9 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
 
   // Subscriptions
   private subscriptions = new Subscription();
+  
+  // Calendar initialization flag to distinguish setup vs user navigation
+  private isCalendarInitialized = false;
 
   // === COMPUTED SIGNALS (Clean and Simple) ===
 
@@ -168,6 +172,7 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     // Other services
     private contextMenuService: ContextMenuCoordinationService,
     private userService: UserService,
+    private layoutModeService: LayoutModeService,
     private apiService: ApiService,
     private dialog: MatDialog,
     private changeDetectorRef: ChangeDetectorRef
@@ -217,7 +222,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
       this.handleEventClick.bind(this),
       this.handleEventContextMenu.bind(this),
       this.handleEventDrop.bind(this),
-      this.handleCalendarNavigation.bind(this) // NEW: Navigation callback
+      this.handleCalendarNavigation.bind(this), // NEW: Navigation callback
+      undefined // initialDate will be set later during initialization
     );
 
     this.calendarOptions = {
@@ -293,6 +299,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
 
     // Start the complete initialization workflow
     this.startCalendarInitialization();
+    
+    // Removed over-engineered navigation detection
   }
 
   ngOnDestroy(): void {
@@ -300,6 +308,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     this.subscriptions.unsubscribe();
     this.contextMenuService.clearContext();
     this.calendarConfigService.cleanup();
+    
+    // Removed over-engineered navigation detection cleanup
   }
 
   // === INITIALIZATION WORKFLOW ===
@@ -335,6 +345,10 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
   private startCalendarInitialization(): void {
     console.log('[LessonCalendarComponent] 🚀 Starting calendar initialization workflow');
 
+    // Reset initialization flag
+    this.isCalendarInitialized = false;
+    console.log('[LessonCalendarComponent] 🔄 Reset initialization flag - navigation callbacks will be ignored during setup');
+
     this.subscriptions.add(
       this.calendarInitializationService.initializeCalendar().subscribe({
         next: (result) => {
@@ -348,6 +362,10 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
               eventCount: result.eventCount,
               activeDate: result.activeDate?.toDateString()
             });
+            
+            // Mark calendar as fully initialized (navigation callbacks are now user-initiated)
+            this.isCalendarInitialized = true;
+            console.log('[LessonCalendarComponent] 🏁 Calendar initialization complete - user navigation now enabled');
           } else {
             console.warn('[LessonCalendarComponent] ⚠️ Calendar initialization failed:', result.error);
           }
@@ -363,13 +381,27 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
 
   /**
    * NEW: Handle calendar navigation (when user clicks < > buttons)
+   * Updated to use LayoutModeService directly for date preservation
    */
   handleCalendarNavigation(dateInfo: { start: Date; end: Date; view: any }): void {
     console.log('[LessonCalendarComponent] 🧭 Calendar navigation detected:', {
       start: dateInfo.start.toDateString(),
       end: dateInfo.end.toDateString(),
-      view: dateInfo.view.type
+      view: dateInfo.view.type,
+      isInitialized: this.isCalendarInitialized
     });
+
+    // Calculate week center for potential storage
+    const weekCenter = new Date(dateInfo.start);
+    weekCenter.setDate(weekCenter.getDate() + 3); // Move to middle of week (Wednesday)
+    
+    // Only store navigation dates after calendar initialization is complete
+    if (this.isCalendarInitialized) {
+      this.layoutModeService.setCurrentCalendarDate(weekCenter);
+      console.log('[LessonCalendarComponent] 📅 ✅ User navigation - stored calendar date:', weekCenter.toDateString());
+    } else {
+      console.log('[LessonCalendarComponent] 📅 ⏳ Initialization navigation - NOT storing date:', weekCenter.toDateString());
+    }
 
     // Get current schedule ID from state
     const currentSchedule = this.scheduleStateService.selectedSchedule();
@@ -444,7 +476,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     
     // For now, just refresh to test the UI flow
     console.log('[LessonCalendarComponent] ✅ Lesson move detected successfully - refreshing calendar');
-    this.calendarRefreshService.requestCurrentViewRefresh('lesson-moved');
+    // TODO: Get courseId from moveEvent when calendar drag-drop provides it
+    this.calendarRefreshService.refreshCalendar();
   }
 
   handleEventContextMenu(eventInfo: any, jsEvent: MouseEvent): void {
@@ -567,40 +600,43 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     );
   }
   private handleRefreshNotification(refreshEvent: any): void {
+    console.log('[LessonCalendarComponent] 🔄 ===== REFRESH NOTIFICATION HANDLER START =====');
     console.log('[LessonCalendarComponent] 🔄 Processing refresh event:', {
-      reason: refreshEvent.reason,
       scope: refreshEvent.scope,
-      scheduleId: refreshEvent.scheduleId
+      courseId: refreshEvent.courseId,
+      reason: refreshEvent.reason,
+      timestamp: refreshEvent.timestamp
     });
 
     switch (refreshEvent.scope) {
       case 'full':
         // Full calendar reinitialize (configuration changes)
         console.log('[LessonCalendarComponent] 🔄 Full refresh - reinitializing calendar');
+        // Note: startCalendarInitialization() will reset the isCalendarInitialized flag
         this.startCalendarInitialization();
         break;
 
-      case 'current-view':
-        // Reload current month/week events
-        console.log('[LessonCalendarComponent] 🔄 Current view refresh - reloading events');
-        this.refreshCurrentViewEvents();
-        break;
-
-      case 'events-only':
-        // Just reload events without changing calendar position
-        console.log('[LessonCalendarComponent] 🔄 Events only refresh');
-        this.refreshCurrentViewEvents();
+      case 'course-specific':
+        // Reload events for specific course - PRESERVE current view date
+        console.log('[LessonCalendarComponent] 🔄 Course-specific refresh - preserving current view for course:', refreshEvent.courseId);
+        console.log('[LessonCalendarComponent] 🔄 Calling refreshCurrentViewEvents to preserve calendar position');
+        this.refreshCurrentViewEvents(refreshEvent.courseId);
         break;
 
       default:
         console.warn('[LessonCalendarComponent] ⚠️ Unknown refresh scope:', refreshEvent.scope);
-        // Default to current view refresh
+        // Default to preserving current view
+        console.log('[LessonCalendarComponent] 🔄 Default refresh - preserving current view');
         this.refreshCurrentViewEvents();
     }
+
+    console.log('[LessonCalendarComponent] 🔄 ===== REFRESH NOTIFICATION HANDLER END =====');
   }
 
   
-  private refreshCurrentViewEvents(): void {
+  private refreshCurrentViewEvents(courseId?: number): void {
+    console.log('[LessonCalendarComponent] 🔄 === REFRESH CURRENT VIEW DEBUG START ===');
+    
     const currentSchedule = this.scheduleStateService.selectedSchedule();
 
     if (!currentSchedule?.id) {
@@ -608,15 +644,42 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
       return;
     }
 
-    // Get current calendar date to determine what events to reload
-    const calendarApi = this.calendar?.getApi();
-    if (!calendarApi) {
-      console.warn('[LessonCalendarComponent] ⚠️ Calendar API not available for refresh');
-      return;
+    // FIXED: Preserve current calendar view date instead of recalculating
+    let currentDate = this.calendarDateService.getCurrentCalendarDate();
+    
+    if (!currentDate) {
+      console.warn('[LessonCalendarComponent] ⚠️ Could not get current calendar date, falling back to schedule logic');
+      
+      // Fallback to schedule-based calculation only if we can't get the current view
+      const scheduleConfig = this.scheduleConfigurationStateService.activeConfiguration();
+      if (!scheduleConfig) {
+        console.warn('[LessonCalendarComponent] ⚠️ No schedule configuration available for refresh');
+        return;
+      }
+      
+      const today = new Date();
+      const scheduleStart = new Date(scheduleConfig.startDate);
+      const scheduleEnd = new Date(scheduleConfig.endDate);
+      
+      if (today >= scheduleStart && today <= scheduleEnd) {
+        currentDate = today;
+        console.log('[LessonCalendarComponent] 📅 Fallback: Using TODAY (within schedule range)');
+      } else {
+        currentDate = scheduleStart;
+        console.log('[LessonCalendarComponent] 📅 Fallback: Using SCHEDULE START (outside range)');
+      }
+    } else {
+      console.log('[LessonCalendarComponent] ✅ Using CURRENT CALENDAR VIEW date:', currentDate.toDateString());
     }
 
-    const currentDate = calendarApi.getDate();
-    console.log('[LessonCalendarComponent] 🔄 Refreshing events for current date:', currentDate.toDateString());
+    console.log('[LessonCalendarComponent] 🔍 === REFRESH PRESERVING CURRENT VIEW ===');
+    console.log('[LessonCalendarComponent] 📅 Refresh will use current view date:', {
+      currentViewDate: currentDate.toDateString(),
+      scheduleId: currentSchedule?.id,
+      preservingUserPosition: true
+    });
+
+    console.log('[LessonCalendarComponent] 🔄 Refreshing events for current view date:', currentDate.toDateString());
 
     // FIXED: Load fresh events for current VIEW (week) instead of always loading month
     // TODO: When month view is added, get actual view mode from service
@@ -626,7 +689,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
       this.calendarEventLoaderService.loadEventsForCurrentView(
         currentSchedule.id,
         currentDate,
-        currentViewMode
+        currentViewMode,
+        courseId
       ).subscribe({
         next: (events) => {
           console.log('[LessonCalendarComponent] ✅ Fresh events loaded:', {
@@ -649,6 +713,8 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
     );
   }
 
+  // Removed over-engineered navigation detection system
+
   // === COMPUTED PROPERTIES FOR TEMPLATE ===
 
   readonly canGenerateReports = computed(() => {
@@ -662,5 +728,70 @@ export class LessonCalendarComponent implements OnInit, OnDestroy, AfterViewInit
 
   generateWeekReport(): void {
     console.log('[LessonCalendarComponent] 📊 Generate week report');
+  }
+
+  /**
+   * FIXED: Load events directly using current calendar week (preserves user position)
+   */
+  private loadEventsDirectlyWithCurrentWeek(courseId?: number): void {
+    console.log('[LessonCalendarComponent] 🔄 === DIRECT CURRENT WEEK LOAD DEBUG START ===');
+    
+    const currentSchedule = this.scheduleStateService.selectedSchedule();
+    if (!currentSchedule?.id) {
+      console.warn('[LessonCalendarComponent] ⚠️ No schedule available for direct load');
+      return;
+    }
+
+    // FIXED: Use current calendar date instead of today's date
+    let currentDate = this.calendarDateService.getCurrentCalendarDate();
+    
+    if (!currentDate) {
+      console.warn('[LessonCalendarComponent] ⚠️ Could not get current calendar date, using today');
+      currentDate = new Date();
+    }
+
+    // Get current week based on calendar's current date (preserves user navigation)
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Sunday
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6); // Saturday
+    
+    console.log('[LessonCalendarComponent] 📅 Direct week calculation (preserving calendar position):', {
+      calendarCurrentDate: currentDate.toDateString(),
+      startOfWeek: startOfWeek.toDateString(),
+      endOfWeek: endOfWeek.toDateString(),
+      scheduleId: currentSchedule?.id,
+      courseId: courseId || 'all courses',
+      preservingUserPosition: true
+    });
+
+    // Load events for current week directly
+    this.subscriptions.add(
+      this.calendarEventLoaderService.loadEventsForDateRange(
+        currentSchedule.id,
+        { start: startOfWeek, end: endOfWeek },
+        courseId
+      ).subscribe({
+        next: (result) => {
+          console.log('[LessonCalendarComponent] ✅ Direct week events loaded:', {
+            eventCount: result.events.length,
+            dateRange: {
+              start: result.dateRange.start.toDateString(),
+              end: result.dateRange.end.toDateString()
+            },
+            courseFilter: courseId || 'all'
+          });
+
+          // Update calendar display with new events
+          const displayResult = this.calendarDisplayService.updateCalendarEvents(result.events);
+          if (!displayResult.success) {
+            console.error('[LessonCalendarComponent] ❌ Failed to display direct week events:', displayResult.error);
+          }
+        },
+        error: (error) => {
+          console.error('[LessonCalendarComponent] ❌ Direct week event loading failed:', error);
+        }
+      })
+    );
   }
 }

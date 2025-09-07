@@ -13,6 +13,7 @@ import { Entity, EntityType } from '../../../models/entity';
 import { TreeNode } from '../../../models/tree-node';
 import { OperationMetadata } from '../course-data/course-data.service';
 import { CourseCrudService } from '../course-operations/course-crud.service';
+import { CalendarRefreshService } from '../../../calendar/services/integration/calendar-refresh.service';
 import { treeNodeToEntity, isCourse, isTopic, isSubTopic, isLesson, castToEntityType, generateNodeIdFromEntity } from '../../../shared/utils/type-conversion.utils';
 import {EntitySelectionService} from '../state/entity-selection.service';
 import {TreeNodeBuilderService} from '../ui/tree-node-builder.service';
@@ -45,7 +46,8 @@ export class TreeNodeActionsService {
     private nodeSelectionService: EntitySelectionService,
     private panelStateService: PanelStateService,
     private courseCrudService: CourseCrudService,
-    private treeNodeBuilderService: TreeNodeBuilderService
+    private treeNodeBuilderService: TreeNodeBuilderService,
+    private calendarRefreshService: CalendarRefreshService
   ) {
     console.log('[TreeNodeActionsService] Service initialized for node action coordination with Entity architecture');
   }
@@ -340,20 +342,56 @@ export class TreeNodeActionsService {
       parentNodeId: (node as any)['parentId'] || 'unknown'
     };
 
-    // Call appropriate business service for deletion
+    // Call appropriate business service for deletion with calendar refresh
     try {
       switch (entity.entityType) {
         case 'Course':
-          this.courseCrudService.deleteCourse(entityId).subscribe();
+          this.courseCrudService.deleteCourse(entityId).subscribe({
+            next: () => {
+              console.log(`[TreeNodeActionsService] ✅ Course deleted successfully: ${entityId}`);
+              // Course deletion affects all schedules, trigger full refresh
+              this.calendarRefreshService.refreshCalendar();
+            },
+            error: (error) => {
+              console.error(`[TreeNodeActionsService] ❌ Failed to delete course ${entityId}:`, error);
+            }
+          });
           break;
         case 'Topic':
-          this.courseCrudService.deleteTopic(entityId).subscribe();
+          this.courseCrudService.deleteTopic(entityId).subscribe({
+            next: () => {
+              console.log(`[TreeNodeActionsService] ✅ Topic deleted successfully: ${entityId}`);
+              // Topic deletion affects course schedule, trigger course-specific refresh
+              this.calendarRefreshService.refreshCalendarForCourse(courseId);
+            },
+            error: (error) => {
+              console.error(`[TreeNodeActionsService] ❌ Failed to delete topic ${entityId}:`, error);
+            }
+          });
           break;
         case 'SubTopic':
-          this.courseCrudService.deleteSubTopic(entityId).subscribe();
+          this.courseCrudService.deleteSubTopic(entityId).subscribe({
+            next: () => {
+              console.log(`[TreeNodeActionsService] ✅ SubTopic deleted successfully: ${entityId}`);
+              // SubTopic deletion affects course schedule, trigger course-specific refresh  
+              this.calendarRefreshService.refreshCalendarForCourse(courseId);
+            },
+            error: (error) => {
+              console.error(`[TreeNodeActionsService] ❌ Failed to delete subtopic ${entityId}:`, error);
+            }
+          });
           break;
         case 'Lesson':
-          this.courseCrudService.deleteLesson(entityId).subscribe();
+          this.courseCrudService.deleteLesson(entityId).subscribe({
+            next: () => {
+              console.log(`[TreeNodeActionsService] ✅ Lesson deleted successfully: ${entityId}`);
+              // Lesson deletion affects course schedule, trigger course-specific refresh
+              this.calendarRefreshService.refreshCalendarForCourse(courseId);
+            },
+            error: (error) => {
+              console.error(`[TreeNodeActionsService] ❌ Failed to delete lesson ${entityId}:`, error);
+            }
+          });
           break;
         default:
           throw new Error(`Unsupported node type for deletion: ${entity.entityType}`);
