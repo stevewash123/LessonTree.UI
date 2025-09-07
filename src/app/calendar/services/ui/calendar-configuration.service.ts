@@ -73,13 +73,25 @@ export class CalendarConfigurationService {
     handleEventClick: (arg: any) => void,
     handleEventContextMenu: (eventInfo: any, jsEvent: MouseEvent) => void,
     handleEventDrop: (arg: any) => void,
-    handleDatesSet?: (dateInfo: { start: Date; end: Date; view: any }) => void // NEW: Navigation callback
+    handleDatesSet?: (dateInfo: { start: Date; end: Date; view: any }) => void, // NEW: Navigation callback
+    initialDate?: Date  // 🔧 NEW: Set initial calendar date to prevent wrong week requests
   ): CalendarOptions {
     const periodsCount = this.periodsPerDay();
+    
+    if (initialDate) {
+      console.log('[CalendarConfigurationService] 🎯 Setting initial calendar date:', {
+        initialDate: initialDate.toDateString(),
+        initialDateISO: initialDate.toISOString(),
+        dayOfWeek: initialDate.toLocaleDateString('en-US', { weekday: 'long' })
+      });
+    } else {
+      console.log('[CalendarConfigurationService] ⚠️ No initial date provided - calendar will use default');
+    }
 
     return {
       plugins: [timeGridPlugin, interactionPlugin],
       initialView: 'timeGridWeek',
+      initialDate: initialDate, // 🔧 FIXED: Set initial date to prevent wrong week calculation
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
@@ -105,7 +117,7 @@ export class CalendarConfigurationService {
           slotDuration: '01:00:00',
           slotMinTime: '08:00:00',
           slotMaxTime: `${8 + periodsCount}:00:00`,
-          eventMinHeight: 20,  // Minimum event height for better readability
+          eventMinHeight: 70,  // ✅ UPDATED: Increased from 20px to match CSS styling for better event fill
           expandRows: true,    // Make rows expand to fill space
         }
       },

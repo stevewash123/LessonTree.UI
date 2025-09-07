@@ -6,7 +6,83 @@
   --fc-selected-lesson-shadow: 0 0 12px rgba(76, 175, 80, 0.6), inset 0 0 8px rgba(76, 175, 80, 0.3);
 }
 
-/* TIMEGRID PERIOD ROW HEIGHT FIXES */
+/* ========== FULLCALENDAR HEADER TOOLBAR STYLING ========== */
+/* Fix black button styling - make them softer and more modern */
+/* Apply consistent styling to ALL toolbar buttons */
+
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button-group .fc-button,
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button {
+  background-color: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+  color: #495057 !important;
+  font-weight: 500 !important;
+  border-radius: 8px !important;
+  padding: 8px 16px !important;
+  margin: 0 2px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  font-size: 14px !important;
+}
+
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button-group .fc-button:hover:not(:disabled),
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button:hover:not(:disabled) {
+  background-color: #e9ecef !important;
+  border-color: #adb5bd !important;
+  color: #495057 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+}
+
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button-group .fc-button:active,
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button-group .fc-button.fc-button-active,
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button:active,
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button.fc-button-active {
+  background-color: #6c757d !important;
+  border-color: #6c757d !important;
+  color: white !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  transform: translateY(0) !important;
+}
+
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button-group .fc-button:focus,
+.calendar-container ::ng-deep .fc-toolbar-chunk .fc-button:focus {
+  box-shadow: 0 0 0 3px rgba(108, 117, 125, 0.25) !important;
+  outline: none !important;
+}
+
+/* Ensure title text matches the button color scheme */
+.calendar-container ::ng-deep .fc-toolbar-title {
+  color: #495057 !important;
+  font-weight: 600 !important;
+}
+
+/* ========== DAY HEADER STYLING ========== */
+/* Make day headers match the softer period text styling */
+
+.calendar-container ::ng-deep .fc-col-header-cell {
+  background-color: #f8f9fa !important;
+  border-color: #dee2e6 !important;
+}
+
+.calendar-container ::ng-deep .fc-col-header-cell-cushion {
+  color: #6c757d !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  padding: 12px 8px !important;
+  text-transform: none !important;
+}
+
+.calendar-container ::ng-deep .fc-daygrid-day-number {
+  color: #6c757d !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+}
+
+/* ========== PERIOD HEIGHT & EVENT STRETCHING ========== */
+/* Current event min-height: 40px, period min-height: 80px */
+/* Max height constraint: 3x current event height = 120px */
+/* Events should stretch to fill their cells */
+
 .calendar-container ::ng-deep .fc-timegrid-slots table {
   height: auto !important;
   min-height: 480px;
@@ -14,17 +90,20 @@
 
 .calendar-container ::ng-deep .fc-timegrid-slot {
   min-height: 80px !important;
+  max-height: 120px !important; /* 3x current event height (40px) */
   height: auto !important;
 }
 
 .calendar-container ::ng-deep .fc-timegrid-slot-label,
 .calendar-container ::ng-deep .fc-timegrid-slot-lane {
   min-height: 80px !important;
+  max-height: 120px !important; /* Match slot max height */
   height: auto !important;
 }
 
 .calendar-container ::ng-deep .fc-timegrid-slot-label-frame {
   min-height: 80px !important;
+  max-height: 120px !important; /* Match slot max height */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,7 +112,7 @@
 .calendar-container ::ng-deep .fc-timegrid-slot-label-cushion {
   font-weight: 500;
   font-size: 14px;
-  color: #555;
+  color: #6c757d; /* Match day header color for consistency */
 }
 
 /* SELECTED LESSON DAY HIGHLIGHTING */
@@ -58,32 +137,37 @@
   border: 2px solid white !important;
 }
 
-/* EVENT STYLING */
+/* EVENT STYLING - STRETCH TO FILL CELLS */
 .calendar-container ::ng-deep .fc-timegrid-event {
-  min-height: 40px !important;
+  min-height: 70px !important; /* Increased from 40px to better fill period cells */
+  height: calc(100% - 10px) !important; /* Stretch to fill cell with small margin */
   white-space: normal;
   overflow: visible;
+  margin: 5px 2px !important; /* Small margin for visual separation */
+  border-radius: 6px !important; /* Slightly rounded corners */
 }
 
 .calendar-container ::ng-deep .fc-timegrid-event .fc-event-main {
   padding: 0 !important;
-  height: 100%;
+  height: 100% !important;
+  min-height: 70px !important; /* Match parent min-height */
 }
 
-/* CUSTOM EVENT CONTENT */
+/* CUSTOM EVENT CONTENT - OPTIMIZED FOR INCREASED HEIGHT */
 .custom-lesson-event {
-  padding: 8px 10px;
+  padding: 10px 12px; /* Increased padding for larger events */
   height: 100%;
+  min-height: 70px; /* Match event min-height */
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  line-height: 1.3;
+  line-height: 1.4; /* Slightly increased line height for readability */
 }
 
 .lesson-title {
   font-weight: 600;
-  font-size: 0.95em;
-  margin-bottom: 6px;
+  font-size: 1em; /* Slightly larger for better visibility */
+  margin-bottom: 8px; /* Increased margin */
   word-wrap: break-word;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -91,19 +175,20 @@
 
 .lesson-objective {
   font-weight: 400;
-  font-size: 0.85em;
+  font-size: 0.9em; /* Slightly larger for better readability */
   opacity: 0.95;
   word-wrap: break-word;
   overflow: hidden;
   flex-grow: 1;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5; /* Increased line clamp for larger events */
   -webkit-box-orient: vertical;
 }
 
 .custom-other-event {
-  padding: 8px 10px;
+  padding: 10px 12px; /* Match lesson event padding */
   height: 100%;
+  min-height: 70px; /* Match event min-height */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -111,14 +196,15 @@
 
 .event-title {
   font-weight: 500;
-  font-size: 0.95em;
+  font-size: 1em; /* Match lesson title size */
   text-align: center;
   word-wrap: break-word;
 }
 
 .custom-error-event {
-  padding: 8px 10px;
+  padding: 10px 12px; /* Match other event padding */
   height: 100%;
+  min-height: 70px; /* Match event min-height */
   display: flex;
   align-items: center;
   justify-content: center;
