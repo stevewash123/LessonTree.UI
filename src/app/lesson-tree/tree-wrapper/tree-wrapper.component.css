@@ -18,8 +18,8 @@
     --tree-background: #e1e8f0;
     --tree-hover-background: #f9f9f9;
     --tree-active-border: rgba(63, 81, 181, 0.5);
-    --node-height: 34px;
-    --icon-size: 20px;
+    --node-height: 24px; /* REDUCED from 34px to 24px for better density like VS Code */
+    --icon-size: 16px; /* REDUCED from 20px to 16px for better proportions */
     --text-color: #333;
     --text-secondary: #666;
   }
@@ -51,6 +51,17 @@
     box-sizing: border-box;
     margin: 0;
     padding-right: 8px;
+    transition: max-height 0.3s ease;
+  }
+
+  /* Expanded tree height for course focus mode */
+  :host-context(.course-focus-mode) #treeparent {
+    max-height: calc(100vh - 130px); /* Fill most of screen height with ~10px margin */
+    min-height: calc(100vh - 130px); /* Ensure it takes full height when content is short */
+    border-radius: 0; /* Remove border radius to maximize space */
+    margin: 0;
+    width: calc(100% - 4px); /* Slightly reduce width to prevent horizontal scrollbar */
+    padding-right: 4px; /* Maintain right padding but reduce overall width */
   }
   
   /* SyncFusion Tree Overrides */
@@ -66,7 +77,7 @@
   }
   
   .custom .e-list-item {
-    padding: 4px 0;
+    padding: 2px 0; /* REDUCED from 4px to 2px for better density */
     border-bottom: 1px solid #f0f0f0;
     width: 100%;
     box-sizing: border-box;
@@ -165,8 +176,8 @@
     display: flex;
     align-items: center;
     width: 100%;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 2px 6px; /* REDUCED from 4px 8px to 2px 6px for better density */
+    border-radius: 3px; /* REDUCED from 4px to 3px for cleaner look */
     box-sizing: border-box;
     overflow: hidden;
     position: relative;
@@ -181,14 +192,22 @@
   
   /* Node Content Layout */
   .node-type-icon {
-    width: var(--icon-size);
-    height: var(--icon-size);
-    line-height: var(--icon-size);
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-right: 8px;
+    flex-shrink: 0;
+    min-width: calc(var(--icon-size) * 1.2); /* Match larger focus button size */
+    height: var(--icon-size);
+  }
+
+  .node-type-icon .type-emoji {
     font-size: 16px;
     color: var(--text-secondary);
-    flex-shrink: 0;
+    line-height: var(--icon-size);
+    text-align: center;
+    width: var(--icon-size);
+    height: var(--icon-size);
   }
   
   .node-content {
@@ -225,7 +244,7 @@
   /* Node Actions */
   .node-actions {
     display: flex;
-    gap: 4px;
+    gap: 8px; /* Increased from 4px to 8px for better tooltip separation */
     position: absolute;
     right: 8px;
     top: 50%;
@@ -255,6 +274,53 @@
     height: 16px;
     line-height: normal;
     text-align: center;
+  }
+
+  /* Focus toggle button styling - left-positioned in node-type-icon */
+  .node-type-icon .focus-toggle-btn-left {
+    width: calc(var(--icon-size) * 1.2); /* 20% bigger */
+    height: calc(var(--icon-size) * 1.2); /* 20% bigger */
+    min-width: calc(var(--icon-size) * 1.2);
+    min-height: calc(var(--icon-size) * 1.2);
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .node-type-icon .focus-toggle-btn-left.enter-focus {
+    color: #666;
+  }
+
+  .node-type-icon .focus-toggle-btn-left.enter-focus:hover {
+    background-color: rgba(63, 81, 181, 0.1);
+    color: #3f51b5;
+    transform: scale(1.05);
+  }
+
+  .node-type-icon .focus-toggle-btn-left.exit-focus {
+    background-color: #3f51b5;
+    color: white;
+  }
+
+  .node-type-icon .focus-toggle-btn-left.exit-focus:hover {
+    background-color: #303f9f;
+    transform: scale(1.05);
+  }
+
+  /* Fix icon centering within the left focus button */
+  .node-type-icon .focus-toggle-btn-left mat-icon {
+    font-size: 16px; /* Slightly bigger to match larger button */
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    margin: 0;
   }
   
   /* Custom Scrollbar */

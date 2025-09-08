@@ -25,7 +25,30 @@
 <ng-template #nodeTemplate let-data>
     <div class="treeviewdiv">
       <div class="node-container" [ngClass]="data.entityType .toLowerCase()">
-        <span class="node-type-icon">{{ getEntityTypeIcon(data.entityType ) }}</span>
+        <div class="node-type-icon">
+          @if (data.entityType === 'Course') {
+            <!-- Focus Mode Toggle Button - replaces house icon -->
+            @if (layoutModeService.isCourseFocusMode() && layoutModeService.focusedCourseId() === data.original?.id) {
+              <button 
+                mat-icon-button 
+                class="focus-toggle-btn-left exit-focus"
+                (click)="exitCourseFocus($event)" 
+                matTooltip="Exit Course Focus Mode">
+                <mat-icon>unfold_less</mat-icon>
+              </button>
+            } @else {
+              <button 
+                mat-icon-button 
+                class="focus-toggle-btn-left enter-focus"
+                (click)="enterCourseFocus(data.original?.id, $event)" 
+                matTooltip="Focus on Course">
+                <mat-icon>center_focus_strong</mat-icon>
+              </button>
+            }
+          } @else {
+            <span class="type-emoji">{{ getEntityTypeIcon(data.entityType ) }}</span>
+          }
+        </div>
         <div class="node-content">
           <span class="node-title">{{ data.text }}</span>
           @if (data.entityType  === 'Lesson' && data.original?.objective && data.original.objective !== '[No objective available]') {

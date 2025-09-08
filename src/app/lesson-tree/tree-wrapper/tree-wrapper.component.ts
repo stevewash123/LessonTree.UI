@@ -24,6 +24,7 @@ import {TreeNodeActionsService} from '../services/coordination/tree-node-actions
 import {NodeOperationClassifierService} from '../services/business/node-operations-classifier.service';
 import {TreeEffectCallbacks, TreeEffectsService} from '../services/ui/tree-effect.service';
 import {TreeNodeBuilderService} from '../services/ui/tree-node-builder.service';
+import {LayoutModeService} from '../../lesson-tree-container/layout-mode.service';
 
 @Component({
   selector: 'app-tree',
@@ -79,7 +80,8 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     private treeNodeActionsService: TreeNodeActionsService,
     private nodeOperationClassifier: NodeOperationClassifierService,
     private treeEffectsService: TreeEffectsService,
-    private courseSignalService: CourseSignalService
+    private courseSignalService: CourseSignalService,
+    public layoutModeService: LayoutModeService
   ) {
     this.dragState = this.treeDragDropService.initializeDragState();
   }
@@ -745,6 +747,34 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   public getEntityTypeIcon(entityType: string): string {
     return this.treeNodeActionsService.getEntityTypeIcon(entityType);
+  }
+
+  // === COURSE FOCUS MODE METHODS ===
+
+  /**
+   * Enter course focus mode for a specific course
+   */
+  enterCourseFocus(courseId: number, event: Event): void {
+    event.stopPropagation();
+    console.log('[TreeWrapper] 🎯 Entering course focus mode for course:', courseId);
+    this.layoutModeService.toggleCourseFocusMode(courseId);
+    
+    // Expand all nodes in the tree when entering focus mode
+    if (this.syncFuncTree && this.isViewInitialized) {
+      setTimeout(() => {
+        this.syncFuncTree.expandAll();
+        console.log('[TreeWrapper] 🌳 Expanded all tree nodes for focused course');
+      }, 100); // Small delay to ensure layout mode change is processed first
+    }
+  }
+
+  /**
+   * Exit course focus mode
+   */
+  exitCourseFocus(event: Event): void {
+    event.stopPropagation();
+    console.log('[TreeWrapper] 🎯 Exiting course focus mode');
+    this.layoutModeService.exitCourseFocusMode();
   }
 
   public onNodeExpanded(args: any): void {
