@@ -1,7 +1,7 @@
 ﻿// calendar-initialization.service.ts - FIXED REDUNDANT API CALLS
 // FIX: Load schedule once and cache, eliminate redundant getActiveSchedule() calls
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable, of, from } from 'rxjs';
 import { switchMap, tap, catchError, map } from 'rxjs/operators';
 import { MatDialog } from '@angular/material/dialog';
@@ -17,6 +17,9 @@ import { ScheduleApiService } from '../api/schedule-api.service';
 import { CalendarDateService } from './calendar-date.service';
 import { CalendarEventLoaderService } from './calendar-event-loader.service';
 import { CalendarDisplayService } from './calendar-display.service';
+
+// Layout Services
+import { LayoutModeService } from '../../../lesson-tree-container/layout-mode.service';
 
 // Modal Component
 import { ScheduleConfigComponent } from '../../../schedule-config/schedule-config.component';
@@ -50,6 +53,8 @@ export class CalendarInitializationService {
   ) {
     console.log('[CalendarInitializationService] Calendar orchestrator initialized');
   }
+
+  private layoutModeService = inject(LayoutModeService);
 
   // === MAIN INITIALIZATION WORKFLOW ===
 
@@ -163,24 +168,67 @@ export class CalendarInitializationService {
       rule: this.isDateInConfigurationRange(new Date(), config) ? 'TODAY (in range)' : 'START DATE (out of range)'
     });
 
-    return this.step4_NavigateCalendar(schedule, config, activeDate);
+    return this.step4_SetCalendarInitialDate(schedule, config, activeDate);
   }
 
   /**
    * Calculate active date using business rules
-   * UPDATED: Find first teaching day on or after start date
+   * UPDATED: Check LayoutModeService for preserved navigation date first, then calculate from schedule AND store result
    */
   private calculateActiveDate(config: any): Date {
+    console.log('[CalendarInitializationService] 🔍 === ACTIVE DATE CALCULATION DEBUG ===');
+    
+    // PRIORITY 1: Check LayoutModeService for preserved navigation date
+    const preservedDate = this.layoutModeService.getCurrentCalendarDate();
+    if (preservedDate) {
+      console.log('[CalendarInitializationService] ✅ USING PRESERVED NAVIGATION DATE from LayoutModeService:', {
+        preservedDate: preservedDate.toDateString(),
+        preservedDateISO: preservedDate.toISOString(),
+        dayOfWeek: preservedDate.toLocaleDateString('en-US', { weekday: 'long' }),
+        source: 'layout-mode-service-preservation'
+      });
+      return preservedDate;
+    }
+    
+    console.log('[CalendarInitializationService] 📅 No preserved date found, calculating from schedule configuration');
+    
     const today = new Date();
+    const scheduleStart = new Date(config.startDate);
+    const scheduleEnd = new Date(config.endDate);
 
-    // If TODAY is within schedule range, use TODAY
+    console.log('[CalendarInitializationService] 📅 Date calculation inputs:', {
+      today: today.toDateString(),
+      todayISO: today.toISOString(),
+      scheduleStart: scheduleStart.toDateString(),
+      scheduleStartISO: scheduleStart.toISOString(),
+      scheduleEnd: scheduleEnd.toDateString(),
+      scheduleEndISO: scheduleEnd.toISOString(),
+      todayInRange: this.isDateInConfigurationRange(today, config)
+    });
+
+    let calculatedDate: Date;
+
+    // PRIORITY 2: If TODAY is within schedule range, use TODAY
     if (this.isDateInConfigurationRange(today, config)) {
-      return today;
+      console.log('[CalendarInitializationService] ✅ Using TODAY - within schedule range');
+      calculatedDate = today;
+    } else {
+      // PRIORITY 3: Find first teaching day on or after start date
+      console.log('[CalendarInitializationService] 📅 TODAY is outside range - finding first teaching day from schedule start');
+      calculatedDate = this.findFirstTeachingDay(scheduleStart, config);
+      
+      console.log('[CalendarInitializationService] 📅 First teaching day result:', {
+        firstTeachingDay: calculatedDate.toDateString(),
+        firstTeachingDayISO: calculatedDate.toISOString(),
+        dayOfWeek: calculatedDate.toLocaleDateString('en-US', { weekday: 'long' })
+      });
     }
 
-    // Otherwise, find first teaching day on or after start date
-    const startDate = new Date(config.startDate);
-    return this.findFirstTeachingDay(startDate, config);
+    // CRITICAL: Store the calculated date in LayoutModeService for future navigation preservation
+    console.log('[CalendarInitializationService] 📅 Storing calculated date in LayoutModeService for future preservation');
+    this.layoutModeService.setCurrentCalendarDate(calculatedDate);
+
+    return calculatedDate;
   }
 
   /**
@@ -225,33 +273,39 @@ export class CalendarInitializationService {
     return fromDate;
   }
 
-  // === STEP 4: CALENDAR NAVIGATION ===
+  // === STEP 4: CALENDAR CONFIGURATION WITH INITIAL DATE ===
 
   /**
-   * STEP 4: Set FullCalendar to show the active date's month
+   * STEP 4: Set calendar initial date via configuration (FIXED APPROACH)
+   * This replaces the navigation approach which had timing issues
    */
-  private step4_NavigateCalendar(schedule: any, config: any, activeDate: Date): Observable<InitializationResult> {
-    console.log('[CalendarInitializationService] 🎯 STEP 4: Calendar Navigation');
+  private step4_SetCalendarInitialDate(schedule: any, config: any, activeDate: Date): Observable<InitializationResult> {
+    console.log('[CalendarInitializationService] 🎯 STEP 4: Set Calendar Initial Date');
+    console.log('[CalendarInitializationService] 📅 FIXED APPROACH: Setting initialDate in calendar options instead of navigating');
 
-    // FIXED: Use async navigation and handle Promise properly
-    return from(this.calendarDateService.setCalendarDate(activeDate)).pipe(
-      tap(navigationSuccess => {
-        if (navigationSuccess) {
-          console.log('[CalendarInitializationService] ✅ Calendar navigated to:', {
-            activeDate: activeDate.toDateString(),
-            month: `${activeDate.getFullYear()}-${activeDate.getMonth() + 1}`
-          });
-        } else {
-          console.warn('[CalendarInitializationService] ⚠️ Calendar navigation failed - proceeding anyway');
-        }
-      }),
-      switchMap(() => this.step5_ConditionalEventLoading(schedule, activeDate)),
-      catchError(error => {
-        console.error('[CalendarInitializationService] ❌ Step 4 navigation error:', error);
-        // Continue to Step 5 even if navigation fails
-        return this.step5_ConditionalEventLoading(schedule, activeDate);
-      })
-    );
+    // NEW: Update calendar options with the calculated initial date
+    this.setCalendarInitialDateInOptions(activeDate);
+
+    console.log('[CalendarInitializationService] ✅ Calendar initial date set to:', {
+      activeDate: activeDate.toDateString(),
+      activeDateTime: activeDate.toISOString(),
+      dayOfWeek: activeDate.toLocaleDateString('en-US', { weekday: 'long' })
+    });
+
+    // Proceed directly to event loading
+    return this.step5_ConditionalEventLoading(schedule, activeDate);
+  }
+
+  /**
+   * Set the initial date in calendar options by updating the configuration
+   */
+  private setCalendarInitialDateInOptions(activeDate: Date): void {
+    console.log('[CalendarInitializationService] 📋 Updating calendar display with initial date');
+    
+    // Use CalendarDisplayService to update calendar options with initial date
+    this.calendarDisplayService.updateCalendarOptionsWithInitialDate(activeDate);
+    
+    console.log('[CalendarInitializationService] ✅ Calendar options updated with initial date');
   }
 
   // === STEP 5: CONDITIONAL EVENT LOADING ===

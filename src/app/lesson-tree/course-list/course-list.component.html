@@ -1,6 +1,6 @@
 <div class="course-list-wrapper">
     @for (course of displayCourses(); track course.id) {        
-      <mat-card class="course-card">
+      <mat-card class="course-card" [class.focused-course]="layoutModeService.focusedCourseId() === course.id">
         <div class="tree-view-container">
           <app-tree
             style="width:100%"

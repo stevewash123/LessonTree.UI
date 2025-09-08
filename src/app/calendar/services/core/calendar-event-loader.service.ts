@@ -61,7 +61,7 @@ export class CalendarEventLoaderService {
    * EXTRACTED FROM: CalendarCoordinationService.refreshCurrentPage()
    * FIXED: Returns proper Observable<ScheduleEvent[]> type
    */
-  loadEventsForMonth(scheduleId: number, activeDate: Date): Observable<ScheduleEvent[]> {
+  loadEventsForMonth(scheduleId: number, activeDate: Date, courseId?: number): Observable<ScheduleEvent[]> {
     const dateRange = this.getMonthRangeForDate(activeDate);
 
     console.log('[CalendarEventLoaderService] 📊 Loading events for month:', {
@@ -70,10 +70,11 @@ export class CalendarEventLoaderService {
       dateRange: {
         start: dateRange.start.toDateString(),
         end: dateRange.end.toDateString()
-      }
+      },
+      courseId
     });
 
-    return this.loadEventsForDateRange(scheduleId, dateRange).pipe(
+    return this.loadEventsForDateRange(scheduleId, dateRange, courseId).pipe(
       map(result => result.events),
       tap(events => {
         console.log('[CalendarEventLoaderService] ✅ Month events loaded:', {
@@ -93,15 +94,16 @@ export class CalendarEventLoaderService {
    * Load events for specific date range
    * CORE API INTEGRATION: Uses existing date range endpoint
    */
-  loadEventsForDateRange(scheduleId: number, dateRange: DateRange): Observable<EventLoadResult> {
+  loadEventsForDateRange(scheduleId: number, dateRange: DateRange, courseId?: number): Observable<EventLoadResult> {
     console.log('[CalendarEventLoaderService] 🔄 Loading events for date range:', {
       scheduleId,
       startDate: dateRange.start.toDateString(),
-      endDate: dateRange.end.toDateString()
+      endDate: dateRange.end.toDateString(),
+      courseId
     });
 
-    // Check cache first (optional optimization)
-    if (this.isCacheValid(scheduleId, dateRange)) {
+    // Skip cache if courseId is specified (course-specific refresh should always be fresh)
+    if (!courseId && this.isCacheValid(scheduleId, dateRange)) {
       console.log('[CalendarEventLoaderService] 📦 Returning cached events');
       return of({
         events: this.currentEventCache!.events,
@@ -113,11 +115,12 @@ export class CalendarEventLoaderService {
       });
     }
 
-    // Load from API using existing endpoint
+    // Load from API using existing endpoint with courseId support
     return this.scheduleApiService.getScheduleEventsByDateRange(
       scheduleId,
       dateRange.start,
-      dateRange.end
+      dateRange.end,
+      courseId
     ).pipe(
       map(events => ({
         events: events || [], // FIXED: Handle undefined response
@@ -157,7 +160,7 @@ export class CalendarEventLoaderService {
   /**
    * Load events for specific week
    */
-  loadEventsForWeek(scheduleId: number, weekStartDate: Date): Observable<ScheduleEvent[]> {
+  loadEventsForWeek(scheduleId: number, weekStartDate: Date, courseId?: number): Observable<ScheduleEvent[]> {
     const dateRange = this.getWeekRangeForDate(weekStartDate);
 
     console.log('[CalendarEventLoaderService] 📅 Loading events for week:', {
@@ -166,10 +169,11 @@ export class CalendarEventLoaderService {
       dateRange: {
         start: dateRange.start.toDateString(),
         end: dateRange.end.toDateString()
-      }
+      },
+      courseId
     });
 
-    return this.loadEventsForDateRange(scheduleId, dateRange).pipe(
+    return this.loadEventsForDateRange(scheduleId, dateRange, courseId).pipe(
       map(result => result.events)
     );
   }
@@ -281,17 +285,18 @@ export class CalendarEventLoaderService {
    * OPTIMIZED: Loads only the data needed for current view mode
    * Used for: Lesson move refreshes, configuration changes
    */
-  loadEventsForCurrentView(scheduleId: number, activeDate: Date, viewMode: 'week' | 'month' = 'week'): Observable<ScheduleEvent[]> {
+  loadEventsForCurrentView(scheduleId: number, activeDate: Date, viewMode: 'week' | 'month' = 'week', courseId?: number): Observable<ScheduleEvent[]> {
     console.log('[CalendarEventLoaderService] 🔄 Loading events for current view:', {
       scheduleId,
       activeDate: activeDate.toDateString(),
-      viewMode
+      viewMode,
+      courseId
     });
 
     if (viewMode === 'week') {
-      return this.loadEventsForCurrentWeek(scheduleId, activeDate);
+      return this.loadEventsForCurrentWeek(scheduleId, activeDate, courseId);
     } else {
-      return this.loadEventsForMonth(scheduleId, activeDate);
+      return this.loadEventsForMonth(scheduleId, activeDate, courseId);
     }
   }
 
@@ -299,17 +304,18 @@ export class CalendarEventLoaderService {
    * Load events for current week view
    * OPTIMIZED: Loads same week range that's currently displayed
    */
-  loadEventsForCurrentWeek(scheduleId: number, activeDate: Date): Observable<ScheduleEvent[]> {
+  loadEventsForCurrentWeek(scheduleId: number, activeDate: Date, courseId?: number): Observable<ScheduleEvent[]> {
     // Find the Monday of the week containing activeDate (matching FullCalendar's week view)
     const weekStart = this.getWeekStart(activeDate);
 
     console.log('[CalendarEventLoaderService] 📅 Loading events for current week:', {
       scheduleId,
       activeDate: activeDate.toDateString(),
-      weekStart: weekStart.toDateString()
+      weekStart: weekStart.toDateString(),
+      courseId
     });
 
-    return this.loadEventsForWeek(scheduleId, weekStart);
+    return this.loadEventsForWeek(scheduleId, weekStart, courseId);
   }
 
   /**

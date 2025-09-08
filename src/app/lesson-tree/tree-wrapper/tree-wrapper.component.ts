@@ -554,6 +554,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
     this.treeSyncService.handleDataBound(syncFusionData, this.course?.id);
   }
 
+
   public emitNodeSelected(args: any): void {
     if (!this.isViewInitialized || !this.syncFuncTree) return;
 
@@ -599,6 +600,7 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       });
     }
   }
+
 
   private async handleExternalSelection(treeData: TreeData): Promise<void> {
     if (!this.isViewInitialized) return;
@@ -747,6 +749,106 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
 
   public getEntityTypeIcon(entityType: string): string {
     return this.treeNodeActionsService.getEntityTypeIcon(entityType);
+  }
+
+  public getTypePrefix(entityType: string): string {
+    switch (entityType) {
+      case 'Course': return '📚';
+      case 'Topic': return '📁';
+      case 'SubTopic': return '📋';
+      case 'Lesson': return '📖';
+      default: return '•';
+    }
+  }
+
+  public onNodeContextMenu(event: MouseEvent, nodeData: any): void {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    console.log('Context menu triggered for node:', nodeData.entityType, nodeData.text);
+    
+    // Create a simple context menu
+    const contextMenu = this.createContextMenu(nodeData, event.clientX, event.clientY);
+    document.body.appendChild(contextMenu);
+    
+    // Close menu on click outside
+    const closeMenu = (e: MouseEvent) => {
+      if (!contextMenu.contains(e.target as Node)) {
+        contextMenu.remove();
+        document.removeEventListener('click', closeMenu);
+      }
+    };
+    
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+  }
+
+  private createContextMenu(nodeData: any, x: number, y: number): HTMLElement {
+    const menu = document.createElement('div');
+    menu.className = 'tree-context-menu';
+    menu.style.cssText = `
+      position: fixed;
+      top: ${y}px;
+      left: ${x}px;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      z-index: 1000;
+      min-width: 150px;
+      padding: 4px 0;
+    `;
+
+    const actions = this.getContextMenuActions(nodeData.entityType);
+    
+    actions.forEach(action => {
+      const item = document.createElement('div');
+      item.className = 'context-menu-item';
+      item.textContent = action.label;
+      item.style.cssText = `
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #333;
+      `;
+      
+      item.addEventListener('mouseenter', () => {
+        item.style.backgroundColor = '#f3f3f3';
+      });
+      
+      item.addEventListener('mouseleave', () => {
+        item.style.backgroundColor = 'transparent';
+      });
+      
+      item.addEventListener('click', () => {
+        action.handler(nodeData);
+        menu.remove();
+      });
+      
+      menu.appendChild(item);
+    });
+
+    return menu;
+  }
+
+  private getContextMenuActions(entityType: string): Array<{label: string, handler: (nodeData: any) => void}> {
+    const actions = [
+      { label: 'Delete', handler: (nodeData: any) => this.deleteNode(nodeData) }
+    ];
+
+    switch (entityType) {
+      case 'Course':
+        actions.push({ label: 'Add Topic', handler: (nodeData: any) => this.initiateAddChildNode(nodeData, 'Topic') });
+        break;
+      case 'Topic':
+        actions.push({ label: 'Add SubTopic', handler: (nodeData: any) => this.initiateAddChildNode(nodeData, 'SubTopic') });
+        actions.push({ label: 'Add Lesson', handler: (nodeData: any) => this.initiateAddChildNode(nodeData, 'Lesson') });
+        break;
+      case 'SubTopic':
+        actions.push({ label: 'Add Lesson', handler: (nodeData: any) => this.initiateAddChildNode(nodeData, 'Lesson') });
+        break;
+    }
+
+    return actions;
   }
 
   // === COURSE FOCUS MODE METHODS ===

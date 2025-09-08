@@ -10,6 +10,7 @@ export interface ScheduleEvent {
     date: Date;
     period: number;                        // Period number (1-10)
     lessonId?: number | null;
+    specialDayId?: number | null;          // NEW: Link to SpecialDay that created this event
     eventType: string;                     // Required: 'Lesson', 'Assembly', etc.
     eventCategory?: string | null;         // 'Lesson', 'SpecialPeriod', 'SpecialDay'
     comment?: string | null;

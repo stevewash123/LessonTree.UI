@@ -50,8 +50,18 @@ export class LandingComponent implements OnInit {
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = 'Invalid username or password';
           console.error('[LandingComponent] Login error:', error);
+          
+          // Handle different types of errors
+          if (error.status === 401) {
+            this.errorMessage = 'Invalid username or password';
+          } else if (error.status === 0 || error.status >= 500) {
+            this.errorMessage = 'Unable to connect to server. Please try again later.';
+          } else if (error.status === 400) {
+            this.errorMessage = error.error?.message || 'Invalid request. Please check your input.';
+          } else {
+            this.errorMessage = 'Login failed. Please try again.';
+          }
         }
       });
     }

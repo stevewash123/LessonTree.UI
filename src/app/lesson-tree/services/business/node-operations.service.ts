@@ -183,6 +183,75 @@ export class NodeOperationsService {
     );
   }
 
+  // ===== COPY OPERATIONS =====
+
+  performLessonCopy(
+    event: NodeMovedEvent,
+    targetSubTopicId?: number,
+    targetTopicId?: number
+  ): Observable<boolean> {
+    const { node } = event;
+
+    console.log(`[NodeOperationsService] LESSON COPY: Copying lesson ${node.id}`, {
+      targetSubTopicId,
+      targetTopicId
+    });
+
+    const courseId = this.extractCourseId(node);
+
+    return this.apiService.copyLesson(
+      node.id,
+      targetSubTopicId,
+      targetTopicId
+    ).pipe(
+      tap((result: any) => this.handleApiSuccess(result, node, 'LESSON COPY', courseId, event)),
+      map((result: any) => result && result.isSuccess),
+      catchError(err => this.handleApiError(err, 'copy lesson'))
+    );
+  }
+
+  performSubTopicCopy(
+    event: NodeMovedEvent,
+    targetTopicId: number
+  ): Observable<boolean> {
+    const { node } = event;
+
+    console.log(`[NodeOperationsService] SUBTOPIC COPY: Copying subtopic ${node.id}`, {
+      targetTopicId
+    });
+
+    const courseId = this.extractCourseId(node);
+
+    return this.apiService.copySubTopic(
+      node.id,
+      targetTopicId
+    ).pipe(
+      tap((result: any) => this.handleApiSuccess(result, node, 'SUBTOPIC COPY', courseId, event)),
+      map((result: any) => result && result.isSuccess),
+      catchError(err => this.handleApiError(err, 'copy subtopic'))
+    );
+  }
+
+  performTopicCopy(
+    event: NodeMovedEvent,
+    targetCourseId: number
+  ): Observable<boolean> {
+    const { node } = event;
+
+    console.log(`[NodeOperationsService] TOPIC COPY: Copying topic ${node.id}`, {
+      targetCourseId
+    });
+
+    return this.apiService.copyTopic(
+      node.id,
+      targetCourseId
+    ).pipe(
+      tap((result: any) => this.handleApiSuccess(result, node, 'TOPIC COPY', targetCourseId, event)),
+      map((result: any) => result && result.isSuccess),
+      catchError(err => this.handleApiError(err, 'copy topic'))
+    );
+  }
+
   // ✅ LEGACY: Keep existing methods for backward compatibility during transition
   /**
    * LEGACY: Perform REGROUP operation (move to different parent)
@@ -299,7 +368,7 @@ export class NodeOperationsService {
       });
 
       if (courseId) {
-        this.calendarRefresh.refreshAfterLessonMove(courseId);
+        this.calendarRefresh.refreshCalendarForCourse(courseId);
         console.log(`[NodeOperationsService] ✅ Calendar refresh requested for course ${courseId}`);
       }
 

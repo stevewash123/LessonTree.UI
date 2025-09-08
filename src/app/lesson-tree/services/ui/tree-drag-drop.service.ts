@@ -307,7 +307,7 @@ export class TreeDragDropService {
     return null;
   }
 
-  // ✅ SIMPLIFIED: Perform lesson move with validation
+  // ✅ SIMPLIFIED: Perform lesson move or copy based on drag mode
   private performLessonMove(
     lesson: Lesson,
     targetSubTopicId?: number,
@@ -324,15 +324,26 @@ export class TreeDragDropService {
       targetParentType: targetSubTopicId ? 'SubTopic' : 'Topic'
     };
 
-    return this.nodeOperationsService.performLessonMove(
-      event,
-      targetSubTopicId,
-      targetTopicId,
-      afterSiblingId
-    );
+    // Check drag mode to determine operation
+    if (this.nodeDragModeService.isDragModeCopy) {
+      console.log('[TreeDragDropService] 📋 COPY MODE: Performing lesson copy');
+      return this.nodeOperationsService.performLessonCopy(
+        event,
+        targetSubTopicId,
+        targetTopicId
+      );
+    } else {
+      console.log('[TreeDragDropService] 🔄 MOVE MODE: Performing lesson move');
+      return this.nodeOperationsService.performLessonMove(
+        event,
+        targetSubTopicId,
+        targetTopicId,
+        afterSiblingId
+      );
+    }
   }
 
-  // ✅ SIMPLIFIED: Perform SubTopic move
+  // ✅ SIMPLIFIED: Perform SubTopic move or copy based on drag mode
   private performSubTopicMove(
     subTopic: SubTopic,
     targetTopicId: number,
@@ -349,10 +360,20 @@ export class TreeDragDropService {
       targetParentType: 'Topic'
     };
 
-    return this.nodeOperationsService.performSubTopicMove(event, targetTopicId, afterSiblingId, dropPosition);
+    // Check drag mode to determine operation
+    if (this.nodeDragModeService.isDragModeCopy) {
+      console.log('[TreeDragDropService] 📋 COPY MODE: Performing subtopic copy');
+      return this.nodeOperationsService.performSubTopicCopy(
+        event,
+        targetTopicId
+      );
+    } else {
+      console.log('[TreeDragDropService] 🔄 MOVE MODE: Performing subtopic move');
+      return this.nodeOperationsService.performSubTopicMove(event, targetTopicId, afterSiblingId, dropPosition);
+    }
   }
 
-  // ✅ SIMPLIFIED: Perform Topic move
+  // ✅ SIMPLIFIED: Perform Topic move or copy based on drag mode
   private performTopicMove(
     topic: Topic,
     targetCourseId: number,
@@ -368,7 +389,17 @@ export class TreeDragDropService {
       targetParentType: 'Course'
     };
 
-    return this.nodeOperationsService.performTopicMove(event, targetCourseId, afterSiblingId);
+    // Check drag mode to determine operation
+    if (this.nodeDragModeService.isDragModeCopy) {
+      console.log('[TreeDragDropService] 📋 COPY MODE: Performing topic copy');
+      return this.nodeOperationsService.performTopicCopy(
+        event,
+        targetCourseId
+      );
+    } else {
+      console.log('[TreeDragDropService] 🔄 MOVE MODE: Performing topic move');
+      return this.nodeOperationsService.performTopicMove(event, targetCourseId, afterSiblingId);
+    }
   }
 
   // ✅ EXISTING: Validation and utility methods unchanged

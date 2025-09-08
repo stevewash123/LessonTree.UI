@@ -5,19 +5,34 @@ describe('Course CRUD Tests', () => {
       expect(response.status).to.eq(200)
     })
     
-    // Start fresh for each test
-    cy.clearAllCookies()
-    cy.clearAllSessionStorage()
-    cy.clearAllLocalStorage()
-
-    // Login for all tests in this suite
-    cy.visit('/')
-    cy.get('input[formcontrolname="username"]').type('admin')
-    cy.get('input[formcontrolname="password"]').type('Admin123!')
-    cy.intercept('POST', '**/account/login').as('loginRequest')
-    cy.get('button[type="submit"]').click()
-    cy.wait('@loginRequest')
-    cy.url({ timeout: 10000 }).should('include', '/home')
+    // Reseed database with fresh test data
+    cy.reseedDatabase()
+    
+    // Get auth token directly via API - faster and more reliable than UI login
+    cy.request({
+      method: 'POST',
+      url: 'http://localhost:5046/api/account/login',
+      body: {
+        username: 'admin',
+        password: 'Admin123!'
+      }
+    }).then((response) => {
+      expect(response.status).to.eq(200)
+      const token = response.body.token
+      expect(token).to.exist
+      
+      // Store token for use in any API requests
+      Cypress.env('authToken', token)
+      
+      // Set token in localStorage for Angular app
+      cy.visit('/home/lesson-tree', {
+        onBeforeLoad: (window) => {
+          window.localStorage.setItem('token', token)
+        }
+      })
+      
+      cy.wait(3000) // Allow Angular to initialize with auth state
+    })
 
     // Ensure courses are loaded and expanded for CRUD operations
     cy.get('.course-card', { timeout: 10000 }).should('exist')

@@ -10,6 +10,11 @@ import {
   Schedule,
   ScheduleCreateResource
 } from '../../../models/schedule';
+import { 
+  SpecialDayCreateResource, 
+  SpecialDayUpdateResource, 
+  SpecialDay 
+} from '../../../models/specialDay.model';
 import { environment } from '../../../../environments/environment';
 import { ScheduleEventCreateResource, ScheduleEvent, ScheduleEventUpdateResource } from '../../../models/schedule-event.model';
 
@@ -141,22 +146,31 @@ export class ScheduleApiService {
   }
 
   // ✅ FIXED: Simple approach - always requires schedule ID
-  getScheduleEventsByDateRange(scheduleId: number, startDate: Date, endDate: Date): Observable<ScheduleEvent[]> {
+  getScheduleEventsByDateRange(scheduleId: number, startDate: Date, endDate: Date, courseId?: number): Observable<ScheduleEvent[]> {
     console.log('[ScheduleApiService] Fetching schedule events by date range:', {
       scheduleId,
       start: startDate.toISOString().split('T')[0],
-      end: endDate.toISOString().split('T')[0]
+      end: endDate.toISOString().split('T')[0],
+      courseId: courseId || 'all courses'
     });
 
     const startDateStr = startDate.toISOString().split('T')[0];
     const endDateStr = endDate.toISOString().split('T')[0];
 
-    // ✅ FIX: Added /dateRange to URL
+    // Build params object
+    let params: any = {
+      startDate: startDateStr,
+      endDate: endDateStr
+    };
+
+    // Add courseId if specified
+    if (courseId) {
+      params.courseId = courseId.toString();
+    }
+
+    // ✅ FIX: Added /dateRange to URL with course filtering
     return this.http.get<ScheduleEvent[]>(`${this.apiUrl}/Schedule/${scheduleId}/events/dateRange`, {
-      params: {
-        startDate: startDateStr,
-        endDate: endDateStr
-      }
+      params
     }).pipe(
       map(response => this.transformResponse<ScheduleEvent[]>(response)),
       catchError((error) => {

@@ -23,73 +23,31 @@
   </div>
 
 <ng-template #nodeTemplate let-data>
-    <div class="treeviewdiv">
-      <div class="node-container" [ngClass]="data.entityType .toLowerCase()">
-        <div class="node-type-icon">
-          @if (data.entityType === 'Course') {
-            <!-- Focus Mode Toggle Button - replaces house icon -->
-            @if (layoutModeService.isCourseFocusMode() && layoutModeService.focusedCourseId() === data.original?.id) {
-              <button 
-                mat-icon-button 
-                class="focus-toggle-btn-left exit-focus"
-                (click)="exitCourseFocus($event)" 
-                matTooltip="Exit Course Focus Mode">
-                <mat-icon>unfold_less</mat-icon>
-              </button>
-            } @else {
-              <button 
-                mat-icon-button 
-                class="focus-toggle-btn-left enter-focus"
-                (click)="enterCourseFocus(data.original?.id, $event)" 
-                matTooltip="Focus on Course">
-                <mat-icon>center_focus_strong</mat-icon>
-              </button>
-            }
-          } @else {
-            <span class="type-emoji">{{ getEntityTypeIcon(data.entityType ) }}</span>
-          }
-        </div>
-        <div class="node-content">
-          <span class="node-title">{{ data.text }}</span>
-          @if (data.entityType  === 'Lesson' && data.original?.objective && data.original.objective !== '[No objective available]') {
-            <span class="node-description">{{ data.original.objective }}</span>
-          } @else if (data.entityType  !== 'Lesson' && data.original?.description && data.original.description !== '[No description available]') {
-            <span class="node-description">{{ data.original.description }}</span>
-          }
-        </div>
-        <div class="node-actions">
-          <!-- Different actions depending on node type -->
-          @if (data.entityType  === 'Course') {
-            <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this Course">
-              <mat-icon>delete</mat-icon>
-            </button>
-            <button mat-icon-button (click)="initiateAddChildNode(data, 'Topic'); $event.stopPropagation()" matTooltip="Add new Topic to this Course">
-              <mat-icon>add_circle</mat-icon>
-            </button>
-          } @else if (data.entityType  === 'Topic') {
-            <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this Topic">
-              <mat-icon>delete</mat-icon>
-            </button>
-            <button mat-icon-button (click)="initiateAddChildNode(data, 'SubTopic'); $event.stopPropagation()" matTooltip="Add new SubTopic to this Topic">
-              <mat-icon>topic</mat-icon>
-            </button>
-            <button mat-icon-button (click)="initiateAddChildNode(data, 'Lesson'); $event.stopPropagation()" matTooltip="Add new Lesson to this Topic">
-              <mat-icon>school</mat-icon>
-            </button>
-          } @else if (data.entityType  === 'SubTopic') {
-            <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this SubTopic">
-              <mat-icon>delete</mat-icon>
-            </button>
-            <button mat-icon-button (click)="initiateAddChildNode(data, 'Lesson'); $event.stopPropagation()" matTooltip="Add new Lesson to this SubTopic">
-              <mat-icon>school</mat-icon>
-            </button>
-          } @else if (data.entityType  === 'Lesson') {
-            <button mat-icon-button (click)="deleteNode(data); $event.stopPropagation()" matTooltip="Delete this Lesson">
-              <mat-icon>delete</mat-icon>
-            </button>
-            <!-- Lessons cannot have children, so no add buttons -->
-          }
-        </div>
-      </div>
+    <div class="simple-node" [ngClass]="data.entityType.toLowerCase()" 
+         (contextmenu)="onNodeContextMenu($event, data)">
+      <!-- Focus button only for courses -->
+      @if (data.entityType === 'Course') {
+        @if (layoutModeService.isCourseFocusMode() && layoutModeService.focusedCourseId() === data.original?.id) {
+          <button 
+            mat-icon-button 
+            class="focus-toggle-btn exit-focus"
+            (click)="exitCourseFocus($event)" 
+            matTooltip="Exit Course Focus Mode">
+            <mat-icon>unfold_less</mat-icon>
+          </button>
+        } @else {
+          <button 
+            mat-icon-button 
+            class="focus-toggle-btn enter-focus"
+            (click)="enterCourseFocus(data.original?.id, $event)" 
+            matTooltip="Focus on Course">
+            <mat-icon>center_focus_strong</mat-icon>
+          </button>
+        }
+      }
+      
+      <!-- VS Code-style colored text with type prefix -->
+      <span class="type-prefix">{{ getTypePrefix(data.entityType) }}</span>
+      <span class="node-text">{{ data.text }}</span>
     </div>
   </ng-template>

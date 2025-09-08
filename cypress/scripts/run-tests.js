@@ -5,11 +5,6 @@ const path = require('path');
 
 // Test categories and their corresponding file patterns
 const testCategories = {
-  master: {
-    name: 'Master Test Suite',
-    pattern: '**/00-master-suite.cy.ts',
-    description: 'Complete test suite running all categories in sequence'
-  },
   auth: {
     name: 'Authentication Tests',
     pattern: '**/01-authentication.cy.ts',
@@ -25,10 +20,15 @@ const testCategories = {
     pattern: '**/03-course-crud.cy.ts',
     description: 'Course, Topic, SubTopic selection and InfoPanel verification'
   },
-  dragdrop: {
-    name: 'Drag and Drop Tests',
-    pattern: '**/04-drag-drop.cy.ts',
-    description: 'Lesson and SubTopic drag-drop functionality'
+  add: {
+    name: 'ADD Tests - Schedule Flow',
+    pattern: '**/04-add-tests.cy.ts',
+    description: 'Verify schedule events flow to calendar when adding lessons/topics'
+  },
+  specialday: {
+    name: 'SpecialDay Tests',
+    pattern: '**/05-special-day.cy.ts',
+    description: 'SpecialDay modal creation and calendar integration'
   },
   legacy: {
     name: 'Legacy Tests',
@@ -56,10 +56,15 @@ function showHelp() {
   console.log('  --open       - Open Cypress Test Runner UI');
   console.log('  --help       - Show this help message\n');
   
+  console.log('\nFor individual tests within a file:');
+  console.log('  1. Use Cypress Test Runner UI and click on specific test');
+  console.log('  2. Temporarily add .only() to test: it.only("test name", () => {})');
+  console.log('  3. Use --spec with full file path:\n');
   console.log('Examples:');
   console.log('  node run-tests.js auth           # Run authentication tests');
-  console.log('  node run-tests.js dragdrop --headless  # Run drag-drop tests headless');
+  console.log('  node run-tests.js navigation --headless  # Run navigation tests headless');
   console.log('  node run-tests.js all --open    # Open test runner with all tests');
+  console.log('  npx cypress run --spec "cypress/e2e/01-authentication.cy.ts"  # Run specific file');
 }
 
 function runTests(category, options = {}) {

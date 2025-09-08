@@ -343,7 +343,7 @@ export class ScheduleConfigService {
 
         // ✅ FIXED: Notify calendar to refresh with new configuration
         console.log('[ScheduleConfigService] 🔄 Notifying calendar of configuration change');
-        this.calendarRefreshService.refreshAfterConfigurationChange();
+        this.calendarRefreshService.refreshCalendar();
       }),
       map((savedConfig: any) => ({
         success: true,
@@ -398,7 +398,7 @@ export class ScheduleConfigService {
 
         // ✅ FIXED: Notify calendar to refresh with updated configuration
         console.log('[ScheduleConfigService] 🔄 Notifying calendar of configuration update');
-        this.calendarRefreshService.refreshAfterConfigurationChange();
+        this.calendarRefreshService.refreshCalendar();
       }),
       map((updatedConfig: any) => ({
         success: true,

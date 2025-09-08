@@ -95,3 +95,8 @@
     padding: 10px;
     text-align: center;
   }
+
+  /* Maximize space in course focus mode */
+  :host-context(.course-focus-mode) .panel-content {
+    padding: 0 !important;
+  }

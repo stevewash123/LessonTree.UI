@@ -84,9 +84,10 @@ export class SpecialDayModalComponent implements OnInit {
       description: ['', Validators.maxLength(500)]
     };
 
-    // Add period checkboxes
+    // Add period checkboxes - default to true for new special days
+    const defaultPeriodValue = data.mode === 'add';
     this.availablePeriods.forEach(period => {
-      formConfig[`period_${period}`] = [false];
+      formConfig[`period_${period}`] = [defaultPeriodValue];
     });
 
     this.specialDayForm = this.fb.group(formConfig);
@@ -145,6 +146,14 @@ export class SpecialDayModalComponent implements OnInit {
   }
 
   save(): void {
+    console.log('[SpecialDayModal] Save button clicked', {
+      formValid: this.specialDayForm.valid,
+      noPeriodSelected: this.noPeriodSelected,
+      selectedPeriods: this.selectedPeriods,
+      formValue: this.specialDayForm.value,
+      timestamp: new Date().toISOString()
+    });
+
     if (this.specialDayForm.valid && !this.noPeriodSelected) {
       const formValue = this.specialDayForm.value;
 
@@ -168,8 +177,24 @@ export class SpecialDayModalComponent implements OnInit {
 
       this.dialogRef.close(result);
     } else {
+      console.log('[SpecialDayModal] Form validation failed', {
+        formErrors: this.getFormErrors(),
+        noPeriodSelected: this.noPeriodSelected,
+        timestamp: new Date().toISOString()
+      });
       this.specialDayForm.markAllAsTouched();
     }
+  }
+
+  private getFormErrors(): any {
+    const errors: any = {};
+    Object.keys(this.specialDayForm.controls).forEach(key => {
+      const control = this.specialDayForm.get(key);
+      if (control && control.errors) {
+        errors[key] = control.errors;
+      }
+    });
+    return errors;
   }
 
   delete(): void {

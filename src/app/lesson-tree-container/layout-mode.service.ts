@@ -5,10 +5,11 @@
 
 import { Injectable, signal, computed, effect, inject } from '@angular/core';
 import { Subject, Observable } from 'rxjs';
+import { DOCUMENT } from '@angular/common';
 import { PanelStateService } from '../info-panel/panel-state.service';
 
 // Define the available view modes
-export type LayoutMode = 'tree-details' | 'tree-calendar' | 'calendar-details';
+export type LayoutMode = 'tree-details' | 'tree-calendar' | 'calendar-details' | 'course-focus';
 
 // Define split-panel types
 export type SplitPanelType = 'tree' | 'calendar' | 'details';
@@ -27,6 +28,7 @@ export interface LayoutModeConfigurations {
   'tree-details': SplitPanelConfiguration;
   'tree-calendar': SplitPanelConfiguration;
   'calendar-details': SplitPanelConfiguration;
+  'course-focus': SplitPanelConfiguration;
 }
 
 // ✅ Observable event interfaces
@@ -79,12 +81,14 @@ export class LayoutModeService {
 
   // Injected services
   private panelStateService = inject(PanelStateService);
+  private document = inject(DOCUMENT);
 
   // Available view mode options
   readonly layoutModeOptions: LayoutModeOption[] = [
     { value: 'tree-details', label: 'Tree-Details' },
     { value: 'tree-calendar', label: 'Tree-Calendar' },
-    { value: 'calendar-details', label: 'Calendar-Details' }
+    { value: 'calendar-details', label: 'Calendar-Details' },
+    { value: 'course-focus', label: 'Course Focus' }
   ];
 
   // ✅ Signal state for reactive UI
@@ -99,7 +103,8 @@ export class LayoutModeService {
   private readonly _splitPanelConfigurations = signal<LayoutModeConfigurations>({
     'tree-details': { left: 'tree', right: 'details' },
     'tree-calendar': { left: 'tree', right: 'calendar' },
-    'calendar-details': { left: 'calendar', right: 'details' }
+    'calendar-details': { left: 'calendar', right: 'details' },
+    'course-focus': { left: 'tree', right: 'calendar' }  // Focus mode uses tree + calendar layout
   });
   readonly splitPanelConfigurations = this._splitPanelConfigurations.asReadonly();
 
@@ -107,6 +112,7 @@ export class LayoutModeService {
   readonly isTreeDetailsMode = computed(() => this._layoutMode() === 'tree-details');
   readonly isTreeCalendarMode = computed(() => this._layoutMode() === 'tree-calendar');
   readonly isCalendarDetailsMode = computed(() => this._layoutMode() === 'calendar-details');
+  readonly isCourseFocusMode = computed(() => this._layoutMode() === 'course-focus');
 
   // Computed signal for current split-panel configuration
   readonly currentSplitPanelConfig = computed(() => {
@@ -124,6 +130,19 @@ export class LayoutModeService {
   private readonly _sidebarVisible = signal<boolean>(true);
   readonly sidebarVisible = this._sidebarVisible.asReadonly();
 
+  // ✅ Calendar view date preservation across layout changes
+  // JUSTIFICATION: Layout transitions destroy/recreate calendar component, so layout service
+  // owns the responsibility for preserving calendar state during these transitions
+  private _currentCalendarDate: Date | null = null;
+
+  // ✅ Course Focus Mode state
+  private readonly _focusedCourseId = signal<number | null>(null);
+  readonly focusedCourseId = this._focusedCourseId.asReadonly();
+
+  // Track the mode before entering course focus for restoration
+  private readonly _preFocusMode = signal<LayoutMode | null>(null);
+  readonly preFocusMode = this._preFocusMode.asReadonly();
+
   constructor() {
     console.log('[LayoutModeService] Initialized with dual Signal/Observable pattern', {
       timestamp: new Date().toISOString()
@@ -134,6 +153,9 @@ export class LayoutModeService {
 
     // Setup automatic mode switching for InfoPanel visibility
     this.setupInfoPanelAutoSwitching();
+
+    // Setup CSS class management for course focus mode
+    this.setupCourseFocusCssClass();
   }
 
   /**
@@ -220,6 +242,24 @@ export class LayoutModeService {
           });
         }
         this._previousMode.set(null);
+      }
+    });
+  }
+
+  /**
+   * ✅ Setup CSS class management for course focus mode
+   * Automatically adds/removes the 'course-focus-mode' class on the body element
+   */
+  private setupCourseFocusCssClass(): void {
+    effect(() => {
+      const isCourseFocusMode = this.isCourseFocusMode();
+      
+      if (isCourseFocusMode) {
+        this.document.body.classList.add('course-focus-mode');
+        console.log('[LayoutModeService] 🎯 Added course-focus-mode CSS class to body');
+      } else {
+        this.document.body.classList.remove('course-focus-mode');
+        console.log('[LayoutModeService] 🎯 Removed course-focus-mode CSS class from body');
       }
     });
   }
@@ -357,7 +397,8 @@ export class LayoutModeService {
     const defaultConfigurations: LayoutModeConfigurations = {
       'tree-details': { left: 'tree', right: 'details' },
       'tree-calendar': { left: 'tree', right: 'calendar' },
-      'calendar-details': { left: 'calendar', right: 'details' }
+      'calendar-details': { left: 'calendar', right: 'details' },
+      'course-focus': { left: 'tree', right: 'calendar' }
     };
 
     const defaultConfig = defaultConfigurations[currentMode];
@@ -384,6 +425,140 @@ export class LayoutModeService {
       config: defaultConfig,
       timestamp: new Date().toISOString()
     });
+  }
+
+  // === COURSE FOCUS MODE METHODS ===
+
+  /**
+   * ✅ Enter course focus mode - focuses on a single course
+   * Preserves current layout mode for restoration
+   */
+  enterCourseFocusMode(courseId: number): void {
+    const currentMode = this._layoutMode();
+    
+    console.log(`[LayoutModeService] 🎯 Entering course focus mode for course ${courseId}`, {
+      previousMode: currentMode,
+      timestamp: new Date().toISOString()
+    });
+
+    // Store current mode for restoration
+    this._preFocusMode.set(currentMode);
+    this._focusedCourseId.set(courseId);
+
+    // Switch to course focus layout
+    this._layoutMode.set('course-focus');
+
+    // Emit Observable event
+    this._layoutModeChanged$.next({
+      previousMode: currentMode,
+      newMode: 'course-focus',
+      source: 'manual',
+      reason: `Focused on course ${courseId}`,
+      timestamp: new Date()
+    });
+  }
+
+  /**
+   * ✅ Exit course focus mode - returns to previous layout
+   * Clears focused course state
+   */
+  exitCourseFocusMode(): void {
+    const currentMode = this._layoutMode();
+    const previousMode = this._preFocusMode();
+    const focusedCourseId = this._focusedCourseId();
+    
+    if (currentMode !== 'course-focus') {
+      console.warn('[LayoutModeService] Cannot exit course focus mode - not currently in focus mode');
+      return;
+    }
+
+    const targetMode = previousMode || 'tree-calendar'; // Fallback to tree-calendar
+
+    console.log(`[LayoutModeService] 🎯 Exiting course focus mode`, {
+      previousMode,
+      targetMode,
+      focusedCourseId,
+      timestamp: new Date().toISOString()
+    });
+
+    // Clear focus state
+    this._focusedCourseId.set(null);
+    this._preFocusMode.set(null);
+
+    // Return to previous mode
+    this._layoutMode.set(targetMode);
+
+    // Emit Observable event
+    this._layoutModeChanged$.next({
+      previousMode: currentMode,
+      newMode: targetMode,
+      source: 'restoration',
+      reason: `Exited course focus for course ${focusedCourseId}`,
+      timestamp: new Date()
+    });
+  }
+
+  /**
+   * ✅ Toggle course focus mode - smart toggle based on current state
+   */
+  toggleCourseFocusMode(courseId: number): void {
+    const currentMode = this._layoutMode();
+    const currentFocusedId = this._focusedCourseId();
+
+    if (currentMode === 'course-focus' && currentFocusedId === courseId) {
+      // Exit focus mode if already focused on this course
+      this.exitCourseFocusMode();
+    } else if (currentMode === 'course-focus' && currentFocusedId !== courseId) {
+      // Switch focus to different course (don't change mode, just update course)
+      console.log(`[LayoutModeService] 🎯 Switching course focus from ${currentFocusedId} to ${courseId}`);
+      this._focusedCourseId.set(courseId);
+      
+      // Emit event for course change
+      this._layoutModeChanged$.next({
+        previousMode: currentMode,
+        newMode: currentMode,
+        source: 'manual',
+        reason: `Switched focus from course ${currentFocusedId} to ${courseId}`,
+        timestamp: new Date()
+      });
+    } else {
+      // Enter focus mode
+      this.enterCourseFocusMode(courseId);
+    }
+  }
+
+  // === CALENDAR DATE PRESERVATION METHODS ===
+
+  /**
+   * ✅ Set current calendar view date (called when user navigates calendar)
+   * JUSTIFICATION: Layout changes destroy calendar component, so layout service preserves state
+   */
+  setCurrentCalendarDate(date: Date): void {
+    this._currentCalendarDate = new Date(date);
+    console.log('[LayoutModeService] 📅 Calendar view date preserved:', {
+      date: this._currentCalendarDate.toDateString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * ✅ Get preserved calendar view date (called when calendar component re-initializes)
+   * Returns null if no date has been preserved yet
+   */
+  getCurrentCalendarDate(): Date | null {
+    console.log('[LayoutModeService] 📅 Retrieving preserved calendar date:', {
+      preservedDate: this._currentCalendarDate?.toDateString() || 'none',
+      timestamp: new Date().toISOString()
+    });
+    return this._currentCalendarDate;
+  }
+
+  /**
+   * ✅ Clear preserved calendar date (optional cleanup)
+   */
+  clearCurrentCalendarDate(): void {
+    console.log('[LayoutModeService] 📅 Clearing preserved calendar date');
+    this._currentCalendarDate = null;
   }
 
   // Persistence methods

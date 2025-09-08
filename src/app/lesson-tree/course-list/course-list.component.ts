@@ -16,6 +16,7 @@ import { PanelStateService } from '../../info-panel/panel-state.service';
 import { SyncfusionModule } from '../../shared/modules/syncfusion.module';
 import { CourseDataService } from '../services/course-data/course-data.service';
 import { CourseCrudService } from '../services/course-operations/course-crud.service';
+import { LayoutModeService } from '../../lesson-tree-container/layout-mode.service';
 
 @Component({
   selector: 'course-list',
@@ -40,14 +41,23 @@ export class CourseListComponent implements OnInit {
   private readonly _localCourseFilter = signal<'active' | 'archived' | 'both'>('active');
   private readonly _localVisibilityFilter = signal<'private' | 'team'>('private');
 
-  // Computed signal for courses to display (all local filters)
+  // Computed signal for courses to display (all local filters + focus mode filtering)
   readonly displayCourses = computed(() => {
     const allCourses = this.courseDataService.getCourses();
     const searchTerm = this._localSearchTerm().toLowerCase();
     const courseFilter = this._localCourseFilter();
     const visibilityFilter = this._localVisibilityFilter();
+    
+    // ✅ Course Focus Mode filtering
+    const isCourseFocusMode = this.layoutModeService.isCourseFocusMode();
+    const focusedCourseId = this.layoutModeService.focusedCourseId();
 
     return allCourses.filter((course: Course) => {
+      // ✅ PRIORITY FILTER: Course Focus Mode - only show focused course
+      if (isCourseFocusMode && focusedCourseId) {
+        if (course.id !== focusedCourseId) return false;
+      }
+
       // Apply course filter (active/archived/both)
       if (courseFilter === 'active' && course.archived) return false;
       if (courseFilter === 'archived' && !course.archived) return false;
@@ -73,7 +83,8 @@ export class CourseListComponent implements OnInit {
     private toastr: ToastrService,
     private panelStateService: PanelStateService,
     public courseDataService: CourseDataService,
-    private courseCrudService: CourseCrudService
+    private courseCrudService: CourseCrudService,
+    public layoutModeService: LayoutModeService
   ) {}
 
   ngOnInit(): void {
@@ -130,4 +141,7 @@ export class CourseListComponent implements OnInit {
     this.panelStateService.initiateAddMode('Course', null);
     this.toastr.info('Initiating new course creation', 'Info');
   }
+
+  // === COURSE FOCUS MODE METHODS ===
+  // Focus toggle methods moved to TreeWrapperComponent for better UX
 }

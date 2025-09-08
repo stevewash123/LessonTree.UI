@@ -269,6 +269,70 @@ export class ApiService {
       );
     }
 
+    // ===== COPY OPERATIONS =====
+
+    copyLesson(
+      lessonId: number,
+      targetSubTopicId?: number,
+      targetTopicId?: number
+    ): Observable<any> {
+      const copyResource: LessonMoveResource = {
+        lessonId,
+        newSubTopicId: targetSubTopicId || null,
+        newTopicId: targetTopicId || null,
+        relativeToId: null,
+        position: null,
+        relativeToType: null
+      };
+
+      console.log('[ApiService] Copying lesson with resource object:', copyResource);
+
+      return this.http.post<any>(`${this.baseUrl}/Lesson/copy`, copyResource).pipe(
+        tap(result => console.log('[ApiService] Lesson copy result:', result)),
+        catchError(error => this.handleError(error))
+      );
+    }
+
+    copySubTopic(
+      subTopicId: number,
+      newTopicId: number
+    ): Observable<any> {
+      const copyResource: SubTopicMoveResource = {
+        subTopicId,
+        newTopicId,
+        relativeToId: null,
+        position: null,
+        relativeToType: null
+      };
+
+      console.log('[ApiService] Copying subtopic with resource object:', copyResource);
+
+      return this.http.post<any>(`${this.baseUrl}/subtopic/copy`, copyResource).pipe(
+        tap(result => console.log('[ApiService] SubTopic copy result:', result)),
+        catchError(error => this.handleError(error))
+      );
+    }
+
+    copyTopic(
+      topicId: number,
+      newCourseId: number
+    ): Observable<any> {
+      const copyResource: TopicMoveResource = {
+        topicId,
+        newCourseId,
+        relativeToId: null,
+        position: null,
+        relativeToType: null
+      };
+
+      console.log('[ApiService] Copying topic with resource object:', copyResource);
+
+      return this.http.post<any>(`${this.baseUrl}/topic/copy`, copyResource).pipe(
+        tap(result => console.log('[ApiService] Topic copy result:', result)),
+        catchError(error => this.handleError(error))
+      );
+    }
+
     /** Upload an attachment for a lesson */
     uploadAttachment(lessonId: number, file: File): Observable<Attachment> {
         const formData = new FormData();

@@ -331,18 +331,12 @@ export class PeriodManagementService {
         });
       });
 
-      // Check for coverage gaps (missing config-level teaching days)
-      const coveredDays = Object.keys(dayAssignments);
-      const missingDays = expectedDays.filter(day => !coveredDays.includes(day));
-
-      if (missingDays.length > 0) {
-        hasIncomplete = true;
-        coverageGaps.push(`Period ${periodNumber}: Missing coverage for ${missingDays.join(', ')}`);
-      }
+      // NOTE: Removed invalid "coverage gaps" validation - periods are allowed to have 
+      // their own subset of teaching days (e.g., Lab periods only on T&Th)
     });
 
     return {
-      isValid: errors.length === 0 && coverageGaps.length === 0,
+      isValid: errors.length === 0,
       hasConflicts,
       hasIncomplete,
       errors,

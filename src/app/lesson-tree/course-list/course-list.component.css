@@ -131,4 +131,42 @@ button[mat-raised-button] {
     box-sizing: border-box;
     margin: 0 0 16px 0;
     padding: 0 !important; /* Override Material Design padding */
+    transition: all 0.3s ease; /* Smooth transitions for focus mode */
+  }
+
+  /* === COURSE FOCUS MODE STYLING === */
+
+  /* Focused course card styling */
+  .course-card.focused-course {
+    border: 2px solid #3f51b5 !important;
+    box-shadow: 0 4px 12px rgba(63, 81, 181, 0.2) !important;
+    transform: scale(1.02);
+  }
+
+  /* Hide other courses when in focus mode */
+  :host-context(.course-focus-mode) .course-card:not(.focused-course) {
+    display: none;
+  }
+
+  /* Maximize space in focus mode */
+  :host-context(.course-focus-mode) .course-list-wrapper {
+    padding: 0;
+    margin: 0;
+  }
+
+  :host-context(.course-focus-mode) .course-card.focused-course {
+    margin: 0 !important;
+    height: calc(100vh - 120px); /* Fill available height minus header/footer space */
+    transform: none; /* Remove scale effect to save space */
+  }
+
+  :host-context(.course-focus-mode) .tree-view-container {
+    height: calc(100% - 8px); /* Fill the card height */
+    margin: 0;
+    padding: 4px;
+  }
+
+  /* Hide Add Course button in focus mode */
+  :host-context(.course-focus-mode) .add-course-button {
+    display: none;
   }

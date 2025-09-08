@@ -4,7 +4,8 @@
 // CALLED BY: CalendarInitializationService
 // LOCATION: /calendar/services/core/
 
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { LayoutModeService } from '../../../lesson-tree-container/layout-mode.service';
 
 export interface DateCalculationResult {
   activeDate: Date;
@@ -25,9 +26,10 @@ export interface CalendarNavigationCallbacks {
 export class CalendarDateService {
 
   private calendarCallbacks: CalendarNavigationCallbacks | null = null;
+  private layoutModeService = inject(LayoutModeService);
 
   constructor() {
-    console.log('[CalendarDateService] Date calculation and navigation service initialized');
+    console.log('[CalendarDateService] Date calculation and navigation service initialized with LayoutModeService');
   }
 
   // === INITIALIZATION ===
@@ -107,10 +109,77 @@ export class CalendarDateService {
   // === FULLCALENDAR NAVIGATION ===
 
   /**
+   * Update the current view date (called during navigation) - delegates to LayoutModeService
+   */
+  updateCurrentViewDate(date: Date): void {
+    this.layoutModeService.setCurrentCalendarDate(date);
+    console.log('[CalendarDateService] 📅 Current view date delegated to LayoutModeService:', {
+      newCurrentDate: date.toDateString()
+    });
+  }
+
+  /**
+   * Get current calendar date - prefers LayoutModeService tracking over FullCalendar API
+   * Returns the date the calendar is currently showing
+   */
+  getCurrentCalendarDate(): Date | null {
+    console.log('[CalendarDateService] 🔍 ===== GET CURRENT CALENDAR DATE START =====');
+    
+    // First, try LayoutModeService preserved date
+    const preservedDate = this.layoutModeService.getCurrentCalendarDate();
+    if (preservedDate) {
+      console.log('[CalendarDateService] ✅ Using LayoutModeService preserved date:', {
+        preservedDate: preservedDate.toDateString(),
+        source: 'layout-mode-service'
+      });
+      console.log('[CalendarDateService] 🔍 ===== GET CURRENT CALENDAR DATE END (PRESERVED) =====');
+      return preservedDate;
+    }
+
+    console.log('[CalendarDateService] ⚠️ No preserved date in LayoutModeService, falling back to FullCalendar API');
+    
+    if (!this.calendarCallbacks) {
+      console.warn('[CalendarDateService] ⚠️ Cannot get current date - no calendar callbacks set');
+      console.log('[CalendarDateService] 🔍 ===== GET CURRENT CALENDAR DATE END (NO CALLBACKS) =====');
+      return null;
+    }
+
+    const calendarApi = this.calendarCallbacks.getCalendarApi();
+    if (!calendarApi) {
+      console.warn('[CalendarDateService] ⚠️ Cannot get current date - calendar API not available');
+      console.log('[CalendarDateService] 🔍 ===== GET CURRENT CALENDAR DATE END (NO API) =====');
+      return null;
+    }
+
+    const currentDate = calendarApi.getDate();
+    console.log('[CalendarDateService] ✅ SUCCESS: Retrieved current calendar date from API:', {
+      currentDate: currentDate.toDateString(),
+      currentDateISO: currentDate.toISOString(),
+      view: calendarApi.view?.type || 'unknown',
+      viewTitle: calendarApi.view?.title || 'unknown',
+      source: 'fullcalendar-api'
+    });
+
+    // Store this in LayoutModeService for future preservation
+    this.layoutModeService.setCurrentCalendarDate(currentDate);
+
+    console.log('[CalendarDateService] 🔍 ===== GET CURRENT CALENDAR DATE END (API SUCCESS) =====');
+    return currentDate;
+  }
+
+  /**
    * Set FullCalendar to show specific date - FIXED: Wait for API readiness
    * EXTRACTED FROM: LessonCalendarComponent.setInitialCalendarDate()
    */
   async setCalendarDate(targetDate: Date): Promise<boolean> {
+    console.log('[CalendarDateService] 🚀 === CALENDAR NAVIGATION DEBUG START ===');
+    console.log('[CalendarDateService] 📋 Navigation request details:', {
+      targetDate: targetDate.toDateString(),
+      targetDateISO: targetDate.toISOString(),
+      dayOfWeek: targetDate.toLocaleDateString('en-US', { weekday: 'long' }),
+      hasCallbacks: !!this.calendarCallbacks
+    });
+
     if (!this.calendarCallbacks) {
       console.error('[CalendarDateService] ❌ Cannot navigate - no calendar callbacks set');
       return false;
@@ -123,25 +192,54 @@ export class CalendarDateService {
       return false;
     }
 
-    console.log('[CalendarDateService] 🧭 Navigating calendar to:', targetDate.toDateString());
+    // 🔍 DEBUG: Check calendar's current state BEFORE navigation
+    const beforeDate = calendarApi.getDate();
+    console.log('[CalendarDateService] 📊 Calendar state BEFORE navigation:', {
+      currentDate: beforeDate.toDateString(),
+      currentDateISO: beforeDate.toISOString(),
+      view: calendarApi.view.type,
+      title: calendarApi.view.title
+    });
+
+    console.log('[CalendarDateService] 🧭 Executing gotoDate()...');
 
     try {
       calendarApi.gotoDate(targetDate);
+      console.log('[CalendarDateService] ✅ gotoDate() call completed without error');
 
-      // Verify navigation worked
+      // 🔍 DEBUG: Immediate check after navigation
+      const immediateDate = calendarApi.getDate();
+      console.log('[CalendarDateService] 📊 Calendar state IMMEDIATELY after navigation:', {
+        currentDate: immediateDate.toDateString(),
+        currentDateISO: immediateDate.toISOString(),
+        view: calendarApi.view.type,
+        title: calendarApi.view.title,
+        navigationWorked: immediateDate.toDateString() === targetDate.toDateString()
+      });
+
+      // Verify navigation worked after short delay
       setTimeout(() => {
         const currentDate = calendarApi.getDate();
-        console.log('[CalendarDateService] ✅ Calendar navigation completed:', {
+        const navigationSuccess = this.areDatesInSameMonth(targetDate, currentDate);
+        
+        console.log('[CalendarDateService] 📊 Calendar navigation FINAL verification (50ms later):', {
           targetDate: targetDate.toDateString(),
           currentDate: currentDate.toDateString(),
-          navigationSuccess: this.areDatesInSameMonth(targetDate, currentDate)
+          sameMonth: navigationSuccess,
+          datesDifferBy: Math.abs(currentDate.getTime() - targetDate.getTime()) / (1000 * 60 * 60 * 24) // days
         });
+
+        if (!navigationSuccess) {
+          console.error('[CalendarDateService] ❌ NAVIGATION FAILED: Calendar did not navigate to target date');
+        }
       }, 50);
 
+      console.log('[CalendarDateService] 🏁 === CALENDAR NAVIGATION DEBUG END ===');
       return true;
 
     } catch (error) {
       console.error('[CalendarDateService] ❌ Calendar navigation failed:', error);
+      console.log('[CalendarDateService] 🏁 === CALENDAR NAVIGATION DEBUG END (ERROR) ===');
       return false;
     }
   }

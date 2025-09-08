@@ -56,6 +56,18 @@
     }
   }
   
+  .error-message {
+    color: #f44336;
+    background-color: #ffebee;
+    border: 1px solid #ffcdd2;
+    border-radius: 4px;
+    padding: 12px;
+    margin: 8px 0;
+    font-size: 14px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(244, 67, 54, 0.1);
+  }
+  
   button {
     margin-top: 16px;
   }

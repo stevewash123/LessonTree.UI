@@ -7,9 +7,10 @@ import { Injectable } from '@angular/core';
 import { Observable, Subject } from 'rxjs';
 
 export interface CalendarRefreshEvent {
-  reason: 'schedule-updated' | 'lesson-moved' | 'special-day-changed' | 'configuration-changed';
-  scope: 'full' | 'current-view' | 'events-only';
-  scheduleId?: number;
+  scope: 'full' | 'course-specific';
+  reason: string; // Human-readable reason for debugging
+  courseId?: number; // Only present for course-specific refreshes
+  scheduleId?: number; // Schedule context (for compatibility)
   timestamp: Date;
 }
 
@@ -27,96 +28,40 @@ export class CalendarRefreshService {
     console.log('[CalendarRefreshService] Calendar refresh coordination service initialized');
   }
 
-  // === REFRESH TRIGGERS ===
+  // === SIMPLIFIED REFRESH API ===
 
   /**
-   * Request full calendar refresh (complete reload)
+   * Refresh calendar for all courses (configuration changes, special days)
    */
-  requestFullRefresh(reason: CalendarRefreshEvent['reason'], scheduleId?: number): void {
-    console.log('[CalendarRefreshService] 🔄 Full refresh requested:', { reason, scheduleId });
+  refreshCalendar(): void {
+    console.log('[CalendarRefreshService] 🔄 Full calendar refresh requested');
 
-    const refreshEvent = {
-      reason,
-      scope: 'full' as const,
-      scheduleId,
+    const refreshEvent: CalendarRefreshEvent = {
+      scope: 'full',
+      reason: 'calendar-configuration-change',
       timestamp: new Date()
     };
 
-    console.log('[CalendarRefreshService] 📡 About to emit refresh event:', refreshEvent);
+    console.log('[CalendarRefreshService] 📡 Emitting full refresh event:', refreshEvent);
     this.refreshRequestedSubject.next(refreshEvent);
-    console.log('[CalendarRefreshService] ✅ Refresh event emitted successfully');
+    console.log('[CalendarRefreshService] ✅ Full refresh event emitted');
   }
 
   /**
-   * Request current view refresh (reload current month/week)
+   * Refresh calendar for a specific course (lesson/topic/subtopic changes)
    */
-  requestCurrentViewRefresh(reason: CalendarRefreshEvent['reason'], scheduleId?: number): void {
-    console.log('[CalendarRefreshService] Current view refresh requested:', { reason, scheduleId });
+  refreshCalendarForCourse(courseId: number): void {
+    console.log('[CalendarRefreshService] 🔄 Course-specific refresh requested for course:', courseId);
 
-    this.refreshRequestedSubject.next({
-      reason,
-      scope: 'current-view',
-      scheduleId,
-      timestamp: new Date()
-    });
-  }
-
-  /**
-   * Request events-only refresh (keep calendar position, reload events)
-   */
-  requestEventsRefresh(reason: CalendarRefreshEvent['reason'], scheduleId?: number): void {
-    console.log('[CalendarRefreshService] Events refresh requested:', { reason, scheduleId });
-
-    this.refreshRequestedSubject.next({
-      reason,
-      scope: 'events-only',
-      scheduleId,
-      timestamp: new Date()
-    });
-  }
-
-  // === SPECIFIC REFRESH METHODS ===
-
-  /**
-   * Refresh after schedule update
-   */
-  refreshAfterScheduleUpdate(scheduleId: number): void {
-    this.requestCurrentViewRefresh('schedule-updated', scheduleId);
-  }
-
-  /**
-   * Refresh after lesson repositioning (receives courseId, looks up schedule)
-   */
-  refreshAfterLessonMove(courseId: number): void {
-    console.log('[CalendarRefreshService] Lesson move detected for course:', courseId);
-
-    // TODO: Get current schedule from state and verify course is in configuration
-    // For now, use generic current view refresh
-    this.requestCurrentViewRefresh('lesson-moved');
-  }
-
-  /**
-   * Refresh after special day changes
-   */
-  refreshAfterSpecialDayChange(scheduleId: number): void {
-    this.requestCurrentViewRefresh('special-day-changed', scheduleId);
-  }
-
-  /**
-   * Refresh after configuration changes
-   */
-  refreshAfterConfigurationChange(): void {
-    console.log('[CalendarRefreshService] 🔄 Configuration change refresh triggered');
-
-    const refreshEvent = {
-      reason: 'configuration-changed' as const,
-      scope: 'full' as const,
-      scheduleId: undefined,
+    const refreshEvent: CalendarRefreshEvent = {
+      scope: 'course-specific',
+      reason: 'course-data-change',
+      courseId,
       timestamp: new Date()
     };
 
-    console.log('[CalendarRefreshService] 📡 Emitting configuration change event:', refreshEvent);
+    console.log('[CalendarRefreshService] 📡 Emitting course-specific refresh event:', refreshEvent);
     this.refreshRequestedSubject.next(refreshEvent);
-    console.log('[CalendarRefreshService] ✅ Configuration change event emitted');
+    console.log('[CalendarRefreshService] ✅ Course-specific refresh event emitted');
   }
 }

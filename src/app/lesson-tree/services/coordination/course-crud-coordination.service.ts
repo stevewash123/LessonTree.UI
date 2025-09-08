@@ -13,6 +13,7 @@ import { Topic } from '../../../models/topic';
 import { SubTopic } from '../../../models/subTopic';
 import { LessonDetail } from '../../../models/lesson';
 import {CourseBusinessService} from '../business/course-business.service';
+import { CalendarRefreshService } from '../../../calendar/services/integration/calendar-refresh.service';
 
 // ✅ Event interfaces for all entity operations
 export interface EntitySaveCompletedEvent<T> {
@@ -99,7 +100,8 @@ export class CourseCrudCoordinationService implements OnDestroy {
   constructor(
     private businessService: CourseCrudBusinessService,
     private courseBusinessService: CourseBusinessService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private calendarRefresh: CalendarRefreshService
   ) {
     console.log('[CourseCrudCoordinationService] Enhanced with Observable coordination patterns');
     this.setupObservableConsumption();
@@ -275,6 +277,14 @@ export class CourseCrudCoordinationService implements OnDestroy {
           lesson: createdLesson,  // ✅ Use 'lesson' property for component compatibility
           timestamp: new Date()
         });
+        
+        // ✅ FIX: Refresh calendar after lesson creation with delay
+        // TIMING FIX: Wait for layout mode change and component re-initialization to complete
+        console.log('[CourseCrudCoordinationService] ✅ Requesting DELAYED calendar refresh after lesson creation');
+        setTimeout(() => {
+          console.log('[CourseCrudCoordinationService] 🔄 Executing delayed calendar refresh for course:', createdLesson.courseId);
+          this.calendarRefresh.refreshCalendarForCourse(createdLesson.courseId);
+        }, 1000); // 1 second delay to allow component re-initialization
       },
       error: (err: Error) => {
         this.toastr.error(`Failed to create lesson: ${err.message}`, 'Error');
@@ -297,6 +307,10 @@ export class CourseCrudCoordinationService implements OnDestroy {
           lesson: updatedLesson,  // ✅ Use 'lesson' property for component compatibility
           timestamp: new Date()
         });
+        
+        // ✅ FIX: Refresh calendar after lesson update
+        console.log('[CourseCrudCoordinationService] ✅ Requesting calendar refresh after lesson update');
+        this.calendarRefresh.refreshCalendarForCourse(updatedLesson.courseId);
       },
       error: (err: Error) => {
         this.toastr.error(`Failed to update lesson: ${err.message}`, 'Error');

@@ -4,7 +4,7 @@
 // CALLED BY: CalendarInitializationService
 // LOCATION: /calendar/services/core/
 
-import { Injectable, signal, computed } from '@angular/core';
+import { Injectable, signal, computed, inject } from '@angular/core';
 import { CalendarOptions } from '@fullcalendar/core';
 
 // Models
@@ -12,6 +12,12 @@ import { ScheduleEvent } from '../../../models/schedule-event.model';
 
 // UI Services (the excellent specialized services we preserved)
 import { CalendarEventService } from '../ui/calendar-event.service';
+
+// Core Services
+import { CalendarDateService } from './calendar-date.service';
+
+// Layout Services
+import { LayoutModeService } from '../../../lesson-tree-container/layout-mode.service';
 
 // State Services
 import { ScheduleConfigurationStateService } from '../state/schedule-configuration-state.service';
@@ -48,10 +54,13 @@ export class CalendarDisplayService {
 
   constructor(
     private calendarEventService: CalendarEventService,
+    private calendarDateService: CalendarDateService,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService
   ) {
     console.log('[CalendarDisplayService] Display coordination service initialized');
   }
+
+  private layoutModeService = inject(LayoutModeService);
 
   // === INITIALIZATION ===
 
@@ -230,6 +239,66 @@ export class CalendarDisplayService {
     }
 
     return configUpdated;
+  }
+
+  /**
+   * Update calendar options with initial date - FIXES calendar date calculation bug
+   * This method addresses the issue where calendar requests events for wrong week
+   */
+  updateCalendarOptionsWithInitialDate(initialDate: Date): boolean {
+    console.log('[CalendarDisplayService] 🎯 === FIXING CALENDAR INITIAL DATE ===');
+    console.log('[CalendarDisplayService] 📅 Setting calendar initial date to:', {
+      initialDate: initialDate.toDateString(),
+      initialDateISO: initialDate.toISOString(),
+      dayOfWeek: initialDate.toLocaleDateString('en-US', { weekday: 'long' })
+    });
+
+    if (!this.displayCallbacks) {
+      console.error('[CalendarDisplayService] ❌ Cannot update initial date - no callbacks set');
+      return false;
+    }
+
+    // Update calendar options with initial date
+    const configUpdated = this.updateCalendarConfiguration({ initialDate });
+    if (!configUpdated) {
+      console.error('[CalendarDisplayService] ❌ Failed to update calendar configuration with initial date');
+      return false;
+    }
+
+    // CRITICAL: Also update FullCalendar API directly if available
+    const calendarApi = this.displayCallbacks.getCalendarApi();
+    if (calendarApi) {
+      try {
+        console.log('[CalendarDisplayService] 🔧 Calling calendarApi.gotoDate() as backup...');
+        calendarApi.gotoDate(initialDate);
+        
+        // CRITICAL: Preserve this initial date in LayoutModeService for layout transitions
+        console.log('[CalendarDisplayService] 📅 Preserving initial calendar date in LayoutModeService');
+        this.layoutModeService.setCurrentCalendarDate(initialDate);
+        
+        // Also update CalendarDateService to maintain backward compatibility
+        this.calendarDateService.updateCurrentViewDate(initialDate);
+        
+        // Verify the navigation worked
+        setTimeout(() => {
+          const currentDate = calendarApi.getDate();
+          console.log('[CalendarDisplayService] 📊 Calendar date after gotoDate():', {
+            requested: initialDate.toDateString(),
+            actual: currentDate.toDateString(),
+            success: Math.abs(currentDate.getTime() - initialDate.getTime()) < (7 * 24 * 60 * 60 * 1000) // Within 1 week
+          });
+        }, 100);
+        
+        console.log('[CalendarDisplayService] ✅ Initial date set successfully via both configuration and API');
+        return true;
+      } catch (error) {
+        console.error('[CalendarDisplayService] ❌ Failed to call gotoDate(), but configuration updated:', error);
+        return true; // Configuration still updated
+      }
+    }
+
+    console.log('[CalendarDisplayService] ✅ Initial date set via configuration (API not available yet)');
+    return true;
   }
 
   // === DISPLAY STATE MANAGEMENT ===

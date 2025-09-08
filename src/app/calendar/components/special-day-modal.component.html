@@ -36,9 +36,9 @@
         }
       </div>
 
-      <!-- Special Code -->
+      <!-- Event Type -->
       <mat-form-field>
-        <mat-label>Special Code</mat-label>
+        <mat-label>Event Type</mat-label>
         <mat-select formControlName="specialCode">
           <mat-option value="Assembly">Assembly</mat-option>
           <mat-option value="Field Trip">Field Trip</mat-option>
@@ -50,7 +50,7 @@
           <mat-option value="Other">Other</mat-option>
         </mat-select>
         @if (specialDayForm.get('specialCode')?.hasError('required')) {
-          <mat-error>Special code is required</mat-error>
+          <mat-error>Event type is required</mat-error>
         }
       </mat-form-field>
 

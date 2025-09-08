@@ -41,6 +41,48 @@ describe('Drag and Drop Tests', () => {
       cy.get('.fc-event').should('have.length.greaterThan', 0)
     })
 
+    it('should move a Lesson after another Lesson within the same Topic', () => {
+      // ACT: Drag Lesson 3 after Lesson 2 within the same topic
+      // Add 5-second delay for debugging
+      cy.wait(5000)
+      
+      cy.get('[data-uid="lesson_2763"]', { timeout: 10000 })
+        .should('exist')
+        .should('be.visible')
+        .as('sourceLesson')
+      
+      cy.get('[data-uid="lesson_2762"]', { timeout: 10000 })
+        .should('exist')
+        .should('be.visible')
+        .as('targetLesson')
+      
+      // Perform drag-drop operation (drop AFTER the target)
+      cy.get('@sourceLesson')
+        .trigger('mousedown', { button: 0 })
+        .wait(200)
+      
+      // For "after" positioning, we might need to target the bottom half of the target element
+      cy.get('@targetLesson')
+        .trigger('mousemove')
+        .trigger('mouseup')
+      
+      cy.wait(3000)
+      
+      // ASSERT: Verify lesson 3 is now positioned after lesson 2
+      cy.request('GET', 'http://localhost:5046/api/lesson/2763').then((response) => {
+        const sourceLesson = response.body
+        
+        cy.request('GET', 'http://localhost:5046/api/lesson/2762').then((targetResponse) => {
+          const targetLesson = targetResponse.body
+          
+          // Source lesson should now be positioned after target lesson
+          expect(sourceLesson.sortOrder).to.be.greaterThan(targetLesson.sortOrder)
+          
+          cy.log(`✅ Lesson 2763 SortOrder: ${sourceLesson.sortOrder}, Lesson 2762 SortOrder: ${targetLesson.sortOrder}`)
+        })
+      })
+    })
+
     it('should move a Lesson to a different Topic', () => {
       cy.screenshot('cross-topic-move-start')
       
@@ -127,6 +169,52 @@ describe('Drag and Drop Tests', () => {
       // Verify system stability after positioning change
       cy.get('.course-card').should('be.visible')
       cy.get('.fc-event').should('have.length.greaterThan', 0)
+    })
+  })
+
+  describe('Schedule Generation Impact', () => {
+    it('should regenerate schedule correctly after multiple lesson moves', () => {
+      // Perform multiple lesson moves and verify schedule maintains correct order
+      // Add 5-second delay for debugging
+      cy.wait(5000)
+      
+      // Move 1: Lesson 1 before Lesson 2
+      cy.get('[data-uid="lesson_2761"]')
+        .trigger('mousedown', { button: 0 })
+        .wait(100)
+      
+      cy.get('[data-uid="lesson_2762"]')
+        .trigger('mousemove')
+        .trigger('mouseup')
+      
+      cy.wait(2000)
+      
+      // Move 2: Lesson 3 before the new position of Lesson 1
+      cy.get('[data-uid="lesson_2763"]')
+        .trigger('mousedown', { button: 0 })
+        .wait(100)
+      
+      cy.get('[data-uid="lesson_2761"]')
+        .trigger('mousemove')
+        .trigger('mouseup')
+      
+      cy.wait(3000)
+      
+      // Verify final schedule order
+      cy.request('GET', 'http://localhost:5046/api/schedule/events').then((response) => {
+        const lessonEvents = response.body
+          .filter((e: any) => e.eventType === 'Lesson')
+          .sort((a: any, b: any) => a.scheduleSort - b.scheduleSort)
+        
+        cy.log(`Schedule has ${lessonEvents.length} lesson events`)
+        
+        // Verify events are properly ordered
+        for (let i = 1; i < lessonEvents.length; i++) {
+          expect(lessonEvents[i].scheduleSort).to.be.greaterThan(lessonEvents[i-1].scheduleSort)
+        }
+        
+        cy.log('✅ Schedule events are correctly ordered after multiple moves')
+      })
     })
   })
 
