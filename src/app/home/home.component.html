@@ -1,125 +1,188 @@
-<!-- **COMPLETE FILE** - Can directly replace existing home.component.html -->
-<!-- RESPONSIBILITY: Main toolbar layout with improved button UX -->
+<!-- **COMPLETE FILE** - Left sidebar navigation layout -->
+<!-- RESPONSIBILITY: Left sidebar navigation with header toolbar -->
 <!-- DOES NOT: Handle complex responsive layouts -->
 <!-- CALLED BY: HomeComponent -->
 
-<mat-toolbar #toolbar color="primary">
-    <button mat-icon-button [matMenuTriggerFor]="navMenu" class="toolbar-button">
-      <mat-icon>menu</mat-icon>
-    </button>
-    <span>LessonTree</span>
-    <span class="spacer"></span>
-    
-    <!-- Disclosure Widget Toggle -->
-    <button mat-icon-button 
-            (click)="toggleControlsVisibility()"
-            class="toolbar-button controls-toggle"
-            [class.active]="controlsVisible()"
-            matTooltip="Show/Hide Controls">
-      <mat-icon>tune</mat-icon>
-    </button>
-    
-    <!-- Account button with better visual feedback -->
-    <button mat-icon-button 
-            [matMenuTriggerFor]="accountMenu"
-            #accountMenuTrigger="matMenuTrigger"
-            class="toolbar-button account-button"
-            matTooltip="Account & Settings">
-      <mat-icon>account_circle</mat-icon>
-    </button>
-    
-    <mat-menu #navMenu="matMenu">
-      <button mat-menu-item routerLink="/home/courses" (click)="closeNavMenu()">CoursesXXX</button>
-      <button mat-menu-item routerLink="/home/lessons" (click)="closeNavMenu()">Lessons</button>
+<mat-sidenav-container class="sidenav-container">
+  <!-- Left Sidebar Navigation -->
+  <mat-sidenav #sidenav
+               mode="side"
+               opened="true"
+               class="sidenav"
+               [fixedInViewport]="true"
+               [fixedTopGap]="0">
+
+    <!-- Sidebar Header -->
+    <div class="sidenav-header">
+      <div class="logo-section">
+        <mat-icon class="logo-icon">school</mat-icon>
+        <span class="logo-text">LessonTree</span>
+      </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <nav class="sidenav-nav">
+      <a mat-button
+         routerLink="/home/courses"
+         routerLinkActive="active-link"
+         class="nav-item">
+        <mat-icon>book</mat-icon>
+        <span>Courses</span>
+      </a>
+
+      <a mat-button
+         routerLink="/home/lessons"
+         routerLinkActive="active-link"
+         class="nav-item">
+        <mat-icon>assignment</mat-icon>
+        <span>Lessons</span>
+      </a>
+
       @if (authService.hasRole('Admin')) {
-        <button mat-menu-item routerLink="/home/account" (click)="closeNavMenu()">Account</button>
+        <a mat-button
+           routerLink="/home/account"
+           routerLinkActive="active-link"
+           class="nav-item">
+          <mat-icon>admin_panel_settings</mat-icon>
+          <span>Account</span>
+        </a>
       }
-    </mat-menu>
-    
-    <mat-menu #accountMenu="matMenu">
-      <button mat-menu-item (click)="openUserConfig()">
-        <mat-icon>settings</mat-icon>
-        <span>User Configuration</span>
+
+      <!-- Divider -->
+      <mat-divider class="nav-divider"></mat-divider>
+
+      <!-- User Actions -->
+      <button mat-button
+              (click)="openUserConfig()"
+              class="nav-item">
+        <mat-icon>person_settings</mat-icon>
+        <span>User Settings</span>
       </button>
-      <button mat-menu-item (click)="openScheduleConfig()">
-        <mat-icon>settings</mat-icon>
-        <span>Schedule Configuration</span>
+
+      <button mat-button
+              (click)="openScheduleConfig()"
+              class="nav-item">
+        <mat-icon>schedule</mat-icon>
+        <span>Schedule Config</span>
       </button>
-      <button mat-menu-item (click)="generateWeeklyReport()">
+
+      <button mat-button
+              (click)="generateWeeklyReport()"
+              class="nav-item">
         <mat-icon>print</mat-icon>
         <span>Weekly Lesson Plan Report</span>
       </button>
-      <button mat-menu-item (click)="logout()">
+
+      <!-- Controls Toggle -->
+      <button mat-button
+              (click)="toggleControlsVisibility()"
+              class="nav-item"
+              [class.active]="controlsVisible()">
+        <mat-icon>tune</mat-icon>
+        <span>Show Controls</span>
+      </button>
+
+      <!-- Logout at bottom -->
+      <div class="nav-spacer"></div>
+      <button mat-button
+              (click)="logout()"
+              class="nav-item logout-item">
         <mat-icon>logout</mat-icon>
         <span>Logout</span>
       </button>
-    </mat-menu>
-  </mat-toolbar>
-  
-  <!-- Disclosure Controls Panel -->
-  @if (controlsVisible()) {
-    <div class="disclosure-panel">
-      <div class="disclosure-content">
-        
-        <!-- Course Search and Filter -->
-        <div class="control-group">
-            <button mat-stroked-button 
-                    (click)="openCourseFilterDialog()" 
-                    matTooltip="Course Filters" 
-                    class="filter-button">
-              <mat-icon>filter_list</mat-icon>
-              <span class="control-label">Filter Courses</span>
-            </button>
+    </nav>
+  </mat-sidenav>
+
+  <!-- Main Content Area -->
+  <mat-sidenav-content class="main-content">
+    <!-- Simplified Top Toolbar -->
+    <mat-toolbar #toolbar color="primary" class="top-toolbar">
+      <button mat-icon-button
+              (click)="sidenav.toggle()"
+              class="menu-toggle"
+              matTooltip="Toggle Navigation">
+        <mat-icon>menu</mat-icon>
+      </button>
+
+      <span class="page-title">{{ getPageTitle() }}</span>
+      <span class="spacer"></span>
+
+      <!-- Quick Actions -->
+      <button mat-icon-button
+              (click)="openCourseFilterDialog()"
+              matTooltip="Filter Courses"
+              class="quick-action">
+        <mat-icon>filter_list</mat-icon>
+      </button>
+    </mat-toolbar>
+
+    <!-- Disclosure Controls Panel -->
+    @if (controlsVisible()) {
+      <div class="disclosure-panel">
+        <div class="disclosure-content">
+
+          <!-- Course Search and Filter -->
+          <div class="control-group">
+              <button mat-stroked-button
+                      (click)="openCourseFilterDialog()"
+                      matTooltip="Course Filters"
+                      class="filter-button">
+                <mat-icon>filter_list</mat-icon>
+                <span class="control-label">Filter Courses</span>
+              </button>
+            </div>
+          <!-- Drag Mode Controls -->
+          <div class="control-group">
+            <span class="control-label">Tree Drag Action:</span>
+            <mat-button-toggle-group
+              [value]="toolbarControls.dragMode()"
+              (change)="onDragModeChange($event.value)"
+              class="drag-mode-toggle-group">
+
+              <mat-button-toggle value="move" matTooltip="Move nodes to new locations">
+                <mat-icon>drive_file_move</mat-icon>
+                <span class="toggle-label">Move</span>
+              </mat-button-toggle>
+
+              <mat-button-toggle value="copy" matTooltip="Copy nodes to new locations">
+                <mat-icon>content_copy</mat-icon>
+                <span class="toggle-label">Copy</span>
+              </mat-button-toggle>
+            </mat-button-toggle-group>
           </div>
-        <!-- Drag Mode Controls -->
-        <div class="control-group">
-          <span class="control-label">Tree Drag Action:</span>
-          <mat-button-toggle-group 
-            [value]="toolbarControls.dragMode()"
-            (change)="onDragModeChange($event.value)"
-            class="drag-mode-toggle-group">
-            
-            <mat-button-toggle value="move" matTooltip="Move nodes to new locations">
-              <mat-icon>drive_file_move</mat-icon>
-              <span class="toggle-label">Move</span>
-            </mat-button-toggle>
-            
-            <mat-button-toggle value="copy" matTooltip="Copy nodes to new locations">
-              <mat-icon>content_copy</mat-icon>
-              <span class="toggle-label">Copy</span>
-            </mat-button-toggle>
-          </mat-button-toggle-group>
+
+          <!-- Layout Mode Controls -->
+          <div class="control-group">
+            <span class="control-label">Layout:</span>
+            <mat-button-toggle-group
+              [value]="toolbarControls.layoutMode()"
+              (change)="onLayoutModeChange($event.value)"
+              class="layout-mode-toggle-group">
+
+              <mat-button-toggle value="tree-details" matTooltip="Tree view with lesson details panel">
+                <mat-icon>account_tree</mat-icon>
+                <span class="toggle-label">Tree + Details</span>
+              </mat-button-toggle>
+
+              <mat-button-toggle value="tree-calendar" matTooltip="Calendar view with tree panel">
+                <mat-icon>calendar_month</mat-icon>
+                <span class="toggle-label">Tree + Calendar</span>
+              </mat-button-toggle>
+
+              <mat-button-toggle value="calendar-details" matTooltip="Calendar view with lesson details panel">
+                <mat-icon>view_day</mat-icon>
+                <span class="toggle-label">Calendar + Details</span>
+              </mat-button-toggle>
+            </mat-button-toggle-group>
+          </div>
+
         </div>
-        
-        <!-- Layout Mode Controls -->
-        <div class="control-group">
-          <span class="control-label">Layout:</span>
-          <mat-button-toggle-group 
-            [value]="toolbarControls.layoutMode()"
-            (change)="onLayoutModeChange($event.value)"
-            class="layout-mode-toggle-group">
-            
-            <mat-button-toggle value="tree-details" matTooltip="Tree view with lesson details panel">
-              <mat-icon>account_tree</mat-icon>
-              <span class="toggle-label">Tree + Details</span>
-            </mat-button-toggle>
-            
-            <mat-button-toggle value="tree-calendar" matTooltip="Calendar view with tree panel">
-              <mat-icon>calendar_month</mat-icon>
-              <span class="toggle-label">Tree + Calendar</span>
-            </mat-button-toggle>
-            
-            <mat-button-toggle value="calendar-details" matTooltip="Calendar view with lesson details panel">
-              <mat-icon>view_day</mat-icon>
-              <span class="toggle-label">Calendar + Details</span>
-            </mat-button-toggle>
-          </mat-button-toggle-group>
-        </div>
-        
       </div>
+    }
+
+    <!-- Main Content Area -->
+    <div class="content-container" [style.paddingTop.px]="toolbarHeight">
+      <router-outlet></router-outlet>
     </div>
-  }
-  
-  <div [style.paddingTop.px]="toolbarHeight">
-    <router-outlet></router-outlet>
-  </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>

@@ -13,8 +13,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatInputModule } from '@angular/material/input';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
-import { RouterOutlet, RouterLink } from '@angular/router';
+import { RouterOutlet, RouterLink, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../shared/services/auth.service';
@@ -40,6 +42,8 @@ import {DragMode} from '../lesson-tree/services/state/node-drag-mode.service';
         MatSelectModule,
         MatInputModule,
         MatTooltipModule,
+        MatSidenavModule,
+        MatDividerModule,
         RouterOutlet,
         RouterLink
     ],
@@ -62,7 +66,7 @@ export class HomeComponent implements AfterViewInit {
     // Local form state for the disclosure widget
     searchTerm = '';
 
-    constructor(public authService: AuthService, private reportService: ReportService) { }
+    constructor(public authService: AuthService, private reportService: ReportService, private router: Router) { }
 
     ngAfterViewInit() {
         if(this.toolbar && this.toolbar.nativeElement){
@@ -193,5 +197,17 @@ export class HomeComponent implements AfterViewInit {
         if (this.navMenu) {
             this.navMenu.closed.emit();
         }
+    }
+
+    getPageTitle(): string {
+        const url = this.router.url;
+        if (url.includes('/courses')) {
+            return 'Courses';
+        } else if (url.includes('/lessons')) {
+            return 'Lessons';
+        } else if (url.includes('/account')) {
+            return 'Account Management';
+        }
+        return 'LessonTree';
     }
 }
