@@ -114,6 +114,9 @@ button[mat-raised-button] {
     box-sizing: border-box;
     padding: 0; /* Remove padding to maximize width */
     margin: 0;
+    /* Force remove any inherited spacing */
+    margin-top: 0 !important;
+    padding-top: 0 !important;
   }
   
   .tree-view-container {
@@ -129,9 +132,14 @@ button[mat-raised-button] {
   .course-card {
     width: 100%;
     box-sizing: border-box;
-    margin: 0 0 16px 0;
+    margin: 0 !important; /* Remove ALL margins including bottom 16px */
     padding: 0 !important; /* Override Material Design padding */
     transition: all 0.3s ease; /* Smooth transitions for focus mode */
+    /* Force override Material Design mat-card styles */
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 
   /* === COURSE FOCUS MODE STYLING === */
@@ -169,4 +177,23 @@ button[mat-raised-button] {
   /* Hide Add Course button in focus mode */
   :host-context(.course-focus-mode) .add-course-button {
     display: none;
+  }
+
+  /* === FORCE OVERRIDE MAT-CARD GLOBAL STYLES === */
+
+  /* Override Angular Material mat-card default spacing */
+  :host ::ng-deep .mat-mdc-card {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Override any mat-card-content padding */
+  :host ::ng-deep .mat-mdc-card-content {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure the first mat-card has no top margin */
+  :host ::ng-deep .course-card:first-child {
+    margin-top: 0 !important;
   }
