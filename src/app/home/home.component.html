@@ -22,31 +22,93 @@
 
     <!-- Navigation Menu -->
     <nav class="sidenav-nav">
+      <!-- Main Navigation -->
       <a mat-button
-         routerLink="/home/courses"
+         routerLink="/home/lesson-tree"
          routerLinkActive="active-link"
-         class="nav-item">
-        <mat-icon>book</mat-icon>
-        <span>Courses</span>
-      </a>
-
-      <a mat-button
-         routerLink="/home/lessons"
-         routerLinkActive="active-link"
-         class="nav-item">
-        <mat-icon>assignment</mat-icon>
-        <span>Lessons</span>
+         class="nav-item primary-nav">
+        <mat-icon>account_tree</mat-icon>
+        <span>Lesson Tree</span>
       </a>
 
       @if (authService.hasRole('Admin')) {
         <a mat-button
            routerLink="/home/account"
            routerLinkActive="active-link"
-           class="nav-item">
+           class="nav-item primary-nav">
           <mat-icon>admin_panel_settings</mat-icon>
-          <span>Account</span>
+          <span>Account Management</span>
         </a>
       }
+
+      <!-- Course Actions -->
+      <button mat-button
+              (click)="openCourseFilterDialog()"
+              class="nav-item">
+        <mat-icon>filter_list</mat-icon>
+        <span>Filter Courses</span>
+      </button>
+
+      <!-- Drag Mode Submenu -->
+      <div class="submenu-section">
+        <div class="submenu-header" (click)="toggleDragModeSubmenu()">
+          <mat-icon class="submenu-icon">drive_file_move</mat-icon>
+          <span class="submenu-title">Drag Mode</span>
+          <mat-icon class="expand-icon" [class.expanded]="dragModeExpanded">expand_more</mat-icon>
+        </div>
+        @if (dragModeExpanded) {
+          <div class="submenu-items">
+            <button mat-button
+                    (click)="setDragMode('move')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.dragMode() === 'move'">
+              <mat-icon>drive_file_move</mat-icon>
+              <span>Move Nodes</span>
+            </button>
+            <button mat-button
+                    (click)="setDragMode('copy')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.dragMode() === 'copy'">
+              <mat-icon>content_copy</mat-icon>
+              <span>Copy Nodes</span>
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Layout Mode Submenu -->
+      <div class="submenu-section">
+        <div class="submenu-header" (click)="toggleLayoutModeSubmenu()">
+          <mat-icon class="submenu-icon">view_quilt</mat-icon>
+          <span class="submenu-title">Layout</span>
+          <mat-icon class="expand-icon" [class.expanded]="layoutModeExpanded">expand_more</mat-icon>
+        </div>
+        @if (layoutModeExpanded) {
+          <div class="submenu-items">
+            <button mat-button
+                    (click)="setLayoutMode('tree-details')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.layoutMode() === 'tree-details'">
+              <mat-icon>account_tree</mat-icon>
+              <span>Tree + Details</span>
+            </button>
+            <button mat-button
+                    (click)="setLayoutMode('tree-calendar')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.layoutMode() === 'tree-calendar'">
+              <mat-icon>calendar_month</mat-icon>
+              <span>Tree + Calendar</span>
+            </button>
+            <button mat-button
+                    (click)="setLayoutMode('calendar-details')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.layoutMode() === 'calendar-details'">
+              <mat-icon>view_day</mat-icon>
+              <span>Calendar + Details</span>
+            </button>
+          </div>
+        }
+      </div>
 
       <!-- Divider -->
       <mat-divider class="nav-divider"></mat-divider>
@@ -70,16 +132,7 @@
               (click)="generateWeeklyReport()"
               class="nav-item">
         <mat-icon>print</mat-icon>
-        <span>Weekly Lesson Plan Report</span>
-      </button>
-
-      <!-- Controls Toggle -->
-      <button mat-button
-              (click)="toggleControlsVisibility()"
-              class="nav-item"
-              [class.active]="controlsVisible()">
-        <mat-icon>tune</mat-icon>
-        <span>Show Controls</span>
+        <span>Weekly Report</span>
       </button>
 
       <!-- Logout at bottom -->
@@ -106,79 +159,7 @@
 
       <span class="page-title">{{ getPageTitle() }}</span>
       <span class="spacer"></span>
-
-      <!-- Quick Actions -->
-      <button mat-icon-button
-              (click)="openCourseFilterDialog()"
-              matTooltip="Filter Courses"
-              class="quick-action">
-        <mat-icon>filter_list</mat-icon>
-      </button>
     </mat-toolbar>
-
-    <!-- Disclosure Controls Panel -->
-    @if (controlsVisible()) {
-      <div class="disclosure-panel">
-        <div class="disclosure-content">
-
-          <!-- Course Search and Filter -->
-          <div class="control-group">
-              <button mat-stroked-button
-                      (click)="openCourseFilterDialog()"
-                      matTooltip="Course Filters"
-                      class="filter-button">
-                <mat-icon>filter_list</mat-icon>
-                <span class="control-label">Filter Courses</span>
-              </button>
-            </div>
-          <!-- Drag Mode Controls -->
-          <div class="control-group">
-            <span class="control-label">Tree Drag Action:</span>
-            <mat-button-toggle-group
-              [value]="toolbarControls.dragMode()"
-              (change)="onDragModeChange($event.value)"
-              class="drag-mode-toggle-group">
-
-              <mat-button-toggle value="move" matTooltip="Move nodes to new locations">
-                <mat-icon>drive_file_move</mat-icon>
-                <span class="toggle-label">Move</span>
-              </mat-button-toggle>
-
-              <mat-button-toggle value="copy" matTooltip="Copy nodes to new locations">
-                <mat-icon>content_copy</mat-icon>
-                <span class="toggle-label">Copy</span>
-              </mat-button-toggle>
-            </mat-button-toggle-group>
-          </div>
-
-          <!-- Layout Mode Controls -->
-          <div class="control-group">
-            <span class="control-label">Layout:</span>
-            <mat-button-toggle-group
-              [value]="toolbarControls.layoutMode()"
-              (change)="onLayoutModeChange($event.value)"
-              class="layout-mode-toggle-group">
-
-              <mat-button-toggle value="tree-details" matTooltip="Tree view with lesson details panel">
-                <mat-icon>account_tree</mat-icon>
-                <span class="toggle-label">Tree + Details</span>
-              </mat-button-toggle>
-
-              <mat-button-toggle value="tree-calendar" matTooltip="Calendar view with tree panel">
-                <mat-icon>calendar_month</mat-icon>
-                <span class="toggle-label">Tree + Calendar</span>
-              </mat-button-toggle>
-
-              <mat-button-toggle value="calendar-details" matTooltip="Calendar view with lesson details panel">
-                <mat-icon>view_day</mat-icon>
-                <span class="toggle-label">Calendar + Details</span>
-              </mat-button-toggle>
-            </mat-button-toggle-group>
-          </div>
-
-        </div>
-      </div>
-    }
 
     <!-- Main Content Area -->
     <div class="content-container" [style.paddingTop.px]="toolbarHeight">

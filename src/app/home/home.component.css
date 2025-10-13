@@ -162,84 +162,81 @@
   min-height: calc(100vh - 64px);
   padding: 0 20px 20px 20px; /* Keep only right/bottom padding for content spacing */
 }
-/* Disclosure Panel Styling */
-.disclosure-panel {
-  position: fixed;
-  top: 64px; /* Below top toolbar */
-  left: 260px; /* Right of sidebar */
-  right: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  z-index: 998;
-  animation: slideDown 0.3s ease;
+/* Submenu Styles */
+.submenu-section {
+  margin: 4px 12px;
+}
+
+.submenu-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 8px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.submenu-header:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.submenu-icon {
+  font-size: 20px;
+  width: 20px;
+  height: 20px;
+}
+
+.submenu-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.expand-icon {
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.submenu-items {
+  margin-left: 20px;
+  border-left: 2px solid rgba(255, 255, 255, 0.2);
+  padding-left: 8px;
+  animation: slideDown 0.2s ease;
+}
+
+.submenu-item {
+  padding: 8px 12px;
+  margin: 2px 0;
+  font-size: 14px;
+}
+
+.submenu-item:hover {
+  transform: translateX(2px);
+}
+
+.submenu-item.active {
+  background-color: rgba(255, 255, 255, 0.25);
+  border-left: 3px solid rgba(255, 255, 255, 0.8);
 }
 
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-100%);
+    transform: translateY(-8px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.disclosure-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 32px;
-  max-width: 1400px;
-  margin: 0 auto;
-  gap: 32px;
-}
-
-/* Control Groups */
-.control-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.control-label {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-/* Toggle Groups */
-.drag-mode-toggle-group,
-.layout-mode-toggle-group {
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.toggle-label {
-  margin-left: 8px;
-  font-size: 12px;
-}
-
-/* Filter Button */
-.filter-button {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.9);
-  height: 40px;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 16px;
-  border-radius: 4px;
-}
-
-.filter-button:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: #ffffff;
 }
 
 /* Responsive Sidebar */

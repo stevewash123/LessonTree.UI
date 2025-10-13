@@ -59,12 +59,10 @@ export class HomeComponent implements AfterViewInit {
     private dialog = inject(MatDialog);
     public toolbarControls = inject(ToolbarControlsService);
 
-    // Disclosure widget state
-    private readonly _controlsVisible = signal(false);
-    readonly controlsVisible = this._controlsVisible.asReadonly();
+    // Submenu states
+    dragModeExpanded = false;
+    layoutModeExpanded = false;
 
-    // Local form state for the disclosure widget
-    searchTerm = '';
 
     constructor(public authService: AuthService, private reportService: ReportService, private router: Router) { }
 
@@ -73,32 +71,38 @@ export class HomeComponent implements AfterViewInit {
             this.toolbarHeight = this.toolbar.nativeElement.offsetHeight;
         }
 
-        // Initialize search term from service
-        this.searchTerm = this.toolbarControls.courseFilterState().searchTerm;
     }
 
-    toggleControlsVisibility() {
-        const newValue = !this._controlsVisible();
-        console.log(`[HomeComponent] Toggling controls visibility to: ${newValue}`, { timestamp: new Date().toISOString() });
-        this._controlsVisible.set(newValue);
+
+    // Submenu toggle methods
+    toggleDragModeSubmenu(): void {
+        this.dragModeExpanded = !this.dragModeExpanded;
+        if (this.dragModeExpanded) {
+            this.layoutModeExpanded = false; // Close other submenus
+        }
     }
 
-    onLayoutModeChange(mode: LayoutMode): void {
-        console.log(`[HomeComponent] Layout mode changed to: ${mode}`, { timestamp: new Date().toISOString() });
-        this.toolbarControls.setLayoutMode(mode);
-        this._controlsVisible.set(false); // Hide the disclosure panel after selection
+    toggleLayoutModeSubmenu(): void {
+        this.layoutModeExpanded = !this.layoutModeExpanded;
+        if (this.layoutModeExpanded) {
+            this.dragModeExpanded = false; // Close other submenus
+        }
     }
 
-    onDragModeChange(mode: string): void {
+    // Action methods
+    setDragMode(mode: string): void {
         const dragMode = mode === 'copy' ? DragMode.Copy : DragMode.Move;
         console.log(`[HomeComponent] Drag mode changed to: ${dragMode}`, { timestamp: new Date().toISOString() });
         this.toolbarControls.setDragMode(dragMode);
+        this.dragModeExpanded = false; // Close submenu after selection
     }
 
-    onSearchTermChange(): void {
-        console.log(`[HomeComponent] Search term changed to: ${this.searchTerm}`, { timestamp: new Date().toISOString() });
-        this.toolbarControls.setSearchTerm(this.searchTerm);
+    setLayoutMode(mode: LayoutMode): void {
+        console.log(`[HomeComponent] Layout mode changed to: ${mode}`, { timestamp: new Date().toISOString() });
+        this.toolbarControls.setLayoutMode(mode);
+        this.layoutModeExpanded = false; // Close submenu after selection
     }
+
 
     openCourseFilterDialog(): void {
         this.closeNavMenu();
@@ -132,8 +136,6 @@ export class HomeComponent implements AfterViewInit {
                     searchTerm: result.searchTerm
                 });
 
-                // Update local search term
-                this.searchTerm = result.searchTerm;
             }
         });
     }
