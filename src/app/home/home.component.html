@@ -57,7 +57,6 @@
       <!-- Layout Mode Submenu (Priority 1) -->
       <div class="submenu-section">
         <div class="submenu-header" (click)="toggleLayoutModeSubmenu()">
-          <mat-icon class="submenu-icon">view_quilt</mat-icon>
           <span class="submenu-title">Layout</span>
           <mat-icon class="expand-icon" [class.expanded]="layoutModeExpanded">expand_more</mat-icon>
         </div>
@@ -67,22 +66,28 @@
                     (click)="setLayoutMode('tree-details')"
                     class="nav-item submenu-item"
                     [class.active]="toolbarControls.layoutMode() === 'tree-details'">
-              <mat-icon>account_tree</mat-icon>
               <span>Tree + Details</span>
+              @if (toolbarControls.layoutMode() === 'tree-details') {
+                <mat-icon class="check-icon">check</mat-icon>
+              }
             </button>
             <button mat-button
                     (click)="setLayoutMode('tree-calendar')"
                     class="nav-item submenu-item"
                     [class.active]="toolbarControls.layoutMode() === 'tree-calendar'">
-              <mat-icon>calendar_month</mat-icon>
               <span>Tree + Calendar</span>
+              @if (toolbarControls.layoutMode() === 'tree-calendar') {
+                <mat-icon class="check-icon">check</mat-icon>
+              }
             </button>
             <button mat-button
                     (click)="setLayoutMode('calendar-details')"
                     class="nav-item submenu-item"
                     [class.active]="toolbarControls.layoutMode() === 'calendar-details'">
-              <mat-icon>view_day</mat-icon>
               <span>Calendar + Details</span>
+              @if (toolbarControls.layoutMode() === 'calendar-details') {
+                <mat-icon class="check-icon">check</mat-icon>
+              }
             </button>
           </div>
         }
@@ -91,7 +96,6 @@
       <!-- Drag Mode Submenu (Priority 2) -->
       <div class="submenu-section">
         <div class="submenu-header" (click)="toggleDragModeSubmenu()">
-          <mat-icon class="submenu-icon">drive_file_move</mat-icon>
           <span class="submenu-title">Drag Mode</span>
           <mat-icon class="expand-icon" [class.expanded]="dragModeExpanded">expand_more</mat-icon>
         </div>
@@ -101,15 +105,19 @@
                     (click)="setDragMode('move')"
                     class="nav-item submenu-item"
                     [class.active]="toolbarControls.dragMode() === 'move'">
-              <mat-icon>drive_file_move</mat-icon>
               <span>Move Nodes</span>
+              @if (toolbarControls.dragMode() === 'move') {
+                <mat-icon class="check-icon">check</mat-icon>
+              }
             </button>
             <button mat-button
                     (click)="setDragMode('copy')"
                     class="nav-item submenu-item"
                     [class.active]="toolbarControls.dragMode() === 'copy'">
-              <mat-icon>content_copy</mat-icon>
               <span>Copy Nodes</span>
+              @if (toolbarControls.dragMode() === 'copy') {
+                <mat-icon class="check-icon">check</mat-icon>
+              }
             </button>
           </div>
         }

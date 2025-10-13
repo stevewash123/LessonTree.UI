@@ -11,7 +11,7 @@
 
 /* Sidebar Styles */
 .sidenav {
-  width: 260px;
+  width: 280px;
   background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
   color: white;
   border-right: none;
@@ -175,7 +175,6 @@
 .submenu-header {
   display: flex;
   align-items: center;
-  gap: 16px;
   padding: 12px 20px;
   margin: 4px 12px;
   border-radius: 8px;
@@ -185,6 +184,7 @@
   user-select: none;
   min-height: 44px;
   box-sizing: border-box;
+  justify-content: space-between;
 }
 
 .submenu-header:hover {
@@ -227,6 +227,10 @@
   padding: 8px 12px;
   margin: 2px 0;
   font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
 }
 
 .submenu-item:hover {
@@ -236,6 +240,13 @@
 .submenu-item.active {
   background-color: rgba(255, 255, 255, 0.25);
   border-left: 3px solid rgba(255, 255, 255, 0.8);
+}
+
+.check-icon {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
 }
 
 @keyframes slideDown {
