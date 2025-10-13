@@ -123,20 +123,10 @@
         }
       </div>
 
-      <!-- Push user actions to bottom -->
-      <div class="nav-spacer"></div>
-
       <!-- Divider -->
       <mat-divider class="nav-divider"></mat-divider>
 
-      <!-- User Actions -->
-      <button mat-button
-              (click)="openUserConfig()"
-              class="nav-item">
-        <mat-icon>person_settings</mat-icon>
-        <span>User Settings</span>
-      </button>
-
+      <!-- Mid-priority Actions -->
       <button mat-button
               (click)="openScheduleConfig()"
               class="nav-item">
@@ -159,7 +149,17 @@
         <span>Filter Courses</span>
       </button>
 
-      <!-- Logout at bottom -->
+      <!-- Push user/session actions to bottom -->
+      <div class="nav-spacer"></div>
+
+      <!-- User/Session Actions -->
+      <button mat-button
+              (click)="openUserConfig()"
+              class="nav-item">
+        <mat-icon>person_settings</mat-icon>
+        <span>User Settings</span>
+      </button>
+
       <button mat-button
               (click)="logout()"
               class="nav-item logout-item">
