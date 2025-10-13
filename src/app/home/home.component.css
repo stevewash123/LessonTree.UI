@@ -17,6 +17,7 @@
   border-right: none;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
   transition: width 0.3s ease;
+  overflow-y: hidden;
 }
 
 .sidenav.collapsed {
@@ -95,6 +96,7 @@
   flex-direction: column;
   padding: 16px 0;
   height: calc(100% - 100px);
+  overflow-y: hidden;
 }
 
 .nav-item {
