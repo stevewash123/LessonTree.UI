@@ -11,6 +11,14 @@ netstat -ano | findstr :4200 | for /f "tokens=5" %%a in ('more') do taskkill /F 
 netstat -ano | findstr :5046 | for /f "tokens=5" %%a in ('more') do taskkill /F /PID %%a 2>nul
 timeout /t 3 >nul
 
+REM Ensure Windows-compatible dependencies are installed
+echo Checking and installing Windows dependencies...
+cd /d C:\Projects\LessonTree\LessonTree_UI
+if not exist "node_modules\@esbuild\win32-x64" (
+    echo Installing Windows-specific binaries...
+    npm install --force
+)
+
 REM Start both servers in parallel
 echo Starting API and UI servers...
 start "LessonTree API" cmd /k "cd /d C:\Projects\LessonTree\LessonTree_API\LessonTree.Api && dotnet run --urls http://0.0.0.0:5046"
