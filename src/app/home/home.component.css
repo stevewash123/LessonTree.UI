@@ -9,6 +9,28 @@
   background-color: #fafafa;
 }
 
+.sidenav-container .mat-drawer-inner-container {
+  overflow: hidden !important;
+}
+
+/* Force remove all scrollbars from navigation */
+.sidenav,
+.sidenav *,
+.mat-sidenav,
+.mat-sidenav *,
+.mat-drawer,
+.mat-drawer * {
+  overflow-y: hidden !important;
+  scrollbar-width: none !important; /* Firefox */
+  -ms-overflow-style: none !important; /* IE/Edge */
+}
+
+.sidenav::-webkit-scrollbar,
+.mat-sidenav::-webkit-scrollbar,
+.mat-drawer::-webkit-scrollbar {
+  display: none !important; /* Chrome/Safari */
+}
+
 /* Sidebar Styles */
 .sidenav {
   width: 280px;
