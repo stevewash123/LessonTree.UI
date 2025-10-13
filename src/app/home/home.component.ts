@@ -51,13 +51,14 @@ import {DragMode} from '../lesson-tree/services/state/node-drag-mode.service';
     styleUrls: ['./home.component.css']
 })
 export class HomeComponent implements AfterViewInit {
-    @ViewChild('toolbar') toolbar!: ElementRef;
     @ViewChild('navMenu') navMenu: any;
     @ViewChild('accountMenu') accountMenu: any;
-    toolbarHeight: number | undefined;
 
     private dialog = inject(MatDialog);
     public toolbarControls = inject(ToolbarControlsService);
+
+    // Navigation states
+    navExpanded = true;
 
     // Submenu states
     dragModeExpanded = false;
@@ -67,12 +68,19 @@ export class HomeComponent implements AfterViewInit {
     constructor(public authService: AuthService, private reportService: ReportService, private router: Router) { }
 
     ngAfterViewInit() {
-        if(this.toolbar && this.toolbar.nativeElement){
-            this.toolbarHeight = this.toolbar.nativeElement.offsetHeight;
-        }
-
+        // Toolbar height calculation removed since we removed the toolbar
     }
 
+
+    // Navigation toggle method
+    toggleNavigation(): void {
+        this.navExpanded = !this.navExpanded;
+        // Close any open submenus when collapsing
+        if (!this.navExpanded) {
+            this.dragModeExpanded = false;
+            this.layoutModeExpanded = false;
+        }
+    }
 
     // Submenu toggle methods
     toggleDragModeSubmenu(): void {
@@ -201,15 +209,4 @@ export class HomeComponent implements AfterViewInit {
         }
     }
 
-    getPageTitle(): string {
-        const url = this.router.url;
-        if (url.includes('/courses')) {
-            return 'Courses';
-        } else if (url.includes('/lessons')) {
-            return 'Lessons';
-        } else if (url.includes('/account')) {
-            return 'Account Management';
-        }
-        return 'LessonTree';
-    }
 }

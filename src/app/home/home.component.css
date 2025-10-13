@@ -16,6 +16,12 @@
   color: white;
   border-right: none;
   box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  transition: width 0.3s ease;
+}
+
+.sidenav.collapsed {
+  width: 48px;
+  overflow: hidden;
 }
 
 /* Sidebar Header */
@@ -28,6 +34,7 @@
 .logo-section {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
 
@@ -43,6 +50,43 @@
   font-weight: 600;
   color: #ffffff;
   letter-spacing: -0.5px;
+}
+
+/* Collapsed Navigation Styles */
+.collapsed-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 0;
+  height: 100%;
+}
+
+.expand-trigger {
+  color: rgba(255, 255, 255, 0.9);
+  transition: all 0.2s ease;
+  margin: 0;
+}
+
+.expand-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.expand-trigger mat-icon {
+  font-size: 24px;
+  width: 24px;
+  height: 24px;
+}
+
+.collapse-trigger {
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s ease;
+}
+
+.collapse-trigger:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
 }
 
 /* Navigation Styles */
@@ -116,67 +160,31 @@
   background-color: #fafafa;
 }
 
-/* Top Toolbar */
-.top-toolbar {
-  position: fixed;
-  top: 0;
-  left: 260px;
-  right: 0;
-  z-index: 999;
-  background: #ffffff;
-  color: #333;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.menu-toggle {
-  color: #667eea;
-}
-
-.menu-toggle:hover {
-  background-color: rgba(102, 126, 234, 0.1);
-}
-
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #333;
-}
-
-.quick-action {
-  color: #667eea;
-}
-
-.quick-action:hover {
-  background-color: rgba(102, 126, 234, 0.1);
-}
-
-.spacer {
-  flex: 1 1 auto;
-}
-
 /* Content Container */
 .content-container {
   margin-left: 0; /* Remove left margin - sidenav content handles positioning */
-  margin-top: 0; /* Remove top margin - toolbar handles positioning */
-  min-height: calc(100vh - 64px);
-  padding: 0 20px 20px 20px; /* Keep only right/bottom padding for content spacing */
+  margin-top: 0; /* Remove top margin - no toolbar */
+  min-height: 100vh;
+  padding: 20px; /* Add padding for content spacing */
 }
 /* Submenu Styles */
 .submenu-section {
-  margin: 4px 12px;
+  margin: 0;
 }
 
 .submenu-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 8px;
+  padding: 12px 20px;
+  margin: 4px 12px;
   border-radius: 8px;
   color: rgba(255, 255, 255, 0.9);
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
+  min-height: 44px;
+  box-sizing: border-box;
 }
 
 .submenu-header:hover {
@@ -193,6 +201,8 @@
 .submenu-title {
   flex: 1;
   font-weight: 500;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .expand-icon {

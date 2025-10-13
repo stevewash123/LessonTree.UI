@@ -9,28 +9,41 @@
                mode="side"
                opened="true"
                class="sidenav"
+               [class.collapsed]="!navExpanded"
                [fixedInViewport]="true"
                [fixedTopGap]="0">
 
-    <!-- Sidebar Header -->
-    <div class="sidenav-header">
-      <div class="logo-section">
-        <mat-icon class="logo-icon">school</mat-icon>
-        <span class="logo-text">LessonTree</span>
+    <!-- Collapsed State: Thin Strip with Graduation Cap -->
+    @if (!navExpanded) {
+      <div class="collapsed-nav">
+        <button mat-icon-button
+                (click)="toggleNavigation()"
+                class="expand-trigger"
+                matTooltip="Expand Navigation"
+                matTooltipPosition="right">
+          <mat-icon>school</mat-icon>
+        </button>
       </div>
-    </div>
+    }
 
-    <!-- Navigation Menu -->
-    <nav class="sidenav-nav">
-      <!-- Main Navigation -->
-      <a mat-button
-         routerLink="/home/lesson-tree"
-         routerLinkActive="active-link"
-         class="nav-item primary-nav">
-        <mat-icon>account_tree</mat-icon>
-        <span>Lesson Tree</span>
-      </a>
+    <!-- Expanded State: Full Navigation -->
+    @if (navExpanded) {
+      <!-- Sidebar Header -->
+      <div class="sidenav-header">
+        <div class="logo-section">
+          <mat-icon class="logo-icon">school</mat-icon>
+          <span class="logo-text">LessonTree</span>
+          <button mat-icon-button
+                  (click)="toggleNavigation()"
+                  class="collapse-trigger"
+                  matTooltip="Collapse Navigation">
+            <mat-icon>chevron_left</mat-icon>
+          </button>
+        </div>
+      </div>
 
+      <!-- Navigation Menu -->
+      <nav class="sidenav-nav">
       @if (authService.hasRole('Admin')) {
         <a mat-button
            routerLink="/home/account"
@@ -41,42 +54,7 @@
         </a>
       }
 
-      <!-- Course Actions -->
-      <button mat-button
-              (click)="openCourseFilterDialog()"
-              class="nav-item">
-        <mat-icon>filter_list</mat-icon>
-        <span>Filter Courses</span>
-      </button>
-
-      <!-- Drag Mode Submenu -->
-      <div class="submenu-section">
-        <div class="submenu-header" (click)="toggleDragModeSubmenu()">
-          <mat-icon class="submenu-icon">drive_file_move</mat-icon>
-          <span class="submenu-title">Drag Mode</span>
-          <mat-icon class="expand-icon" [class.expanded]="dragModeExpanded">expand_more</mat-icon>
-        </div>
-        @if (dragModeExpanded) {
-          <div class="submenu-items">
-            <button mat-button
-                    (click)="setDragMode('move')"
-                    class="nav-item submenu-item"
-                    [class.active]="toolbarControls.dragMode() === 'move'">
-              <mat-icon>drive_file_move</mat-icon>
-              <span>Move Nodes</span>
-            </button>
-            <button mat-button
-                    (click)="setDragMode('copy')"
-                    class="nav-item submenu-item"
-                    [class.active]="toolbarControls.dragMode() === 'copy'">
-              <mat-icon>content_copy</mat-icon>
-              <span>Copy Nodes</span>
-            </button>
-          </div>
-        }
-      </div>
-
-      <!-- Layout Mode Submenu -->
+      <!-- Layout Mode Submenu (Priority 1) -->
       <div class="submenu-section">
         <div class="submenu-header" (click)="toggleLayoutModeSubmenu()">
           <mat-icon class="submenu-icon">view_quilt</mat-icon>
@@ -110,6 +88,33 @@
         }
       </div>
 
+      <!-- Drag Mode Submenu (Priority 2) -->
+      <div class="submenu-section">
+        <div class="submenu-header" (click)="toggleDragModeSubmenu()">
+          <mat-icon class="submenu-icon">drive_file_move</mat-icon>
+          <span class="submenu-title">Drag Mode</span>
+          <mat-icon class="expand-icon" [class.expanded]="dragModeExpanded">expand_more</mat-icon>
+        </div>
+        @if (dragModeExpanded) {
+          <div class="submenu-items">
+            <button mat-button
+                    (click)="setDragMode('move')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.dragMode() === 'move'">
+              <mat-icon>drive_file_move</mat-icon>
+              <span>Move Nodes</span>
+            </button>
+            <button mat-button
+                    (click)="setDragMode('copy')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.dragMode() === 'copy'">
+              <mat-icon>content_copy</mat-icon>
+              <span>Copy Nodes</span>
+            </button>
+          </div>
+        }
+      </div>
+
       <!-- Divider -->
       <mat-divider class="nav-divider"></mat-divider>
 
@@ -135,6 +140,14 @@
         <span>Weekly Report</span>
       </button>
 
+      <!-- Low Priority: Filter -->
+      <button mat-button
+              (click)="openCourseFilterDialog()"
+              class="nav-item">
+        <mat-icon>filter_list</mat-icon>
+        <span>Filter Courses</span>
+      </button>
+
       <!-- Logout at bottom -->
       <div class="nav-spacer"></div>
       <button mat-button
@@ -143,26 +156,14 @@
         <mat-icon>logout</mat-icon>
         <span>Logout</span>
       </button>
-    </nav>
+      </nav>
+    }
   </mat-sidenav>
 
   <!-- Main Content Area -->
   <mat-sidenav-content class="main-content">
-    <!-- Simplified Top Toolbar -->
-    <mat-toolbar #toolbar color="primary" class="top-toolbar">
-      <button mat-icon-button
-              (click)="sidenav.toggle()"
-              class="menu-toggle"
-              matTooltip="Toggle Navigation">
-        <mat-icon>menu</mat-icon>
-      </button>
-
-      <span class="page-title">{{ getPageTitle() }}</span>
-      <span class="spacer"></span>
-    </mat-toolbar>
-
     <!-- Main Content Area -->
-    <div class="content-container" [style.paddingTop.px]="toolbarHeight">
+    <div class="content-container">
       <router-outlet></router-outlet>
     </div>
   </mat-sidenav-content>
