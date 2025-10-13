@@ -162,10 +162,9 @@
 
 /* Content Container */
 .content-container {
-  margin-left: 0; /* Remove left margin - sidenav content handles positioning */
-  margin-top: 0; /* Remove top margin - no toolbar */
+  margin: 0; /* Remove all margins - sidenav content handles positioning */
   min-height: 100vh;
-  padding: 20px; /* Add padding for content spacing */
+  padding: 0; /* Remove padding that was creating white space */
 }
 /* Submenu Styles */
 .submenu-section {

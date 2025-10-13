@@ -92,7 +92,7 @@ export class LayoutModeService {
   ];
 
   // ✅ Signal state for reactive UI
-  private readonly _layoutMode = signal<LayoutMode>('tree-details');
+  private readonly _layoutMode = signal<LayoutMode>('tree-calendar');
   readonly layoutMode = this._layoutMode.asReadonly();
 
   // Track the mode before auto-switching for restoration

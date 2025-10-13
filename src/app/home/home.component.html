@@ -63,20 +63,20 @@
         @if (layoutModeExpanded) {
           <div class="submenu-items">
             <button mat-button
-                    (click)="setLayoutMode('tree-details')"
-                    class="nav-item submenu-item"
-                    [class.active]="toolbarControls.layoutMode() === 'tree-details'">
-              <span>Tree + Details</span>
-              @if (toolbarControls.layoutMode() === 'tree-details') {
-                <mat-icon class="check-icon">check</mat-icon>
-              }
-            </button>
-            <button mat-button
                     (click)="setLayoutMode('tree-calendar')"
                     class="nav-item submenu-item"
                     [class.active]="toolbarControls.layoutMode() === 'tree-calendar'">
               <span>Tree + Calendar</span>
               @if (toolbarControls.layoutMode() === 'tree-calendar') {
+                <mat-icon class="check-icon">check</mat-icon>
+              }
+            </button>
+            <button mat-button
+                    (click)="setLayoutMode('tree-details')"
+                    class="nav-item submenu-item"
+                    [class.active]="toolbarControls.layoutMode() === 'tree-details'">
+              <span>Tree + Details</span>
+              @if (toolbarControls.layoutMode() === 'tree-details') {
                 <mat-icon class="check-icon">check</mat-icon>
               }
             </button>
