@@ -6,6 +6,8 @@
   eventType: string; // 'Assembly', 'ProfessionalDevelopment', etc.
   title: string;
   description?: string;
+  backgroundColor?: string; // Custom color for this Special Day
+  fontColor?: string; // Custom font color for this Special Day
 }
 
 // For creating new special days
@@ -15,6 +17,8 @@ export interface SpecialDayCreateResource {
   eventType: string;
   title: string;
   description?: string;
+  backgroundColor?: string;
+  fontColor?: string;
 }
 
 // For updating existing special days
@@ -25,6 +29,8 @@ export interface SpecialDayUpdateResource {
   eventType: string;
   title: string;
   description?: string;
+  backgroundColor?: string;
+  fontColor?: string;
 }
 
 // Response from updating special days
@@ -46,6 +52,8 @@ export interface SpecialDayModalData {
     title: string;
     description?: string;
     date: Date;
+    backgroundColor?: string;
+    fontColor?: string;
   } | null;
 }
 
@@ -58,5 +66,7 @@ export interface SpecialDayResult {
     specialCode: string;
     title: string;
     description?: string;
+    backgroundColor?: string;
+    fontColor?: string;
   };
 }

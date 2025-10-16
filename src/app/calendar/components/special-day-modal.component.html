@@ -75,6 +75,30 @@
         }
       </mat-form-field>
 
+      <!-- Color Selection -->
+      <div class="color-selection">
+        <h3>Special Day Colors</h3>
+        <p class="color-help">Choose colors for this special day:</p>
+
+        <div class="color-preview-section">
+          <div class="color-preview"
+               [style.background-color]="currentBackgroundColor"
+               [style.color]="currentFontColor">
+            <div class="preview-text">{{ specialDayForm.get('specialCode')?.value || 'Special Day' }}</div>
+            <div class="preview-title">{{ specialDayForm.get('title')?.value || 'Title' }}</div>
+          </div>
+
+          <button type="button" mat-raised-button (click)="openColorPicker()" class="color-picker-button">
+            <mat-icon>palette</mat-icon>
+            Choose Colors
+          </button>
+        </div>
+
+        <div class="color-values">
+          <small>Background: {{ currentBackgroundColor }} | Text: {{ currentFontColor }}</small>
+        </div>
+      </div>
+
       <!-- Preview -->
       @if (selectedPeriods.length > 0) {
         <div class="preview-section">

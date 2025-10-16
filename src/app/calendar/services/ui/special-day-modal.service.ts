@@ -297,7 +297,9 @@ export class SpecialDayModalService {
       periods: data.periods,
       eventType: data.specialCode || data.eventType,
       title: data.title,
-      description: data.description
+      description: data.description,
+      backgroundColor: data.backgroundColor,
+      fontColor: data.fontColor
     };
 
     console.log('[SpecialDayModalService] Creating special day:', {
@@ -343,7 +345,9 @@ export class SpecialDayModalService {
       periods: data.periods,
       eventType: data.specialCode || data.eventType,
       title: data.title,
-      description: data.description
+      description: data.description,
+      backgroundColor: data.backgroundColor,
+      fontColor: data.fontColor
     };
 
     console.log('[SpecialDayModalService] Updating special day:', {

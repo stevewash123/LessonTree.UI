@@ -151,7 +151,25 @@ export class CalendarEventService {
    * Get consistent colors for all periods of the same Special Day
    */
   private getSpecialDayColors(event: ScheduleEvent): { backgroundColor: string; borderColor: string; textColor: string; room: string } {
-    // Use specialDayId to generate consistent colors across all periods
+    // Check if the event has custom colors stored
+    if (event.backgroundColor && event.fontColor) {
+      console.log(`🎨 Using stored colors for Special Day:`, {
+        specialDayId: event.specialDayId,
+        eventType: event.eventType,
+        period: event.period,
+        backgroundColor: event.backgroundColor,
+        fontColor: event.fontColor
+      });
+
+      return {
+        backgroundColor: event.backgroundColor,
+        borderColor: this.adjustColorBrightness(event.backgroundColor, -20), // Slightly darker border
+        textColor: event.fontColor,
+        room: ''
+      };
+    }
+
+    // Fallback to palette if no custom colors (for legacy Special Days)
     const specialDayId = event.specialDayId!;
 
     // Define bright, standout color palette for special days - varied shades, no white text
@@ -170,7 +188,7 @@ export class CalendarEventService {
     const colorIndex = specialDayId % specialDayPalette.length;
     const selectedColor = specialDayPalette[colorIndex];
 
-    console.log(`🎨 Special Day ${specialDayId} color assignment:`, {
+    console.log(`🎨 Using fallback palette for Special Day ${specialDayId}:`, {
       specialDayId,
       colorIndex,
       selectedColor,
@@ -184,6 +202,25 @@ export class CalendarEventService {
       textColor: selectedColor.text,
       room: ''
     };
+  }
+
+  /**
+   * Adjust color brightness by a percentage
+   */
+  private adjustColorBrightness(hex: string, percent: number): string {
+    // Remove # if present
+    const color = hex.replace('#', '');
+
+    const num = parseInt(color, 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+
+    return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255))
+      .toString(16).slice(1);
   }
 
   /**

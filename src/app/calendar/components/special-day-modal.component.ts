@@ -19,6 +19,8 @@ import {format} from 'date-fns';
 
 import {ScheduleConfigurationStateService} from '../services/state/schedule-configuration-state.service';
 import {SpecialDayModalData, SpecialDayResult} from '../../models/specialDay.model';
+import {PeriodColorPickerComponent} from '../../schedule-config/period-color-picker.component';
+import {MatDialog} from '@angular/material/dialog';
 
 @Component({
   selector: 'app-special-day-modal',
@@ -66,17 +68,20 @@ export class SpecialDayModalComponent implements OnInit {
     private dialogRef: MatDialogRef<SpecialDayModalComponent>,
     @Inject(MAT_DIALOG_DATA) public data: SpecialDayModalData,
     private fb: FormBuilder,
-    private scheduleConfigurationStateService: ScheduleConfigurationStateService
+    private scheduleConfigurationStateService: ScheduleConfigurationStateService,
+    private dialog: MatDialog
   ) {
     // **ENHANCED: Get periods from ScheduleConfiguration with better error handling**
     this.initializeAvailablePeriods();
 
-    // Build form with dynamic period checkboxes
+    // Build form with dynamic period checkboxes and color fields
     const formConfig: any = {
       date: [data.date, Validators.required],
       specialCode: ['', Validators.required],
       title: ['', [Validators.required, Validators.maxLength(100)]],
-      description: ['', Validators.maxLength(500)]
+      description: ['', Validators.maxLength(500)],
+      backgroundColor: ['#B3E5E0'], // Default to light teal
+      fontColor: ['#004D40'] // Default to dark teal
     };
 
     // Add period checkboxes - default to true for new special days
@@ -136,7 +141,9 @@ export class SpecialDayModalComponent implements OnInit {
       date: new Date(existing.date),
       specialCode: existing.eventType || existing.specialCode, // ✅ FIX: API returns eventType, not specialCode
       title: existing.title,
-      description: existing.description || ''
+      description: existing.description || '',
+      backgroundColor: existing.backgroundColor || '#B3E5E0', // Default to light teal if not set
+      fontColor: existing.fontColor || '#004D40' // Default to dark teal if not set
     });
 
     // Set period checkboxes
@@ -149,7 +156,9 @@ export class SpecialDayModalComponent implements OnInit {
     console.log('[SpecialDayModal] Form populated from existing data', {
       periods: existing.periods,
       specialCode: existing.specialCode,
-      title: existing.title
+      title: existing.title,
+      backgroundColor: existing.backgroundColor,
+      fontColor: existing.fontColor
     });
   }
 
@@ -183,7 +192,9 @@ export class SpecialDayModalComponent implements OnInit {
           periods: this.selectedPeriods,
           specialCode: formValue.specialCode,
           title: formValue.title,
-          description: formValue.description || undefined
+          description: formValue.description || undefined,
+          backgroundColor: formValue.backgroundColor,
+          fontColor: formValue.fontColor
         }
       };
 
@@ -227,6 +238,49 @@ export class SpecialDayModalComponent implements OnInit {
     };
 
     this.dialogRef.close(result);
+  }
+
+  // === COLOR PICKER METHODS ===
+
+  /**
+   * Open color picker dialog
+   */
+  openColorPicker(): void {
+    const currentBackgroundColor = this.specialDayForm.get('backgroundColor')?.value || '#B3E5E0';
+    const currentFontColor = this.specialDayForm.get('fontColor')?.value || '#004D40';
+
+    const dialogRef = this.dialog.open(PeriodColorPickerComponent, {
+      data: {
+        backgroundColor: currentBackgroundColor,
+        fontColor: currentFontColor
+      },
+      width: '400px',
+      panelClass: 'color-picker-dialog'
+    });
+
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        console.log('[SpecialDayModal] Color picker result:', result);
+        this.specialDayForm.patchValue({
+          backgroundColor: result.backgroundColor,
+          fontColor: result.fontColor
+        });
+      }
+    });
+  }
+
+  /**
+   * Get current background color for preview
+   */
+  get currentBackgroundColor(): string {
+    return this.specialDayForm.get('backgroundColor')?.value || '#B3E5E0';
+  }
+
+  /**
+   * Get current font color for preview
+   */
+  get currentFontColor(): string {
+    return this.specialDayForm.get('fontColor')?.value || '#004D40';
   }
 
   cancel(): void {

@@ -82,3 +82,53 @@
     font-size: 12px;
     margin-top: 4px;
   }
+
+  /* Color picker section styling */
+  .color-selection {
+    margin-bottom: 20px;
+  }
+
+  .color-help {
+    margin: 0 0 16px 0;
+    font-size: 14px;
+    color: #666;
+  }
+
+  .color-preview-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+
+  .color-preview {
+    padding: 12px 16px;
+    border-radius: 6px;
+    border: 2px solid #ddd;
+    min-width: 200px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .preview-text {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .preview-title {
+    font-size: 12px;
+    opacity: 0.9;
+  }
+
+  .color-picker-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .color-values {
+    font-size: 12px;
+    color: #666;
+    text-align: center;
+  }
