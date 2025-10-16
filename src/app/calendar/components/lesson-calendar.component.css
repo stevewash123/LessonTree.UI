@@ -57,19 +57,47 @@
 }
 
 /* ========== DAY HEADER STYLING ========== */
-/* Make day headers match the softer period text styling */
+/* Clean solid color day headers */
 
 .calendar-container ::ng-deep .fc-col-header-cell {
-  background-color: #f8f9fa !important;
-  border-color: #dee2e6 !important;
+  background-color: #4A90E2 !important;
+  border-color: #357ABD !important;
+  border-bottom: 2px solid #357ABD !important;
 }
 
 .calendar-container ::ng-deep .fc-col-header-cell-cushion {
-  color: #6c757d !important;
-  font-weight: 500 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
   font-size: 14px !important;
-  padding: 12px 8px !important;
-  text-transform: none !important;
+  padding: 14px 8px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+}
+
+/* Time header styling - attractive period labels */
+.calendar-container ::ng-deep .fc-timegrid-axis-cushion {
+  background-color: #E8F4FD !important;
+  color: #1565C0 !important;
+  font-weight: 600 !important;
+  border-radius: 6px !important;
+  margin: 2px !important;
+  border: 1px solid #BBDEFB !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.calendar-container ::ng-deep .fc-timegrid-slot-label {
+  background-color: #E8F4FD !important;
+  border-radius: 6px !important;
+  margin: 1px 2px !important;
+  border: 1px solid #BBDEFB !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.calendar-container ::ng-deep .fc-timegrid-slot-label-cushion {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: #1565C0 !important;
 }
 
 .calendar-container ::ng-deep .fc-daygrid-day-number {
@@ -303,16 +331,63 @@
   background-color: rgba(0, 0, 0, 0.02);
 }
 
+/* Enhanced current day highlighting - persist over events */
 .calendar-container ::ng-deep .fc-day-today {
-  background-color: rgba(33, 150, 243, 0.1) !important;
+  background-color: rgba(255, 193, 7, 0.2) !important;
+  border-left: 4px solid #FFC107 !important;
+  border-right: 4px solid #FFC107 !important;
+  position: relative;
 }
 
-.calendar-container ::ng-deep .fc-day-today .fc-daygrid-day-number {
-  background-color: #2196f3;
-  color: white;
-  border-radius: 4px;
+.calendar-container ::ng-deep .fc-day-today::before {
+  content: 'TODAY';
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  background-color: #FFC107;
+  color: #212529;
+  font-size: 10px;
+  font-weight: 700;
   padding: 2px 6px;
-  font-weight: 600;
+  border-radius: 3px;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* Current day column header highlighting */
+.calendar-container ::ng-deep .fc-col-header-cell.fc-day-today {
+  background-color: #FFC107 !important;
+  border-color: #F57F17 !important;
+  animation: pulse-today 2s infinite;
+}
+
+.calendar-container ::ng-deep .fc-col-header-cell.fc-day-today .fc-col-header-cell-cushion {
+  color: #212529 !important;
+  font-weight: 700 !important;
+  text-shadow: none !important;
+}
+
+/* Ensure current day styling persists under events */
+.calendar-container ::ng-deep .fc-timegrid-col.fc-day-today {
+  background-color: rgba(255, 193, 7, 0.1) !important;
+  border-left: 4px solid #FFC107 !important;
+  border-right: 4px solid #FFC107 !important;
+}
+
+.calendar-container ::ng-deep .fc-timegrid-col.fc-day-today .fc-timegrid-bg-harness {
+  background-color: rgba(255, 193, 7, 0.05) !important;
+}
+
+/* Make events in today's column slightly more prominent */
+.calendar-container ::ng-deep .fc-timegrid-col.fc-day-today .fc-timegrid-event {
+  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3) !important;
+  border-left: 2px solid #FFC107 !important;
+}
+
+@keyframes pulse-today {
+  0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
 }
 
 /* LOADING OVERLAY */

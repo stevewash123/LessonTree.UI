@@ -55,17 +55,17 @@ export class CalendarEventService {
       title: this.getEventDisplayTitle(event)
     });
 
-    // Get period assignment for styling
-    const periodAssignment = this.getPeriodAssignmentForEvent(event);
+    // Get colors based on event type
+    const eventColors = this.getEventColors(event);
 
     return {
       id: event.id,
       title: this.getEventDisplayTitle(event),
       start: timeSlot.start,
       end: timeSlot.end,
-      backgroundColor: periodAssignment?.backgroundColor || '#2196F3',
-      borderColor: periodAssignment?.backgroundColor || '#2196F3',
-      textColor: periodAssignment?.fontColor || '#FFFFFF',
+      backgroundColor: eventColors.backgroundColor,
+      borderColor: eventColors.borderColor,
+      textColor: eventColors.textColor,
       extendedProps: {
         scheduleEvent: event,
         period: event.period,
@@ -74,7 +74,7 @@ export class CalendarEventService {
         specialDayId: event.specialDayId, // ✅ CRITICAL FIX: Include Special Day ID for edit/delete operations
         eventType: event.eventType,
         eventCategory: event.eventCategory, // ✅ Also include category for easier identification
-        room: periodAssignment?.room || '',
+        room: eventColors.room,
         lessonTitle: event.lessonTitle,
         lessonObjective: event.lessonObjective,
         lessonMethods: event.lessonMethods
@@ -99,6 +99,124 @@ export class CalendarEventService {
     const end = `${year}-${month}-${day}T${eventEndHour.toString().padStart(2, '0')}:00:00`;
 
     return { start, end };
+  }
+
+  /**
+   * Get event colors based on event type and category
+   */
+  private getEventColors(event: ScheduleEvent): { backgroundColor: string; borderColor: string; textColor: string; room: string } {
+    console.log('🎨 [CalendarEventService] Getting colors for event:', {
+      id: event.id,
+      eventCategory: event.eventCategory,
+      eventType: event.eventType,
+      specialDayId: event.specialDayId,
+      period: event.period,
+      title: event.lessonTitle || event.eventType
+    });
+
+    // Special Day events get consistent colors across all periods
+    // Check for both eventCategory='SpecialDay' OR presence of specialDayId
+    if ((event.eventCategory === 'SpecialDay' || event.specialDayId) && event.specialDayId) {
+      console.log('🎨 [CalendarEventService] ✅ USING SPECIAL DAY COLORS for:', {
+        eventType: event.eventType,
+        specialDayId: event.specialDayId,
+        period: event.period,
+        eventCategory: event.eventCategory
+      });
+      return this.getSpecialDayColors(event);
+    }
+
+    // Regular lesson events use period assignment colors
+    const periodAssignment = this.getPeriodAssignmentForEvent(event);
+    if (periodAssignment) {
+      console.log('🎨 [CalendarEventService] Using period assignment colors for period:', event.period);
+      return {
+        backgroundColor: periodAssignment.backgroundColor,
+        borderColor: periodAssignment.backgroundColor,
+        textColor: periodAssignment.fontColor,
+        room: periodAssignment.room || ''
+      };
+    }
+
+    // Default fallback colors
+    console.log('🎨 [CalendarEventService] Using default colors for event:', event.eventType);
+    return this.getDefaultEventColors(event);
+  }
+
+  /**
+   * Get consistent colors for all periods of the same Special Day
+   */
+  private getSpecialDayColors(event: ScheduleEvent): { backgroundColor: string; borderColor: string; textColor: string; room: string } {
+    // Use specialDayId to generate consistent colors across all periods
+    const specialDayId = event.specialDayId!;
+
+    // Define bright, standout color palette for special days - varied shades, no white text
+    const specialDayPalette = [
+      { bg: '#FFB3B3', text: '#8B0000', border: '#CD5C5C' }, // Light Red with Dark Red text
+      { bg: '#B3E5E0', text: '#004D40', border: '#00695C' }, // Light Teal with Dark Teal text
+      { bg: '#B3D9FF', text: '#0D47A1', border: '#1976D2' }, // Light Blue with Dark Blue text
+      { bg: '#C8E6C9', text: '#1B5E20', border: '#388E3C' }, // Light Green with Dark Green text
+      { bg: '#FFF9C4', text: '#F57F17', border: '#FBC02D' }, // Very Light Yellow with Orange text
+      { bg: '#E1BEE7', text: '#4A148C', border: '#7B1FA2' }, // Light Purple with Dark Purple text
+      { bg: '#B2DFDB', text: '#00695C', border: '#26A69A' }, // Light Mint with Dark Teal text
+      { bg: '#FFECB3', text: '#E65100', border: '#FF9800' }  // Light Amber with Dark Orange text
+    ];
+
+    // Use modulo to cycle through colors consistently
+    const colorIndex = specialDayId % specialDayPalette.length;
+    const selectedColor = specialDayPalette[colorIndex];
+
+    console.log(`🎨 Special Day ${specialDayId} color assignment:`, {
+      specialDayId,
+      colorIndex,
+      selectedColor,
+      eventType: event.eventType,
+      period: event.period
+    });
+
+    return {
+      backgroundColor: selectedColor.bg,
+      borderColor: selectedColor.border,
+      textColor: selectedColor.text,
+      room: ''
+    };
+  }
+
+  /**
+   * Get attractive default colors for events without specific assignments
+   */
+  private getDefaultEventColors(event: ScheduleEvent): { backgroundColor: string; borderColor: string; textColor: string; room: string } {
+    // Use period number to assign attractive default colors
+    const period = event.period || 1;
+
+    // Define attractive color palette for default period assignments - varied shades
+    const defaultPeriodColors = [
+      { bg: '#DCEDC8', text: '#33691E', border: '#689F38' }, // Period 1: Medium Light Green
+      { bg: '#BBDEFB', text: '#0D47A1', border: '#1976D2' }, // Period 2: Medium Light Blue
+      { bg: '#FFCC80', text: '#BF360C', border: '#F57C00' }, // Period 3: Medium Light Orange
+      { bg: '#CE93D8', text: '#4A148C', border: '#8E24AA' }, // Period 4: Medium Light Purple
+      { bg: '#F8BBD0', text: '#880E4F', border: '#C2185B' }, // Period 5: Medium Light Pink
+      { bg: '#80CBC4', text: '#004D40', border: '#00695C' }, // Period 6: Medium Light Teal
+      { bg: '#AED581', text: '#33691E', border: '#689F38' }, // Period 7: Medium Light Lime
+      { bg: '#FFD54F', text: '#E65100', border: '#FF8F00' }  // Period 8: Medium Light Amber
+    ];
+
+    // Use modulo to cycle through colors if more than 8 periods
+    const colorIndex = (period - 1) % defaultPeriodColors.length;
+    const selectedColor = defaultPeriodColors[colorIndex];
+
+    console.log(`🎨 Default period ${period} color assignment:`, {
+      period,
+      colorIndex,
+      selectedColor
+    });
+
+    return {
+      backgroundColor: selectedColor.bg,
+      borderColor: selectedColor.border,
+      textColor: selectedColor.text,
+      room: ''
+    };
   }
 
   /**
@@ -137,13 +255,18 @@ export class CalendarEventService {
       return event.lessonTitle;
     }
 
-    // Fallback to generic titles for non-lesson events
-    if (event.eventCategory === 'SpecialPeriod') {
-      return event.eventType || 'Special Period';
+    // Special Day events get their title displayed
+    if (event.eventCategory === 'SpecialDay') {
+      // Try to use the actual special day title if available
+      const specialDayTitle = event.eventType || 'Special Day';
+
+      // Add period information for clarity
+      return `${specialDayTitle} (P${event.period})`;
     }
 
-    if (event.eventCategory === 'SpecialDay') {
-      return event.eventType || 'Special Day';
+    // Fallback to generic titles for other non-lesson events
+    if (event.eventCategory === 'SpecialPeriod') {
+      return event.eventType || 'Special Period';
     }
 
     // Final fallback
