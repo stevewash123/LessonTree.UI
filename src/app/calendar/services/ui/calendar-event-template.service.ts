@@ -32,12 +32,16 @@ export class CalendarEventTemplateService {
       `;
     }
 
-    // SPECIAL DAY EVENTS - Custom styling with darker background and title
+    // SPECIAL DAY EVENTS - Custom styling with type and title
+    // DON'T use period assignment text color - let CalendarEventService handle it
     if (scheduleEvent?.eventCategory === 'SpecialDay') {
+      // Use the title from the Special Day if available
+      const specialDayTitle = scheduleEvent.title || scheduleEvent.comment || '';
+
       return `
-        <div class="custom-special-day-event" style="color: ${textColor};">
+        <div class="custom-special-day-event">
           <div class="special-day-type">${scheduleEvent.eventType}</div>
-          <div class="special-day-title">${scheduleEvent.comment || ''}</div>
+          <div class="special-day-title">${specialDayTitle}</div>
         </div>
       `;
     }
@@ -74,17 +78,18 @@ export class CalendarEventTemplateService {
     // Apply period assignment background colors
     const periodAssignment = this.getPeriodAssignmentForEvent(scheduleEvent);
 
-    if (scheduleEvent?.eventCategory === 'SpecialDay' && periodAssignment) {
-      // Special day events - use darker shade of period color
-      const darkerColor = this.darkenColor(periodAssignment.backgroundColor, 0.3);
-      info.el.style.backgroundColor = darkerColor;
-      info.el.style.borderColor = darkerColor;
+    // ✅ REMOVED: Special Day color override logic
+    // Special Day events now use colors from CalendarEventService.getSpecialDayColors()
+    // This prevents period assignment colors from overriding consistent Special Day colors
 
-      // Force text color on special day elements
-      const textColor = periodAssignment.fontColor || '#FFFFFF';
+    if (scheduleEvent?.eventCategory === 'SpecialDay') {
+      // For Special Day events, don't override colors - let CalendarEventService handle it
+      console.log('🎨 [CalendarEventTemplateService] Skipping color override for Special Day:', scheduleEvent.eventType);
+
+      // Only set text color if needed for readability
       const textElements = info.el.querySelectorAll('.fc-event-main, .custom-special-day-event, .special-day-type, .special-day-title');
       textElements.forEach((el: Element) => {
-        (el as HTMLElement).style.setProperty('color', textColor, 'important');
+        // Use the text color already set by CalendarEventService
       });
 
     } else if (periodAssignment && scheduleEvent?.eventType !== 'Error') {

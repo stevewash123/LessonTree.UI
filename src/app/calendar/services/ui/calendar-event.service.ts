@@ -126,14 +126,18 @@ export class CalendarEventService {
       return this.getSpecialDayColors(event);
     }
 
-    // Regular lesson events use period assignment colors
+    // Regular lesson events use enhanced period assignment colors or attractive defaults
     const periodAssignment = this.getPeriodAssignmentForEvent(event);
     if (periodAssignment) {
-      console.log('🎨 [CalendarEventService] Using period assignment colors for period:', event.period);
+      console.log('🎨 [CalendarEventService] Using enhanced period assignment colors for period:', event.period);
+
+      // Use our enhanced default colors instead of the old bright ones
+      const enhancedColors = this.getDefaultEventColors(event);
+
       return {
-        backgroundColor: periodAssignment.backgroundColor,
-        borderColor: periodAssignment.backgroundColor,
-        textColor: periodAssignment.fontColor,
+        backgroundColor: enhancedColors.backgroundColor,
+        borderColor: enhancedColors.borderColor,
+        textColor: enhancedColors.textColor,
         room: periodAssignment.room || ''
       };
     }

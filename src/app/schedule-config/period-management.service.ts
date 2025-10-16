@@ -33,18 +33,18 @@ export interface PeriodValidationResult {
 })
 export class PeriodManagementService {
 
-  // Predefined style sets for periods 1-10
+  // Enhanced pastel style sets for periods 1-10 - matches CalendarEventService defaults
   readonly defaultStyleSets: PeriodStyleSet[] = [
-    { backgroundColor: '#2196F3', fontColor: '#FFFFFF' }, // Blue
-    { backgroundColor: '#4CAF50', fontColor: '#FFFFFF' }, // Green
-    { backgroundColor: '#FF9800', fontColor: '#FFFFFF' }, // Orange
-    { backgroundColor: '#9C27B0', fontColor: '#FFFFFF' }, // Purple
-    { backgroundColor: '#F44336', fontColor: '#FFFFFF' }, // Red
-    { backgroundColor: '#00BCD4', fontColor: '#FFFFFF' }, // Cyan
-    { backgroundColor: '#795548', fontColor: '#FFFFFF' }, // Brown
-    { backgroundColor: '#607D8B', fontColor: '#FFFFFF' }, // Blue Grey
-    { backgroundColor: '#E91E63', fontColor: '#FFFFFF' }, // Pink
-    { backgroundColor: '#3F51B5', fontColor: '#FFFFFF' }  // Indigo
+    { backgroundColor: '#DCEDC8', fontColor: '#33691E' }, // Period 1: Medium Light Green
+    { backgroundColor: '#BBDEFB', fontColor: '#0D47A1' }, // Period 2: Medium Light Blue
+    { backgroundColor: '#FFCC80', fontColor: '#BF360C' }, // Period 3: Medium Light Orange
+    { backgroundColor: '#CE93D8', fontColor: '#4A148C' }, // Period 4: Medium Light Purple
+    { backgroundColor: '#F8BBD0', fontColor: '#880E4F' }, // Period 5: Medium Light Pink
+    { backgroundColor: '#80CBC4', fontColor: '#004D40' }, // Period 6: Medium Light Teal
+    { backgroundColor: '#AED581', fontColor: '#33691E' }, // Period 7: Medium Light Lime
+    { backgroundColor: '#FFD54F', fontColor: '#E65100' }, // Period 8: Medium Light Amber
+    { backgroundColor: '#FFCDD2', fontColor: '#B71C1C' }, // Period 9: Light Red
+    { backgroundColor: '#D1C4E9', fontColor: '#4A148C' }  // Period 10: Light Purple
   ];
 
   // Period options 1-10

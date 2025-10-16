@@ -43,18 +43,18 @@ export class PeriodColorPickerComponent {
   
   colorForm: FormGroup;
   
-  // Preset color combinations matching the main component defaults
+  // Enhanced pastel color combinations matching the main component defaults
   readonly colorPresets = [
-    { backgroundColor: '#2196F3', fontColor: '#FFFFFF', label: '1' }, // Blue
-    { backgroundColor: '#4CAF50', fontColor: '#FFFFFF', label: '2' }, // Green
-    { backgroundColor: '#FF9800', fontColor: '#FFFFFF', label: '3' }, // Orange
-    { backgroundColor: '#9C27B0', fontColor: '#FFFFFF', label: '4' }, // Purple
-    { backgroundColor: '#F44336', fontColor: '#FFFFFF', label: '5' }, // Red
-    { backgroundColor: '#00BCD4', fontColor: '#FFFFFF', label: '6' }, // Cyan
-    { backgroundColor: '#795548', fontColor: '#FFFFFF', label: '7' }, // Brown
-    { backgroundColor: '#607D8B', fontColor: '#FFFFFF', label: '8' }, // Blue Grey
-    { backgroundColor: '#E91E63', fontColor: '#FFFFFF', label: '9' }, // Pink
-    { backgroundColor: '#3F51B5', fontColor: '#FFFFFF', label: '10' }  // Indigo
+    { backgroundColor: '#DCEDC8', fontColor: '#33691E', label: '1' }, // Medium Light Green
+    { backgroundColor: '#BBDEFB', fontColor: '#0D47A1', label: '2' }, // Medium Light Blue
+    { backgroundColor: '#FFCC80', fontColor: '#BF360C', label: '3' }, // Medium Light Orange
+    { backgroundColor: '#CE93D8', fontColor: '#4A148C', label: '4' }, // Medium Light Purple
+    { backgroundColor: '#F8BBD0', fontColor: '#880E4F', label: '5' }, // Medium Light Pink
+    { backgroundColor: '#80CBC4', fontColor: '#004D40', label: '6' }, // Medium Light Teal
+    { backgroundColor: '#AED581', fontColor: '#33691E', label: '7' }, // Medium Light Lime
+    { backgroundColor: '#FFD54F', fontColor: '#E65100', label: '8' }, // Medium Light Amber
+    { backgroundColor: '#FFCDD2', fontColor: '#B71C1C', label: '9' }, // Light Red
+    { backgroundColor: '#D1C4E9', fontColor: '#4A148C', label: '10' }  // Light Purple
   ];
 
   constructor(@Inject(MAT_DIALOG_DATA) public data: PeriodColorData) {
