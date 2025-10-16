@@ -27,6 +27,13 @@ export interface SpecialDayUpdateResource {
   description?: string;
 }
 
+// Response from updating special days
+export interface SpecialDayUpdateResponse {
+  specialDay: SpecialDay;
+  calendarRefreshNeeded: boolean;
+  refreshReason?: string;
+}
+
 // Existing modal interfaces remain unchanged
 export interface SpecialDayModalData {
   date: Date;
@@ -45,6 +52,7 @@ export interface SpecialDayModalData {
 export interface SpecialDayResult {
   action: 'save' | 'delete';
   data?: {
+    id?: number; // ✅ ADD: ID field for edit operations
     date: Date;
     periods: number[];
     specialCode: string;

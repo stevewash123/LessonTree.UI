@@ -68,13 +68,8 @@ export class SpecialDayModalComponent implements OnInit {
     private fb: FormBuilder,
     private scheduleConfigurationStateService: ScheduleConfigurationStateService
   ) {
-    // **FIXED: Get periods from ScheduleConfiguration instead of UserConfiguration**
-    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
-    if (activeConfig) {
-      this.availablePeriods = Array.from({ length: activeConfig.periodsPerDay }, (_, i) => i + 1);
-    } else {
-      this.availablePeriods = [1, 2, 3, 4, 5, 6]; // Default fallback
-    }
+    // **ENHANCED: Get periods from ScheduleConfiguration with better error handling**
+    this.initializeAvailablePeriods();
 
     // Build form with dynamic period checkboxes
     const formConfig: any = {
@@ -103,11 +98,34 @@ export class SpecialDayModalComponent implements OnInit {
     }
   }
 
+  private initializeAvailablePeriods(): void {
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
+    console.log('[SpecialDayModal] Initializing periods from config:', {
+      hasConfig: !!activeConfig,
+      periodsPerDay: activeConfig?.periodsPerDay,
+      configId: activeConfig?.id
+    });
+
+    if (activeConfig && activeConfig.periodsPerDay > 0) {
+      this.availablePeriods = Array.from({ length: activeConfig.periodsPerDay }, (_, i) => i + 1);
+    } else {
+      // Enhanced fallback - try to detect from existing schedule data or use reasonable default
+      console.warn('[SpecialDayModal] No active configuration found, using fallback periods');
+      this.availablePeriods = [1, 2, 3, 4, 5, 6, 7, 8]; // Extended default fallback
+    }
+
+    console.log('[SpecialDayModal] Available periods initialized:', this.availablePeriods);
+  }
+
   ngOnInit(): void {
+    // **DEBUG: Check configuration and periods**
+    const activeConfig = this.scheduleConfigurationStateService.activeConfiguration();
     console.log('[SpecialDayModal] Component initialized', {
       mode: this.data.mode,
       date: format(this.data.date, 'yyyy-MM-dd'),
       availablePeriods: this.availablePeriods,
+      activeConfig: activeConfig,
+      periodsPerDay: activeConfig?.periodsPerDay,
       hasExisting: !!this.data.existingSpecialDay,
       timestamp: new Date().toISOString()
     });
@@ -116,7 +134,7 @@ export class SpecialDayModalComponent implements OnInit {
   private populateFormFromExisting(existing: any): void {
     this.specialDayForm.patchValue({
       date: new Date(existing.date),
-      specialCode: existing.specialCode,
+      specialCode: existing.eventType || existing.specialCode, // ✅ FIX: API returns eventType, not specialCode
       title: existing.title,
       description: existing.description || ''
     });
@@ -160,6 +178,7 @@ export class SpecialDayModalComponent implements OnInit {
       const result: SpecialDayResult = {
         action: 'save',
         data: {
+          id: this.isEditMode && this.data.existingSpecialDay ? this.data.existingSpecialDay.id : undefined, // ✅ FIX: Include ID for edit mode
           date: formValue.date,
           periods: this.selectedPeriods,
           specialCode: formValue.specialCode,

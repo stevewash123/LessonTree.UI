@@ -10,10 +10,11 @@ import {
   Schedule,
   ScheduleCreateResource
 } from '../../../models/schedule';
-import { 
-  SpecialDayCreateResource, 
-  SpecialDayUpdateResource, 
-  SpecialDay 
+import {
+  SpecialDayCreateResource,
+  SpecialDayUpdateResource,
+  SpecialDay,
+  SpecialDayUpdateResponse
 } from '../../../models/specialDay.model';
 import { environment } from '../../../../environments/environment';
 import { ScheduleEventCreateResource, ScheduleEvent, ScheduleEventUpdateResource } from '../../../models/schedule-event.model';
@@ -110,6 +111,30 @@ export class ScheduleApiService {
 
   // === SPECIAL DAY OPERATIONS ===
 
+  getSpecialDays(scheduleId: number): Observable<any[]> {
+    console.log(`[ScheduleApiService] Fetching special days for schedule ID: ${scheduleId}`);
+
+    return this.http.get<any[]>(`${this.apiUrl}/Schedule/${scheduleId}/specialDays`).pipe(
+      map(response => this.transformResponse<any[]>(response)),
+      catchError((error) => {
+        console.error(`[ScheduleApiService] Failed to fetch special days: ${error.message}`);
+        return of([]); // Return empty array on error
+      })
+    );
+  }
+
+  getSpecialDay(scheduleId: number, specialDayId: number): Observable<any> {
+    console.log(`[ScheduleApiService] Fetching special day ID: ${specialDayId} for schedule ID: ${scheduleId}`);
+
+    return this.http.get<any>(`${this.apiUrl}/Schedule/${scheduleId}/specialDays/${specialDayId}`).pipe(
+      map(response => this.transformResponse<any>(response)),
+      catchError((error) => {
+        console.error(`[ScheduleApiService] Failed to fetch special day: ${error.message}`);
+        throw error;
+      })
+    );
+  }
+
   createSpecialDay(scheduleId: number, specialDay: any): Observable<any> {
     console.log(`[ScheduleApiService] Creating special day for schedule ID: ${scheduleId}`);
 
@@ -122,11 +147,11 @@ export class ScheduleApiService {
     );
   }
 
-  updateSpecialDay(scheduleId: number, specialDayId: number, specialDay: any): Observable<any> {
+  updateSpecialDay(scheduleId: number, specialDayId: number, specialDay: any): Observable<SpecialDayUpdateResponse> {
     console.log(`[ScheduleApiService] Updating special day ID: ${specialDayId}`);
 
-    return this.http.put<any>(`${this.apiUrl}/Schedule/${scheduleId}/specialDays/${specialDayId}`, specialDay).pipe(
-      map(response => this.transformResponse<any>(response)),
+    return this.http.put<SpecialDayUpdateResponse>(`${this.apiUrl}/Schedule/${scheduleId}/specialDays/${specialDayId}`, specialDay).pipe(
+      map(response => this.transformResponse<SpecialDayUpdateResponse>(response)),
       catchError((error) => {
         console.error(`[ScheduleApiService] Failed to update special day: ${error.message}`);
         throw error;

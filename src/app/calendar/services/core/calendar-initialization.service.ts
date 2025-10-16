@@ -65,6 +65,11 @@ export class CalendarInitializationService {
   initializeCalendar(): Observable<InitializationResult> {
     console.log('[CalendarInitializationService] 🚀 Starting 5-step calendar initialization');
 
+    // ✅ CRITICAL FIX: Clear all caches to ensure fresh data (especially for special day updates)
+    console.log('[CalendarInitializationService] 🗑️ Clearing all caches for fresh initialization');
+    this.cachedSchedule = null;
+    this.calendarEventLoaderService.clearCache();
+
     // ✅ FIXED: Load schedule ONCE at the beginning
     return this.loadScheduleOnce().pipe(
       switchMap(schedule => {

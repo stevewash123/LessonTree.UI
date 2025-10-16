@@ -72,11 +72,28 @@ export class SpecialDayModalService {
     // Extract specialDayId from the calendar event's schedule event data
     const extendedProps = event.event.extendedProps || {};
     const scheduleEvent = extendedProps['scheduleEvent'];
-    const specialDayId = scheduleEvent?.specialDayId;
+
+    // ✅ ENHANCED: Try multiple paths to find specialDayId
+    const specialDayId = extendedProps['specialDayId'] || scheduleEvent?.specialDayId;
+    const eventCategory = extendedProps['eventCategory'] || scheduleEvent?.eventCategory;
+
+    console.log('[SpecialDayModalService] Debug Special Day ID extraction for delete:', {
+      extendedPropsSpecialDayId: extendedProps['specialDayId'],
+      scheduleEventSpecialDayId: scheduleEvent?.specialDayId,
+      finalSpecialDayId: specialDayId,
+      eventCategory: eventCategory,
+      isSpecialDayByCategory: eventCategory === 'SpecialDay'
+    });
 
     if (!specialDayId) {
-      this.toastr.error('This event is not associated with a special day', 'Error');
-      console.log('[SpecialDayModalService] No specialDayId found in event:', { eventId, extendedProps, scheduleEvent });
+      // ✅ FALLBACK: If no specialDayId but this is a SpecialDay event, show helpful error
+      if (eventCategory === 'SpecialDay') {
+        this.toastr.error('Special Day events created before the latest update cannot be deleted via this method. Please recreate the calendar to update Special Day references.', 'Legacy Special Day');
+        console.log('[SpecialDayModalService] Legacy Special Day event detected for delete (no specialDayId but eventCategory=SpecialDay)');
+      } else {
+        this.toastr.error('This event is not associated with a special day', 'Error');
+        console.log('[SpecialDayModalService] No specialDayId found in event:', { eventId, extendedProps, scheduleEvent });
+      }
       return;
     }
 
@@ -145,17 +162,63 @@ export class SpecialDayModalService {
       return null;
     }
 
-    const existingData = this.prepareExistingDataFromEvent(event);
-    if (!existingData) {
+    // Extract SpecialDayId from event to make API call
+    const extendedProps = event.event.extendedProps || {};
+    const scheduleEvent = extendedProps['scheduleEvent'];
+    const specialDayId = extendedProps['specialDayId'] || scheduleEvent?.specialDayId;
+
+    if (!specialDayId) {
+      this.toastr.error('Special Day ID not found in event', 'Error');
+      console.log('[SpecialDayModalService] No specialDayId found for edit:', { extendedProps, scheduleEvent });
       return null;
     }
 
-    return {
-      date: existingData.date,
-      periods: existingData.periods,
-      mode: 'edit',
-      existingSpecialDay: existingData
-    };
+    // ✅ NEW APPROACH: Use API call to fetch full Special Day data
+    this.fetchSpecialDayDataAndOpenModal(specialDayId, event);
+    return null; // Return null to prevent immediate modal opening
+  }
+
+  /**
+   * Fetch full Special Day data from API and open modal
+   */
+  private fetchSpecialDayDataAndOpenModal(specialDayId: number, event: EventClickArg): void {
+    const currentSchedule = this.scheduleStateService.schedule();
+    if (!currentSchedule) {
+      this.toastr.error('No active schedule found', 'Error');
+      return;
+    }
+
+    console.log(`[SpecialDayModalService] Fetching complete Special Day data for ID: ${specialDayId}`);
+
+    this.scheduleApiService.getSpecialDay(currentSchedule.id, specialDayId).subscribe({
+      next: (specialDay) => {
+        console.log('[SpecialDayModalService] Fetched Special Day data:', specialDay);
+
+        // Create modal data with complete API response
+        const modalData: SpecialDayModalData = {
+          date: new Date(specialDay.date),
+          periods: specialDay.periods || [], // Full periods array from API
+          mode: 'edit',
+          existingSpecialDay: {
+            id: specialDay.id,
+            periods: specialDay.periods || [],
+            eventType: specialDay.eventType,
+            title: specialDay.title,
+            description: specialDay.description || undefined,
+            date: new Date(specialDay.date)
+          }
+        };
+
+        console.log('[SpecialDayModalService] Created modal data from API:', modalData);
+
+        // Open modal with complete data
+        this.openModalWithData(modalData, 'edit');
+      },
+      error: (error) => {
+        console.error('[SpecialDayModalService] Failed to fetch Special Day data:', error);
+        this.toastr.error('Failed to load Special Day data', 'Error');
+      }
+    });
   }
 
   /**
@@ -181,36 +244,6 @@ export class SpecialDayModalService {
     });
   }
 
-  /**
-   * Prepare existing data from calendar event
-   */
-  private prepareExistingDataFromEvent(event: EventClickArg): { id: number; periods: number[]; eventType: string; title: string; description?: string; date: Date } | null {
-    const extendedProps = event.event.extendedProps || {};
-    const scheduleEvent = extendedProps['scheduleEvent'];
-    const specialDayId = scheduleEvent?.specialDayId;
-
-    if (!specialDayId) {
-      this.toastr.error('This event is not associated with a special day', 'Error');
-      console.log('[SpecialDayModalService] No specialDayId found for edit:', { extendedProps, scheduleEvent });
-      return null;
-    }
-
-    // Extract available data from the schedule event
-    const eventType = scheduleEvent?.eventType || 'Assembly';
-    const eventDate = new Date(event.event.start || new Date());
-    const period = extendedProps['period'] || scheduleEvent?.period || 1;
-
-    // For now, we'll use the schedule event data as a base
-    // In a full implementation, we might fetch the full special day from the API
-    return {
-      id: specialDayId,
-      periods: [period], // Single period from this event, modal will show all periods
-      eventType: eventType,
-      title: event.event.title || `${eventType} Day`,
-      description: scheduleEvent?.comment || undefined,
-      date: eventDate
-    };
-  }
 
   /**
    * Extract event ID from calendar event
@@ -306,6 +339,7 @@ export class SpecialDayModalService {
 
     const specialDayUpdateRequest = {
       id: data.id,
+      date: data.date, // ✅ FIX: Include date in update request
       periods: data.periods,
       eventType: data.specialCode || data.eventType,
       title: data.title,
@@ -319,21 +353,29 @@ export class SpecialDayModalService {
     });
 
     this.scheduleApiService.updateSpecialDay(scheduleId, data.id, specialDayUpdateRequest).subscribe({
-      next: (updatedSpecialDay) => {
+      next: (updateResponse) => {
+        const specialDay = updateResponse.specialDay || updateResponse; // Handle both new and legacy response formats
         const periodText = specialDayUpdateRequest.periods.length === 1
           ? `Period ${specialDayUpdateRequest.periods[0]}`
           : `Periods ${specialDayUpdateRequest.periods.join(', ')}`;
-        
+
         this.toastr.success(`Updated special day for ${periodText}`, 'Success');
-        
+
         console.log('[SpecialDayModalService] Special day updated successfully:', {
-          specialDay: updatedSpecialDay,
+          specialDay: specialDay,
           affectedPeriods: specialDayUpdateRequest.periods,
-          originalId: data.id
+          originalId: data.id,
+          calendarRefreshNeeded: updateResponse.calendarRefreshNeeded,
+          refreshReason: updateResponse.refreshReason
         });
 
-        // Always refresh after update (title or periods might have changed)
-        this.refreshScheduleAfterSpecialDayChange();
+        // Conditionally refresh based on API response
+        if (updateResponse.calendarRefreshNeeded) {
+          console.log('[SpecialDayModalService] API indicates calendar refresh needed:', updateResponse.refreshReason);
+          this.refreshScheduleAfterSpecialDayChange();
+        } else {
+          console.log('[SpecialDayModalService] API indicates no calendar refresh needed:', updateResponse.refreshReason);
+        }
       },
       error: (error) => {
         console.error('[SpecialDayModalService] Failed to update special day:', error);

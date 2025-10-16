@@ -71,7 +71,9 @@ export class CalendarEventService {
         period: event.period,
         courseId: event.courseId,
         lessonId: event.lessonId,
+        specialDayId: event.specialDayId, // ✅ CRITICAL FIX: Include Special Day ID for edit/delete operations
         eventType: event.eventType,
+        eventCategory: event.eventCategory, // ✅ Also include category for easier identification
         room: periodAssignment?.room || '',
         lessonTitle: event.lessonTitle,
         lessonObjective: event.lessonObjective,
