@@ -35,13 +35,28 @@ export class CalendarEventTemplateService {
     // SPECIAL DAY EVENTS - Custom styling with type and title
     // DON'T use period assignment text color - let CalendarEventService handle it
     if (scheduleEvent?.eventCategory === 'SpecialDay') {
-      // Use the title from the Special Day if available
-      const specialDayTitle = scheduleEvent.title || scheduleEvent.comment || '';
+      // ✅ NEW: Use embedded SpecialDay title and description from API response
+      const specialDayTitle = scheduleEvent.specialDayTitle || scheduleEvent.comment || scheduleEvent.title || '';
+      const specialDayDescription = scheduleEvent.specialDayDescription || '';
+      const eventType = scheduleEvent.eventType || '';
+
+      console.log('🎨 [CalendarEventTemplateService] Special Day template data:', {
+        eventType: eventType,
+        specialDayTitle: specialDayTitle,
+        specialDayDescription: specialDayDescription,
+        comment: scheduleEvent.comment,
+        title: scheduleEvent.title
+      });
+
+      // Create tooltip attribute if description exists
+      const tooltipAttr = specialDayDescription ? `title="${specialDayDescription}"` : '';
 
       return `
-        <div class="custom-special-day-event">
-          <div class="special-day-type">${scheduleEvent.eventType}</div>
-          <div class="special-day-title">${specialDayTitle}</div>
+        <div class="custom-special-day-event" ${tooltipAttr}>
+          <div class="special-day-content">
+            <span class="special-day-type">${eventType}</span>
+            ${specialDayTitle ? `<span class="special-day-title">: ${specialDayTitle}</span>` : ''}
+          </div>
         </div>
       `;
     }
@@ -86,8 +101,8 @@ export class CalendarEventTemplateService {
       // For Special Day events, don't override colors - let CalendarEventService handle it
       console.log('🎨 [CalendarEventTemplateService] Skipping color override for Special Day:', scheduleEvent.eventType);
 
-      // Only set text color if needed for readability
-      const textElements = info.el.querySelectorAll('.fc-event-main, .custom-special-day-event, .special-day-type, .special-day-title');
+      // Only set text color if needed for readability - updated selectors for new structure
+      const textElements = info.el.querySelectorAll('.fc-event-main, .custom-special-day-event, .special-day-content, .special-day-type, .special-day-title');
       textElements.forEach((el: Element) => {
         // Use the text color already set by CalendarEventService
       });

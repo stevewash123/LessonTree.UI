@@ -151,9 +151,44 @@ export class CalendarEventService {
    * Get consistent colors for all periods of the same Special Day
    */
   private getSpecialDayColors(event: ScheduleEvent): { backgroundColor: string; borderColor: string; textColor: string; room: string } {
-    // Check if the event has custom colors stored
+    // Debug: Check what color properties are available on the event
+    console.log('🎨 [DEBUG] Special Day color check:', {
+      specialDayId: event.specialDayId,
+      eventType: event.eventType,
+      period: event.period,
+      hasSpecialDayBackgroundColor: !!(event as any).specialDayBackgroundColor,
+      hasSpecialDayFontColor: !!(event as any).specialDayFontColor,
+      specialDayBackgroundColor: (event as any).specialDayBackgroundColor,
+      specialDayFontColor: (event as any).specialDayFontColor,
+      // Legacy fields for backwards compatibility
+      hasBackgroundColor: !!event.backgroundColor,
+      hasFontColor: !!event.fontColor,
+      backgroundColor: event.backgroundColor,
+      fontColor: event.fontColor,
+      fullEvent: event
+    });
+
+    // ✅ NEW: Check for embedded SpecialDay color fields first (from API response)
+    if ((event as any).specialDayBackgroundColor && (event as any).specialDayFontColor) {
+      console.log(`🎨 ✅ Using embedded SpecialDay colors:`, {
+        specialDayId: event.specialDayId,
+        eventType: event.eventType,
+        period: event.period,
+        specialDayBackgroundColor: (event as any).specialDayBackgroundColor,
+        specialDayFontColor: (event as any).specialDayFontColor
+      });
+
+      return {
+        backgroundColor: (event as any).specialDayBackgroundColor,
+        borderColor: this.adjustColorBrightness((event as any).specialDayBackgroundColor, -20), // Slightly darker border
+        textColor: (event as any).specialDayFontColor,
+        room: ''
+      };
+    }
+
+    // Legacy: Check if the event has custom colors stored (backwards compatibility)
     if (event.backgroundColor && event.fontColor) {
-      console.log(`🎨 Using stored colors for Special Day:`, {
+      console.log(`🎨 Using legacy stored colors for Special Day:`, {
         specialDayId: event.specialDayId,
         eventType: event.eventType,
         period: event.period,
