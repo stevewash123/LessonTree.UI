@@ -205,7 +205,9 @@ export class SpecialDayModalService {
             eventType: specialDay.eventType,
             title: specialDay.title,
             description: specialDay.description || undefined,
-            date: new Date(specialDay.date)
+            date: new Date(specialDay.date),
+            backgroundColor: specialDay.backgroundColor,
+            fontColor: specialDay.fontColor
           }
         };
 

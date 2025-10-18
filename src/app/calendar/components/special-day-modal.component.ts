@@ -158,7 +158,10 @@ export class SpecialDayModalComponent implements OnInit {
       specialCode: existing.specialCode,
       title: existing.title,
       backgroundColor: existing.backgroundColor,
-      fontColor: existing.fontColor
+      fontColor: existing.fontColor,
+      formValid: this.specialDayForm.valid,
+      formErrors: this.getFormErrors(),
+      selectedPeriods: this.selectedPeriods.length
     });
   }
 

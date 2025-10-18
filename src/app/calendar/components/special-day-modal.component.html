@@ -15,22 +15,16 @@
 
       <!-- Period Selection -->
       <div class="period-selection">
-        <h3>Affected Periods</h3>
-        <p class="period-help">Select which periods this special day affects:</p>
-        
-        <div class="period-checkboxes">
+        <label class="period-label">Periods</label>
+        <div class="period-checkboxes-inline">
           @for (period of availablePeriods; track period) {
-            <mat-checkbox 
+            <mat-checkbox
               [formControlName]="'period_' + period"
-              class="period-checkbox">
-              Period {{ period }}
-              @if (getPeriodAssignment(period); as assignment) {
-                <span class="period-info">({{ assignment.sectionName || 'No section' }}{{ assignment.room ? ' - ' + assignment.room : '' }})</span>
-              }
+              class="period-checkbox-inline">
+              {{ period }}
             </mat-checkbox>
           }
         </div>
-        
         @if (noPeriodSelected) {
           <mat-error>Please select at least one period</mat-error>
         }
@@ -99,15 +93,6 @@
         </div>
       </div>
 
-      <!-- Preview -->
-      @if (selectedPeriods.length > 0) {
-        <div class="preview-section">
-          <h4>Preview</h4>
-          <p><strong>Date:</strong> {{ formatDate(specialDayForm.get('date')?.value) }}</p>
-          <p><strong>Periods:</strong> {{ selectedPeriods.join(', ') }}</p>
-          <p><strong>Event:</strong> {{ specialDayForm.get('specialCode')?.value }} - {{ specialDayForm.get('title')?.value }}</p>
-        </div>
-      }
     </form>
 
     <!-- Actions -->
@@ -121,10 +106,10 @@
         </button>
       }
       
-      <button 
-        mat-raised-button 
-        color="primary" 
-        (click)="save()" 
+      <button
+        mat-raised-button
+        color="primary"
+        (click)="save()"
         [disabled]="specialDayForm.invalid || noPeriodSelected">
         {{ data.mode === 'add' ? 'Create' : 'Update' }} Special Day
       </button>
