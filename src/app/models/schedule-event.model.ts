@@ -22,6 +22,10 @@ export interface ScheduleEvent {
     lessonMaterials?: string | null;
     lessonAssessment?: string | null;
     lessonSort?: number;
+
+    // **NEW** - Color properties for special day events
+    backgroundColor?: string | null;
+    fontColor?: string | null;
 }
 
 export interface ScheduleEventCreateResource {

@@ -5,6 +5,7 @@ import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../../shared/services/api.service';
+import { CalendarAwareApiService } from '../../../shared/services/calendar-aware-api.service'; // ✅ NEW: Calendar-optimized API
 import { CourseDataService } from '../course-data/course-data.service';
 import { NodeDragModeService, DragMode } from '../state/node-drag-mode.service';
 import { NodeMovedEvent, TreeData } from '../../../models/tree-node';
@@ -18,12 +19,13 @@ export class NodeOperationsService {
 
   constructor(
     private apiService: ApiService,
+    private calendarAwareApi: CalendarAwareApiService, // ✅ NEW: Calendar-optimized API
     private courseDataService: CourseDataService,
     private nodeDragModeService: NodeDragModeService,
     private toastr: ToastrService,
     private calendarRefresh: CalendarRefreshService
   ) {
-    console.log('[NodeOperationsService] Simplified sibling-based service initialized');
+    console.log('[NodeOperationsService] Simplified sibling-based service initialized with calendar optimization');
   }
 
   // Drag mode convenience methods
@@ -79,15 +81,24 @@ export class NodeOperationsService {
 
     const courseId = this.extractCourseId(node);
 
-    return this.apiService.moveLesson(
+    // ✅ NEW: Use calendar-aware API for optimized lesson moves
+    return this.calendarAwareApi.moveLessonOptimized(
       node.id,
       targetSubTopicId,
       targetTopicId,
       afterSiblingId || undefined  // Convert null to undefined for API
     ).pipe(
-      tap((result: any) => this.handleApiSuccess(result, node, 'LESSON MOVE', courseId, event)),
-      map((result: any) => result && result.isSuccess),
-      catchError(err => this.handleApiError(err, 'move lesson'))
+      tap((result: any) => {
+        console.log('[NodeOperationsService] ✅ Calendar-optimized lesson move result:', {
+          lessonId: node.id,
+          isOptimized: result.isOptimized,
+          hasPartialGeneration: result.hasPartialGeneration,
+          partialEventsGenerated: result.partialEventsGenerated
+        });
+        this.handleApiSuccess(result, node, 'LESSON MOVE (OPTIMIZED)', courseId, event);
+      }),
+      map((result: any) => result && (result.isSuccess || result.isOptimized)), // Support both response formats
+      catchError(err => this.handleApiError(err, 'move lesson (optimized)'))
     );
   }
 

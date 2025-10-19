@@ -5,6 +5,7 @@
 
 import { Injectable } from '@angular/core';
 import { EventClickArg } from '@fullcalendar/core';
+import { ScheduleStateService } from '../state/schedule-state.service';
 
 export interface ContextMenuAction {
   id: string;
@@ -62,7 +63,7 @@ export class ContextMenuBusinessService {
   private lastClickedEvent: EventClickArg | null = null;
   private lastClickedDate: Date | null = null;
 
-  constructor() {
+  constructor(private scheduleStateService: ScheduleStateService) {
     console.log('[ContextMenuBusinessService] Context menu business logic initialized');
   }
 
@@ -163,19 +164,22 @@ export class ContextMenuBusinessService {
     const metadata: ContextMenuResult['metadata'] = {};
 
     try {
-      // ALWAYS ADD: "Add Special Day" option regardless of context
+      // ADD "Add Special Day" option only if no special day already exists for the date
       const contextDate = this.getContextDate();
       if (contextDate) {
         contextType = 'date-only';
         metadata.date = contextDate;
 
-        actions.push({
-          id: 'addSpecialDay',
-          label: `Add Special Day (${contextDate.toLocaleDateString()})`,
-          actionType: 'add-special-day',
-          contextType: 'date-only',
-          metadata: { date: contextDate }
-        });
+        // Only add "Add Special Day" option if no special day exists for this date
+        if (!this.hasSpecialDayForDate(contextDate)) {
+          actions.push({
+            id: 'addSpecialDay',
+            label: `Add Special Day (${contextDate.toLocaleDateString()})`,
+            actionType: 'add-special-day',
+            contextType: 'date-only',
+            metadata: { date: contextDate }
+          });
+        }
       }
 
       // EVENT-SPECIFIC ACTIONS
@@ -357,6 +361,23 @@ export class ContextMenuBusinessService {
     }
 
     return null;
+  }
+
+  /**
+   * Check if a special day already exists for the given date
+   */
+  private hasSpecialDayForDate(date: Date): boolean {
+    const currentSchedule = this.scheduleStateService.getSchedule();
+    if (!currentSchedule || !currentSchedule.specialDays) {
+      return false;
+    }
+
+    const targetDateStr = date.toDateString();
+
+    return currentSchedule.specialDays.some(specialDay => {
+      const specialDayDate = new Date(specialDay.date);
+      return specialDayDate.toDateString() === targetDateStr;
+    });
   }
 
   getCurrentContextType(): 'event' | 'date' | 'none' {

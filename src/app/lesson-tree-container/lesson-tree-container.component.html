@@ -5,65 +5,65 @@
 
 <!-- Main container with unified splitter layout -->
 <div class="main-container">
-  
+
     <!-- ✅ UNIFIED LAYOUT - Single splitter that preserves component state -->
-    <as-split direction="horizontal" (dragEnd)="onDragEnd($event)">
-      
+    <as-split direction="horizontal" (dragEnd)="onDragEnd($event)" class="content-splitter">
+
       <!-- Left Panel - Dynamic Content Based on View Mode -->
       <as-split-area [size]="defaultSizes[0]" class="split-panel">
-        <split-panel-header 
+        <split-panel-header
           [splitPanelType]="viewModeService.getLeftSplitPanel()"
           [title]="getPanelTitle(viewModeService.getLeftSplitPanel())"
           (splitPanelSwap)="onSplitPanelSwap()">
         </split-panel-header>
-        
+
         <div class="panel-content">
           <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
           @if (viewModeService.getLeftSplitPanel() === 'tree') {
             <course-list></course-list>
           }
-          
+
           <!-- Calendar Panel -->
           @if (viewModeService.getLeftSplitPanel() === 'calendar') {
             <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
           }
-          
+
           <!-- Details Panel -->
           @if (viewModeService.getLeftSplitPanel() === 'details') {
             <info-panel #infoPanel></info-panel>
           }
-          
+
           <!-- Overlay (only show if this panel is NOT the details panel) -->
           @if (isOverlayActive && viewModeService.getLeftSplitPanel() !== 'details') {
             <div class="overlay"></div>
           }
         </div>
       </as-split-area>
-      
+
       <!-- Right Panel - Dynamic Content Based on View Mode -->
       <as-split-area [size]="defaultSizes[1]" class="split-panel">
-        <split-panel-header 
+        <split-panel-header
           [splitPanelType]="viewModeService.getRightSplitPanel()"
           [title]="getPanelTitle(viewModeService.getRightSplitPanel())"
           (splitPanelSwap)="onSplitPanelSwap()">
         </split-panel-header>
-        
+
         <div class="panel-content">
           <!-- ✅ Tree Panel - Always rendered, preserves state across view changes -->
           @if (viewModeService.getRightSplitPanel() === 'tree') {
             <course-list></course-list>
           }
-          
+
           <!-- Calendar Panel -->
           @if (viewModeService.getRightSplitPanel() === 'calendar') {
             <app-lesson-calendar [showScheduleControls]="true"></app-lesson-calendar>
           }
-          
+
           <!-- Details Panel -->
           @if (viewModeService.getRightSplitPanel() === 'details') {
             <info-panel #infoPanel></info-panel>
           }
-          
+
           <!-- Overlay (only show if this panel is NOT the details panel) -->
           @if (isOverlayActive && viewModeService.getRightSplitPanel() !== 'details') {
             <div class="overlay"></div>
@@ -71,8 +71,10 @@
         </div>
       </as-split-area>
     </as-split>
-    
-    <footer class="footer">
-      <a href="#">Contact Info</a>
-    </footer>
+
   </div>
+
+  <!-- Footer outside the splitter to span full width -->
+  <footer class="footer">
+    <a href="#">Contact Info</a>
+  </footer>

@@ -300,7 +300,85 @@ describe('SpecialDay Management', () => {
     })
   })
 
-  describe('Step 5: Calendar Refresh Verification', () => {
+  describe('Step 5: Context Menu Conditional Display', () => {
+    it('should hide "Add Special Day" option when special day already exists for date', () => {
+      cy.log('🚫 Testing context menu hiding when special day exists')
+
+      // Switch to calendar view if needed
+      cy.get('body').then(($body) => {
+        if ($body.find('.calendar-container').length === 0) {
+          cy.get('[data-cy="calendar-tab"], .calendar-tab, button').contains(/calendar/i).click()
+          cy.wait(2000)
+        }
+      })
+
+      // Create a special day first
+      cy.get('.fc-daygrid-day').first().as('testDate').rightclick()
+      cy.contains('Special Day', { matchCase: false }).click()
+
+      cy.get('input[formcontrolname="title"], input[name="title"]')
+        .clear()
+        .type('Existing Special Day')
+
+      cy.get('select[formcontrolname="eventType"], select[name="eventType"]')
+        .select('Holiday')
+
+      cy.intercept('POST', '**/specialDays').as('createSpecialDay')
+      cy.get('button').contains(/save|create/i, { matchCase: false }).click()
+
+      cy.wait('@createSpecialDay')
+      cy.wait(3000) // Allow calendar to refresh
+
+      // Verify special day appears
+      cy.contains('Existing Special Day').should('be.visible')
+
+      // Now right-click on the same date again
+      cy.get('@testDate').rightclick()
+      cy.wait(1000)
+
+      // Verify "Add Special Day" option is NOT in the context menu
+      cy.get('body').then(($body) => {
+        const addSpecialDayButton = $body.find(':contains("Add Special Day"):visible')
+        if (addSpecialDayButton.length > 0) {
+          cy.log('❌ "Add Special Day" should not be visible but was found')
+          // Use should('not.exist') to make the test fail appropriately
+          cy.contains('Add Special Day').should('not.exist')
+        } else {
+          cy.log('✅ "Add Special Day" correctly hidden when special day exists')
+        }
+      })
+
+      // Dismiss context menu
+      cy.get('body').type('{esc}')
+    })
+
+    it('should show "Add Special Day" option when no special day exists for date', () => {
+      cy.log('✅ Testing context menu showing when no special day exists')
+
+      // Switch to calendar view if needed
+      cy.get('body').then(($body) => {
+        if ($body.find('.calendar-container').length === 0) {
+          cy.get('[data-cy="calendar-tab"], .calendar-tab, button').contains(/calendar/i).click()
+          cy.wait(2000)
+        }
+      })
+
+      // Find a different date that doesn't have a special day
+      cy.get('.fc-daygrid-day').eq(3).as('emptyDate').rightclick()
+      cy.wait(1000)
+
+      // Verify "Add Special Day" option IS available
+      cy.contains('Special Day', { matchCase: false })
+        .should('be.visible')
+
+      cy.log('✅ "Add Special Day" correctly shown when no special day exists')
+
+      // Dismiss context menu without adding
+      cy.get('body').type('{esc}')
+    })
+  })
+
+  describe('Step 6: Calendar Refresh Verification', () => {
     it('should refresh calendar properly after special day operations', () => {
       cy.log('🔄 Testing calendar refresh behavior')
       
