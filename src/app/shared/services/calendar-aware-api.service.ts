@@ -49,6 +49,26 @@ interface LessonDeleteOptimizedRequest {
   requestPartialScheduleUpdate?: boolean;
 }
 
+interface TopicMoveOptimizedResource {
+  topicId: number;
+  newCourseId: number;
+  afterSiblingId?: number | null;
+  // Calendar optimization fields
+  calendarStartDate?: string;
+  calendarEndDate?: string;
+  requestPartialScheduleUpdate?: boolean;
+}
+
+interface SubTopicMoveOptimizedResource {
+  subTopicId: number;
+  newTopicId: number;
+  afterSiblingId?: number | null;
+  // Calendar optimization fields
+  calendarStartDate?: string;
+  calendarEndDate?: string;
+  requestPartialScheduleUpdate?: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -237,14 +257,40 @@ export class CalendarAwareApiService {
     targetCourseId: number,
     afterSiblingId?: number
   ): Observable<any> {
-    // TODO: Implement optimized topic move
-    return this.apiService.moveTopic(
+    console.log('[CalendarAwareApiService] 🚚 Moving topic with calendar optimization:', {
       topicId,
       targetCourseId,
       afterSiblingId,
-      undefined, // position
-      undefined  // relativeToType
-    );
+      canOptimize: this.calendarContext.canOptimize()
+    });
+
+    // Get calendar optimization payload
+    const calendarPayload = this.calendarContext.getOptimizationPayload('week');
+
+    if (calendarPayload) {
+      // Use optimized endpoint with calendar context
+      const optimizedResource: TopicMoveOptimizedResource = {
+        topicId,
+        newCourseId: targetCourseId,
+        afterSiblingId: afterSiblingId || null,
+        calendarStartDate: calendarPayload.calendarStartDate,
+        calendarEndDate: calendarPayload.calendarEndDate,
+        requestPartialScheduleUpdate: calendarPayload.requestPartialScheduleUpdate
+      };
+
+      console.log('[CalendarAwareApiService] ✅ Using topic-move-optimized endpoint with calendar context');
+      return this.http.post<any>(`${this.baseUrl}/api/topic/move-optimized`, optimizedResource);
+    } else {
+      // Fallback to regular move endpoint
+      console.log('[CalendarAwareApiService] ⚠️ No calendar context, using regular topic move endpoint');
+      return this.apiService.moveTopic(
+        topicId,
+        targetCourseId,
+        afterSiblingId,
+        undefined, // position
+        undefined  // relativeToType
+      );
+    }
   }
 
   // SubTopic operations
@@ -253,14 +299,40 @@ export class CalendarAwareApiService {
     targetTopicId: number,
     afterSiblingId?: number
   ): Observable<any> {
-    // TODO: Implement optimized subtopic move
-    return this.apiService.moveSubTopic(
+    console.log('[CalendarAwareApiService] 🚚 Moving subtopic with calendar optimization:', {
       subTopicId,
       targetTopicId,
       afterSiblingId,
-      undefined, // position
-      undefined  // relativeToType
-    );
+      canOptimize: this.calendarContext.canOptimize()
+    });
+
+    // Get calendar optimization payload
+    const calendarPayload = this.calendarContext.getOptimizationPayload('week');
+
+    if (calendarPayload) {
+      // Use optimized endpoint with calendar context
+      const optimizedResource: SubTopicMoveOptimizedResource = {
+        subTopicId,
+        newTopicId: targetTopicId,
+        afterSiblingId: afterSiblingId || null,
+        calendarStartDate: calendarPayload.calendarStartDate,
+        calendarEndDate: calendarPayload.calendarEndDate,
+        requestPartialScheduleUpdate: calendarPayload.requestPartialScheduleUpdate
+      };
+
+      console.log('[CalendarAwareApiService] ✅ Using subtopic-move-optimized endpoint with calendar context');
+      return this.http.post<any>(`${this.baseUrl}/api/subtopic/move-optimized`, optimizedResource);
+    } else {
+      // Fallback to regular move endpoint
+      console.log('[CalendarAwareApiService] ⚠️ No calendar context, using regular subtopic move endpoint');
+      return this.apiService.moveSubTopic(
+        subTopicId,
+        targetTopicId,
+        afterSiblingId,
+        undefined, // position
+        undefined  // relativeToType
+      );
+    }
   }
 
   // ===== DEBUG METHODS =====

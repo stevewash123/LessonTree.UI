@@ -400,45 +400,109 @@ describe('CalendarAwareApiService', () => {
     });
   });
 
-  describe('Future Optimized Operations (TODO methods)', () => {
-    it('should move topic using regular API (TODO: optimize)', () => {
-      // Arrange: Mock move topic response
-      const topicId = 123;
-      const targetCourseId = 456;
-      const afterSiblingId = 789;
-      mockApiService.moveTopic.and.returnValue(new Observable(observer => observer.next({ success: true })));
+  describe('Optimized Topic and SubTopic Operations', () => {
+    describe('Topic Move Optimization', () => {
+      it('should move topic using optimized API when calendar context available', () => {
+        // Arrange: Mock calendar context and optimized response
+        const topicId = 123;
+        const targetCourseId = 456;
+        const afterSiblingId = 789;
+        mockCalendarContext.canOptimize.and.returnValue(true);
+        mockCalendarContext.getOptimizationPayload.and.returnValue(testOptimizationPayload);
+        spyOn(mockHttp, 'post').and.returnValue(new Observable(observer => observer.next({ success: true })));
 
-      // Act: Move topic
-      const result = service.moveTopicOptimized(topicId, targetCourseId, afterSiblingId);
+        // Act: Move topic with optimization
+        service.moveTopicOptimized(topicId, targetCourseId, afterSiblingId);
 
-      // Assert: Should use regular API service (not optimized yet)
-      expect(mockApiService.moveTopic).toHaveBeenCalledWith(
-        topicId,
-        targetCourseId,
-        afterSiblingId,
-        undefined,
-        undefined
-      );
+        // Assert: Should use optimized endpoint with calendar context
+        expect(mockHttp.post).toHaveBeenCalledWith(
+          'http://localhost:5046/api/topic/move-optimized',
+          {
+            topicId,
+            newCourseId: targetCourseId,
+            afterSiblingId,
+            calendarStartDate: testOptimizationPayload.calendarStartDate,
+            calendarEndDate: testOptimizationPayload.calendarEndDate,
+            requestPartialScheduleUpdate: testOptimizationPayload.requestPartialScheduleUpdate
+          }
+        );
+        expect(mockApiService.moveTopic).not.toHaveBeenCalled();
+      });
+
+      it('should move topic using regular API when calendar context unavailable', () => {
+        // Arrange: Mock no calendar context
+        const topicId = 123;
+        const targetCourseId = 456;
+        const afterSiblingId = 789;
+        mockCalendarContext.canOptimize.and.returnValue(false);
+        mockCalendarContext.getOptimizationPayload.and.returnValue(null);
+        mockApiService.moveTopic.and.returnValue(new Observable(observer => observer.next({ success: true })));
+
+        // Act: Move topic without optimization
+        service.moveTopicOptimized(topicId, targetCourseId, afterSiblingId);
+
+        // Assert: Should fallback to regular API service
+        expect(mockApiService.moveTopic).toHaveBeenCalledWith(
+          topicId,
+          targetCourseId,
+          afterSiblingId,
+          undefined,
+          undefined
+        );
+        expect(mockHttp.post).not.toHaveBeenCalled();
+      });
     });
 
-    it('should move subtopic using regular API (TODO: optimize)', () => {
-      // Arrange: Mock move subtopic response
-      const subTopicId = 123;
-      const targetTopicId = 456;
-      const afterSiblingId = 789;
-      mockApiService.moveSubTopic.and.returnValue(new Observable(observer => observer.next({ success: true })));
+    describe('SubTopic Move Optimization', () => {
+      it('should move subtopic using optimized API when calendar context available', () => {
+        // Arrange: Mock calendar context and optimized response
+        const subTopicId = 123;
+        const targetTopicId = 456;
+        const afterSiblingId = 789;
+        mockCalendarContext.canOptimize.and.returnValue(true);
+        mockCalendarContext.getOptimizationPayload.and.returnValue(testOptimizationPayload);
+        spyOn(mockHttp, 'post').and.returnValue(new Observable(observer => observer.next({ success: true })));
 
-      // Act: Move subtopic
-      const result = service.moveSubTopicOptimized(subTopicId, targetTopicId, afterSiblingId);
+        // Act: Move subtopic with optimization
+        service.moveSubTopicOptimized(subTopicId, targetTopicId, afterSiblingId);
 
-      // Assert: Should use regular API service (not optimized yet)
-      expect(mockApiService.moveSubTopic).toHaveBeenCalledWith(
-        subTopicId,
-        targetTopicId,
-        afterSiblingId,
-        undefined,
-        undefined
-      );
+        // Assert: Should use optimized endpoint with calendar context
+        expect(mockHttp.post).toHaveBeenCalledWith(
+          'http://localhost:5046/api/subtopic/move-optimized',
+          {
+            subTopicId,
+            newTopicId: targetTopicId,
+            afterSiblingId,
+            calendarStartDate: testOptimizationPayload.calendarStartDate,
+            calendarEndDate: testOptimizationPayload.calendarEndDate,
+            requestPartialScheduleUpdate: testOptimizationPayload.requestPartialScheduleUpdate
+          }
+        );
+        expect(mockApiService.moveSubTopic).not.toHaveBeenCalled();
+      });
+
+      it('should move subtopic using regular API when calendar context unavailable', () => {
+        // Arrange: Mock no calendar context
+        const subTopicId = 123;
+        const targetTopicId = 456;
+        const afterSiblingId = 789;
+        mockCalendarContext.canOptimize.and.returnValue(false);
+        mockCalendarContext.getOptimizationPayload.and.returnValue(null);
+        mockApiService.moveSubTopic.and.returnValue(new Observable(observer => observer.next({ success: true })));
+
+        // Act: Move subtopic without optimization
+        service.moveSubTopicOptimized(subTopicId, targetTopicId, afterSiblingId);
+
+        // Assert: Should fallback to regular API service
+        expect(mockApiService.moveSubTopic).toHaveBeenCalledWith(
+          subTopicId,
+          targetTopicId,
+          afterSiblingId,
+          undefined,
+          undefined
+        );
+        expect(mockHttp.post).not.toHaveBeenCalled();
+      });
     });
   });
 
