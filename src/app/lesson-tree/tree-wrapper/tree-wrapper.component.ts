@@ -900,31 +900,54 @@ export class TreeWrapperComponent implements OnInit, OnDestroy, AfterViewInit {
       // ✅ FIXED: Cast SyncFusion return type to TreeNode
       const syncFusionNode: TreeNode = nodeDataArray[0] as TreeNode;
 
-      // 🔍 DEBUG: Verify we now have the original property
-      console.log('✅ [TreeWrapper] onNodeExpanded - Using getTreeData():', {
+      // 🔍 DEBUG: Log expansion details
+      console.log('✅ [TreeWrapper] onNodeExpanded - Node expanded:', {
         nodeId,
+        entityType: syncFusionNode?.entityType,
+        text: syncFusionNode?.text,
         hasOriginal: !!syncFusionNode?.original,
-        originalType: typeof syncFusionNode?.original,
-        originalKeys: Object.keys(syncFusionNode?.original || {}),
-        retrievalMethod: 'getTreeData()'
+        action: 'expand-only-no-selection'
       });
 
       // ✅ BOUNDARY: SyncFusion TreeNode → TreeData conversion
       const treeData = treeNodeToTreeData(syncFusionNode);
 
-      const result = this.treeNodeActionsService.handleAutoSelectOnExpand(
-          args, this.treeData, this.courseId, this.nodeSelectionService.hasSelection()
-      );
-
-      if (result.success) {
-        try {
-          this.syncFuncTree.selectedNodes = [args.nodeData.id];
-        } catch (err) {
-          console.warn('[TreeWrapper] Failed to update selectedNodes:', err);
+      // ❌ REMOVED: Auto-selection on expand to fix SyncFusion selection issue
+      // The auto-selection behavior was causing all child lessons to be selected
+      // when a Topic node was expanded. This is a SyncFusion TreeView issue
+      // where setting selectedNodes can trigger cascading selection of children.
+      //
+      // ORIGINAL PROBLEMATIC CODE:
+      // const result = this.treeNodeActionsService.handleAutoSelectOnExpand(
+      //     args, this.treeData, this.courseId, this.nodeSelectionService.hasSelection()
+      // );
+      // if (result.success) {
+      //   this.syncFuncTree.selectedNodes = [args.nodeData.id];
+      // }
+      //
+      // ✅ FIX: Clear any existing selections to prevent cascading selection
+      // This ensures that expanding a node doesn't cause SyncFusion to auto-select children
+      try {
+        if (this.syncFuncTree.selectedNodes && this.syncFuncTree.selectedNodes.length > 0) {
+          console.log(`🧹 [TreeWrapper] Clearing existing selections before expand:`, {
+            previousSelections: this.syncFuncTree.selectedNodes,
+            expandedNode: nodeId
+          });
+          this.syncFuncTree.selectedNodes = [];
         }
+      } catch (err) {
+        console.warn('[TreeWrapper] Failed to clear selections:', err);
       }
+
+      // FIX: Only handle expand for logging/tracking, no automatic selection
+      console.log(`🌳 [TreeWrapper] Node expanded without auto-selection:`, {
+        nodeType: treeData.entityType,
+        nodeTitle: treeData.title,
+        reason: 'Prevents SyncFusion cascading child selection bug'
+      });
+
     } catch (error) {
-      console.error('🚨 [TreeWrapper] onNodeExpanded - Conversion FAILED:', {
+      console.error('🚨 [TreeWrapper] onNodeExpanded - Error:', {
         error: error,
         errorMessage: error instanceof Error ? error.message : 'Unknown error'
       });
