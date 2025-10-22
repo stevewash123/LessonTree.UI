@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { Course } from '../../models/course';
 import { ToastrService } from 'ngx-toastr';
+import { NotificationService } from '../../shared/services/notification.service';
 import { PanelStateService } from '../panel-state.service';
 import { UserService } from '../../user-config/user.service';
 import { CourseCrudBusinessService } from '../../lesson-tree/services/business/course-crud-business.service';
@@ -49,7 +50,8 @@ export class CoursePanelComponent implements OnChanges, OnInit {
     private userService: UserService,
     private courseCrudService: CourseCrudBusinessService,
     private panelStateService: PanelStateService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private notificationService: NotificationService
   ) {
     console.log('[CoursePanel] Component initialized with signals optimization', {
       timestamp: new Date().toISOString()
@@ -127,7 +129,7 @@ export class CoursePanelComponent implements OnChanges, OnInit {
             id: createdCourse.id,
             timestamp: new Date().toISOString()
           });
-          this.toastr.success(`Course "${createdCourse.title}" created successfully`);
+          this.notificationService.showSuccess(`Course "${createdCourse.title}" created successfully`);
         },
         error: (error) => {
           console.error(`[CoursePanel] Error creating course`, {
@@ -147,7 +149,7 @@ export class CoursePanelComponent implements OnChanges, OnInit {
             title: updatedCourse.title,
             timestamp: new Date().toISOString()
           });
-          this.toastr.success(`Course "${updatedCourse.title}" updated successfully`);
+          this.notificationService.showSuccess(`Course "${updatedCourse.title}" updated successfully`);
         },
         error: (error) => {
           console.error(`[CoursePanel] Error updating course`, {

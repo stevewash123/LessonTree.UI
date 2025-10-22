@@ -3,6 +3,7 @@ import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
+import { NotificationService } from '../../shared/services/notification.service';
 import { SubTopic } from '../../models/subTopic';
 import { CourseCrudService } from '../../lesson-tree/services/course-operations/course-crud.service';
 import { PanelStateService } from '../panel-state.service';
@@ -49,7 +50,8 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
     private userService: UserService,
     private courseCrudService: CourseCrudService,
     private panelStateService: PanelStateService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private notificationService: NotificationService
   ) {
     console.log('[SubtopicPanel] Component initialized with signals optimization', {
       timestamp: new Date().toISOString()
@@ -122,7 +124,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
             title: createdSubTopic.title,
             timestamp: new Date().toISOString()
           });
-          this.toastr.success(`SubTopic "${createdSubTopic.title}" created successfully`);
+          this.notificationService.showSuccess(`SubTopic "${createdSubTopic.title}" created successfully`);
         },
         error: (error) => {
           console.error(`[SubtopicPanel] Error creating subtopic`, {
@@ -141,7 +143,7 @@ export class SubtopicPanelComponent implements OnChanges, OnInit {
             title: updatedSubTopic.title,
             timestamp: new Date().toISOString()
           });
-          this.toastr.success(`SubTopic "${updatedSubTopic.title}" updated successfully`);
+          this.notificationService.showSuccess(`SubTopic "${updatedSubTopic.title}" updated successfully`);
         },
         error: (error) => {
           console.error(`[SubtopicPanel] Error updating subtopic`, {

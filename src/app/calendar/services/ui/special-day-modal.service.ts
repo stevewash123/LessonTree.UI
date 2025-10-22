@@ -14,6 +14,7 @@ import { CalendarRefreshService } from '../integration/calendar-refresh.service'
 import { SpecialDayModalComponent } from '../../components/special-day-modal.component';
 import { SpecialDayModalData, SpecialDayResult, SpecialDayCreateResource } from '../../../models/specialDay.model';
 import { ScheduleEvent } from '../../../models/schedule-event.model';
+import { NotificationService } from '../../../shared/services/notification.service';
 
 @Injectable({
   providedIn: 'root'
@@ -23,6 +24,7 @@ export class SpecialDayModalService {
   private readonly scheduleApiService = inject(ScheduleApiService);
   private readonly calendarRefreshService = inject(CalendarRefreshService);
   private readonly toastr = inject(ToastrService);
+  private readonly notificationService = inject(NotificationService);
   private readonly dialog = inject(MatDialog);
 
   constructor() {
@@ -101,7 +103,7 @@ export class SpecialDayModalService {
 
     this.scheduleApiService.deleteSpecialDay(currentSchedule.id, specialDayId).subscribe({
       next: () => {
-        this.toastr.success('Special day deleted successfully', 'Success');
+        this.notificationService.showSuccess('Special day deleted successfully');
         
         console.log('[SpecialDayModalService] Special day deleted successfully:', {
           specialDayId,
@@ -315,7 +317,7 @@ export class SpecialDayModalService {
           ? `Period ${specialDayRequest.periods[0]}`
           : `Periods ${specialDayRequest.periods.join(', ')}`;
         
-        this.toastr.success(`Created special day for ${periodText}`, 'Success');
+        this.notificationService.showSuccess(`Created special day for ${periodText}`);
         
         console.log('[SpecialDayModalService] Special day created successfully:', {
           specialDay: createdSpecialDay,
@@ -365,7 +367,7 @@ export class SpecialDayModalService {
           ? `Period ${specialDayUpdateRequest.periods[0]}`
           : `Periods ${specialDayUpdateRequest.periods.join(', ')}`;
 
-        this.toastr.success(`Updated special day for ${periodText}`, 'Success');
+        this.notificationService.showSuccess(`Updated special day for ${periodText}`);
 
         console.log('[SpecialDayModalService] Special day updated successfully:', {
           specialDay: specialDay,
@@ -415,7 +417,7 @@ export class SpecialDayModalService {
 
     this.scheduleApiService.deleteSpecialDay(currentSchedule.id, data.id).subscribe({
       next: () => {
-        this.toastr.success('Special day deleted successfully', 'Success');
+        this.notificationService.showSuccess('Special day deleted successfully');
         
         console.log('[SpecialDayModalService] Special day deleted from modal:', {
           specialDayId: data.id,

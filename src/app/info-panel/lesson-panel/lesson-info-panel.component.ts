@@ -20,6 +20,7 @@ import { UserService } from '../../user-config/user.service';
 import { PanelStateService } from '../panel-state.service';
 import { ToastrService } from 'ngx-toastr';
 import { CourseCrudCoordinationService, LessonSaveCompletedEvent, LessonSaveErrorEvent } from '../../lesson-tree/services/coordination/course-crud-coordination.service';
+import { NotificationService } from '../../shared/services/notification.service';
 
 @Component({
   selector: 'lesson-info-panel',
@@ -72,7 +73,8 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit, OnDestroy {
     private userService: UserService,
     private panelStateService: PanelStateService,
     private courseCrudService: CourseCrudCoordinationService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private notificationService: NotificationService
   ) {
     console.log('[LessonInfoPanel] Component initialized with Observable event subscriptions');
 
@@ -211,7 +213,7 @@ export class LessonInfoPanelComponent implements OnChanges, OnInit, OnDestroy {
     this.originalLessonDetail = null;
 
     // Show success notification
-    this.toastr.success(`Lesson "${saveEvent.lesson.title}" ${saveEvent.operation}d successfully`);
+    this.notificationService.showSuccess(`Lesson "${saveEvent.lesson.title}" ${saveEvent.operation}d successfully`);
 
     console.log('[LessonInfoPanel] Save completion processed', {
       operation: saveEvent.operation,

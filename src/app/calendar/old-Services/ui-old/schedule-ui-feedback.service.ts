@@ -6,6 +6,7 @@
 import { Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ToastrService } from 'ngx-toastr';
+import { NotificationService } from '../../../shared/services/notification.service';
 
 @Injectable({
   providedIn: 'root'
@@ -14,7 +15,8 @@ export class ScheduleUIFeedbackService {
 
   constructor(
     private snackBar: MatSnackBar,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private notificationService: NotificationService
   ) {
     console.log('[ScheduleUIFeedbackService] Pure UI feedback service initialized');
   }
@@ -40,14 +42,11 @@ export class ScheduleUIFeedbackService {
   }
 
   showWorkflowSuccess(): void {
-    this.toastr.success('Configuration workflow completed successfully', 'Success');
+    this.notificationService.showSuccess('Configuration workflow completed successfully');
   }
 
   showLessonIntegrationSuccess(): void {
-    this.toastr.success(
-      'Schedule updated with new lesson',
-      'Schedule Integration'
-    );
+    this.notificationService.showSuccess('Schedule updated with new lesson');
   }
 
   // === ERROR FEEDBACK ===
@@ -85,11 +84,7 @@ export class ScheduleUIFeedbackService {
   // === GENERIC FEEDBACK METHODS ===
 
   showSuccess(message: string, title?: string): void {
-    if (title) {
-      this.toastr.success(message, title);
-    } else {
-      this.snackBar.open(message, 'Close', { duration: 3000 });
-    }
+    this.notificationService.showSuccess(message);
   }
 
   showError(message: string, title?: string): void {

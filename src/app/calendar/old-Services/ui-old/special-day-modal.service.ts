@@ -13,6 +13,7 @@ import { SpecialDayData, SpecialDayManagementService } from '../business/special
 import { ScheduleEvent } from '../../../models/schedule-event.model';
 import { SpecialDayModalComponent } from '../../components/special-day-modal.component';
 import { SpecialDayModalData, SpecialDayResult } from '../../../models/specialDay.model';
+import { NotificationService } from '../../../shared/services/notification.service';
 
 @Injectable({
   providedIn: 'root'
@@ -21,6 +22,7 @@ export class SpecialDayModalService {
   private readonly scheduleStateService = inject(ScheduleStateService);
   private readonly specialDayManagement = inject(SpecialDayManagementService);
   private readonly toastr = inject(ToastrService);
+  private readonly notificationService = inject(NotificationService);
   private readonly dialog = inject(MatDialog);
 
   constructor() {
@@ -94,7 +96,7 @@ export class SpecialDayModalService {
 
     this.specialDayManagement.deleteSpecialDay(scheduleEvent).subscribe({
       next: () => {
-        this.toastr.success(`Deleted special day from Period ${scheduleEvent.period}`, 'Success');
+        this.notificationService.showSuccess(`Deleted special day from Period ${scheduleEvent.period}`);
         console.log('[SpecialDayModalService] Special day deleted successfully:', {
           eventId: scheduleEvent.id,
           period: scheduleEvent.period,
@@ -126,7 +128,7 @@ export class SpecialDayModalService {
 
     this.specialDayManagement.deleteSpecialDay(scheduleEvent).subscribe({
       next: () => {
-        this.toastr.success(`Deleted special day from Period ${scheduleEvent.period}`, 'Success');
+        this.notificationService.showSuccess(`Deleted special day from Period ${scheduleEvent.period}`);
         console.log('[SpecialDayModalService] Special day deleted from event:', {
           eventId: scheduleEvent.id,
           period: scheduleEvent.period,
@@ -310,7 +312,7 @@ export class SpecialDayModalService {
           const periodText = createdEvents.length === 1
             ? `Period ${createdEvents[0].period}`
             : `Periods ${createdEvents.map(e => e.period).join(', ')}`;
-          this.toastr.success(`Created special day for ${periodText}`, 'Success');
+          this.notificationService.showSuccess(`Created special day for ${periodText}`);
 
           console.log('[SpecialDayModalService] Special day created successfully:', {
             eventType: data.eventType,
@@ -327,7 +329,7 @@ export class SpecialDayModalService {
     } else if (originalScheduleEvent) {
       this.specialDayManagement.updateSpecialDay(data, originalScheduleEvent).subscribe({
         next: (updatedEvent) => {
-          this.toastr.success(`Updated special day for Period ${updatedEvent.period}`, 'Success');
+          this.notificationService.showSuccess(`Updated special day for Period ${updatedEvent.period}`);
 
           console.log('[SpecialDayModalService] Special day updated successfully:', {
             eventId: updatedEvent.id,
@@ -350,7 +352,7 @@ export class SpecialDayModalService {
   private handleDeleteAction(originalScheduleEvent: ScheduleEvent): void {
     this.specialDayManagement.deleteSpecialDay(originalScheduleEvent).subscribe({
       next: () => {
-        this.toastr.success(`Deleted special day from Period ${originalScheduleEvent.period}`, 'Success');
+        this.notificationService.showSuccess(`Deleted special day from Period ${originalScheduleEvent.period}`);
 
         console.log('[SpecialDayModalService] Special day deleted via modal:', {
           eventId: originalScheduleEvent.id,

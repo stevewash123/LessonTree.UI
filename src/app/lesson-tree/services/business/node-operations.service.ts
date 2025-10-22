@@ -6,6 +6,7 @@ import { catchError, map, Observable, of, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../../shared/services/api.service';
 import { CalendarAwareApiService } from '../../../shared/services/calendar-aware-api.service'; // ✅ NEW: Calendar-optimized API
+import { NotificationService } from '../../../shared/services/notification.service'; // ✅ NEW: Less intrusive notifications
 import { CourseDataService } from '../course-data/course-data.service';
 import { NodeDragModeService, DragMode } from '../state/node-drag-mode.service';
 import { NodeMovedEvent, TreeData } from '../../../models/tree-node';
@@ -23,6 +24,7 @@ export class NodeOperationsService {
     private courseDataService: CourseDataService,
     private nodeDragModeService: NodeDragModeService,
     private toastr: ToastrService,
+    private notificationService: NotificationService, // ✅ NEW: Less intrusive notifications
     private calendarRefresh: CalendarRefreshService
   ) {
     console.log('[NodeOperationsService] Simplified sibling-based service initialized with calendar optimization');
@@ -403,7 +405,7 @@ export class NodeOperationsService {
         }
       );
 
-      this.toastr.success(`${operationType}: ${node.entityType} "${this.getNodeTitle(node)}" moved successfully`);
+      this.notificationService.showSuccess(`${operationType}: ${node.entityType} "${this.getNodeTitle(node)}" moved successfully`);
     } else {
       console.error(`[NodeOperationsService] ❌ ${operationType} failed:`, result);
       this.toastr.error(`Failed to ${operationType.toLowerCase()}: Unexpected response format`, 'Error');

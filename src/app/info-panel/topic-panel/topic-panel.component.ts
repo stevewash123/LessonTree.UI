@@ -3,6 +3,7 @@ import { Component, Input, OnChanges, SimpleChanges, OnInit, effect } from '@ang
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ToastrService } from 'ngx-toastr';
+import { NotificationService } from '../../shared/services/notification.service';
 import { Topic } from '../../models/topic';
 import { CourseCrudService } from '../../lesson-tree/services/course-operations/course-crud.service';
 import { PanelStateService } from '../panel-state.service';
@@ -49,7 +50,8 @@ export class TopicPanelComponent implements OnChanges, OnInit {
     private userService: UserService,
     private courseCrudService: CourseCrudService,
     private panelStateService: PanelStateService,
-    private toastr: ToastrService
+    private toastr: ToastrService,
+    private notificationService: NotificationService
   ) {
     console.log('[TopicPanel] Component initialized with signals optimization', {
       timestamp: new Date().toISOString()
@@ -122,7 +124,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
             title: createdTopic.title,
             timestamp: new Date().toISOString()
           });
-          this.toastr.success(`Topic "${createdTopic.title}" created successfully`);
+          this.notificationService.showSuccess(`Topic "${createdTopic.title}" created successfully`);
         },
         error: (error) => {
           console.error(`[TopicPanel] Error creating topic`, {
@@ -141,7 +143,7 @@ export class TopicPanelComponent implements OnChanges, OnInit {
             title: updatedTopic.title,
             timestamp: new Date().toISOString()
           });
-          this.toastr.success(`Topic "${updatedTopic.title}" updated successfully`);
+          this.notificationService.showSuccess(`Topic "${updatedTopic.title}" updated successfully`);
         },
         error: (error) => {
           console.error(`[TopicPanel] Error updating topic`, {
