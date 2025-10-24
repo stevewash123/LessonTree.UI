@@ -1,120 +1,368 @@
-# LessonTreeUI
-
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.14.
-
-## Development server
-
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
-
-## Code scaffolding
-
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
-
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
-
-## Running unit tests
-
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
-
-## Running end-to-end tests
-
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
-
-## Further help
-
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 # LessonTree UI
 
+A modern Angular 19 application providing an intuitive interface for educational content management with advanced drag-and-drop functionality, dynamic calendar integration, and real-time lesson organization.
 
+> **🔗 Related Repository**: This frontend connects to the [LessonTree API](https://github.com/stevewash123/LessonTree.API) - a robust .NET 8 Web API with comprehensive unit testing and clean architecture.
 
-## Getting started
+## 🚀 Features
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### User Interface Highlights
+- **Interactive Lesson Tree**: Hierarchical course/topic/lesson navigation with SyncFusion TreeView
+- **Advanced Drag-and-Drop**: Seamless lesson reordering with visual feedback and automatic sort management
+- **Dynamic Calendar Integration**: FullCalendar integration with real-time schedule updates
+- **Responsive Design**: Angular Material components with mobile-friendly layouts
+- **Real-time Updates**: Instant UI refresh after lesson moves and schedule changes
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Technical Features
+- **Type-Safe Development**: TypeScript with strict null checks and comprehensive type definitions
+- **Reactive Programming**: RxJS observables for state management and API integration
+- **Component Architecture**: Modular design with separation of concerns
+- **Service-Oriented**: Clean service layer with dependency injection
+- **Error Handling**: Comprehensive error boundaries with user-friendly notifications
 
-## Add your files
+## 🛠️ Technology Stack
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+- **Angular 19**: Latest framework with standalone components and improved performance
+- **TypeScript**: Strict type checking with modern ES2022+ features
+- **Angular Material**: Google's Material Design components
+- **SyncFusion**: Enterprise-grade TreeView and data visualization components
+- **FullCalendar**: Comprehensive calendar component with drag-and-drop support
+- **RxJS**: Reactive programming with observables and operators
+- **Cypress**: End-to-end testing framework with visual test runner
 
+## 📦 Dependencies
+
+### Core Framework
+```json
+{
+  "@angular/core": "^19.0.0",
+  "@angular/common": "^19.0.0",
+  "@angular/router": "^19.0.0",
+  "@angular/forms": "^19.0.0"
+}
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/stevewash123/lessontree-ui.git
-git branch -M main
-git push -uf origin main
+
+### UI Components
+```json
+{
+  "@angular/material": "^19.0.0",
+  "@syncfusion/ej2-angular-navigations": "^27.1.48",
+  "@fullcalendar/angular": "^6.1.15",
+  "@fullcalendar/core": "^6.1.15"
+}
 ```
 
-## Integrate with your tools
+### State Management & HTTP
+```json
+{
+  "rxjs": "^7.8.0",
+  "@angular/common/http": "^19.0.0"
+}
+```
 
-- [ ] [Set up project integrations](https://gitlab.com/stevewash123/lessonui/-/settings/integrations)
+## 🏗️ Architecture
 
-## Collaborate with your team
+### Project Structure
+```
+src/
+├── app/
+│   ├── calendar/                    # Calendar feature module
+│   │   ├── components/             # Calendar display components
+│   │   ├── services/               # Calendar state and API services
+│   │   └── models/                 # Calendar-specific models
+│   ├── lesson-tree/                # Lesson management feature
+│   │   ├── components/             # Tree and lesson components
+│   │   ├── services/               # Tree operations and drag-drop
+│   │   └── models/                 # Lesson and tree models
+│   ├── shared/                     # Shared utilities and components
+│   ├── core/                       # Core services and guards
+│   └── models/                     # Global type definitions
+├── assets/                         # Static assets and styles
+├── environments/                   # Environment configurations
+└── styles/                         # Global SCSS styles
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+### Key Services
 
-## Test and Deploy
+#### Calendar Services
+- **CalendarEventLoaderService**: Efficient event loading with caching
+- **ScheduleApiService**: RESTful API integration for schedule data
+- **ScheduleStateService**: Centralized schedule state management
 
-Use the built-in continuous integration in GitLab.
+#### Lesson Tree Services
+- **TreeDragDropService**: Complex drag-and-drop operation handling
+- **NodeOperationsService**: CRUD operations for tree nodes
+- **TreeDataService**: Tree structure management and API coordination
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+#### Core Services
+- **ApiService**: HTTP client wrapper with error handling
+- **AuthService**: JWT authentication and session management
+- **NotificationService**: User feedback and error messaging
 
-***
+### Component Architecture
 
-# Editing this README
+#### Smart Components
+- **CalendarComponent**: Calendar display with event integration
+- **LessonTreeComponent**: Main tree interface with drag-and-drop
+- **CourseListComponent**: Course navigation and selection
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+#### Dumb Components
+- **LessonNodeComponent**: Individual lesson display
+- **TopicNodeComponent**: Topic container with expansion
+- **InfoPanelComponent**: Detailed entity information display
 
-## Suggestions for a good README
+## 🎨 UI/UX Features
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Material Design Integration
+- Consistent color schemes with Angular Material palette
+- Responsive breakpoints for mobile and tablet devices
+- Accessibility compliance with ARIA labels and keyboard navigation
+- Loading states and progress indicators
 
-## Name
-Choose a self-explaining name for your project.
+### Advanced Interactions
+- **Drag-and-Drop**: Visual feedback with drop zones and invalid drop indicators
+- **Tree Expansion**: Smooth animations with state persistence
+- **Calendar Navigation**: Month/week view switching with smooth transitions
+- **Context Menus**: Right-click operations for advanced users
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### Performance Optimizations
+- **OnPush Change Detection**: Optimized component updates
+- **Lazy Loading**: Feature modules loaded on demand
+- **Virtual Scrolling**: Efficient rendering of large lesson lists
+- **Caching**: Strategic caching of frequently accessed data
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## 🧪 Testing Strategy
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### End-to-End Testing with Cypress
+```
+cypress/e2e/
+├── 01-authentication.cy.ts        # Login/logout workflows
+├── 02-course-navigation.cy.ts     # Tree expansion and navigation
+├── 03-course-crud.cy.ts           # Entity selection and CRUD operations
+├── 04-drag-drop.cy.ts             # Drag-and-drop functionality
+└── 05-calendar-integration.cy.ts  # Calendar updates and synchronization
+```
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Custom Cypress Commands
+```typescript
+// Reusable test utilities
+cy.robustLogin()              // Login with backdrop handling
+cy.expandTreeNodes()          // Expand SyncFusion tree nodes
+cy.setupDragDropTest()        // Complete test environment setup
+cy.reseedDatabase()           // Reset test data via API
+```
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+### Test Coverage
+- **Authentication Flows**: Complete login/logout testing
+- **Tree Operations**: Expansion, selection, and navigation
+- **Drag-and-Drop**: All lesson move scenarios with validation
+- **Calendar Integration**: Schedule updates and event display
+- **Error Handling**: API error scenarios and user feedback
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+## 🚀 Getting Started
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### Prerequisites
+- Node.js 18+ and npm 9+
+- Angular CLI 19+
+- Modern browser (Chrome, Firefox, Safari, Edge)
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Installation
+```bash
+# Clone repository
+git clone https://github.com/stevewash123/LessonTree.UI.git
+cd LessonTree.UI
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+# Install dependencies
+npm install
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+# Start development server
+npm start
+# Application available at http://localhost:4200
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+### Environment Configuration
+Update `src/environments/environment.ts`:
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:5046/api',
+  enableLogging: true
+};
+```
 
-## License
-For open source projects, say how it is licensed.
+## 🔧 Development Commands
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### Development Server
+```bash
+npm start                    # Start development server
+npm run build               # Production build
+npm run build:dev           # Development build
+npm run lint                # ESLint code analysis
+npm run test                # Unit tests (when available)
+```
+
+### Cypress Testing
+```bash
+npm run cypress:open        # Interactive test runner
+npm run test:auth          # Authentication tests
+npm run test:navigation    # Navigation tests
+npm run test:dragdrop      # Drag-drop tests
+npm run test:master        # Complete test suite
+```
+
+## 📱 Responsive Design
+
+### Breakpoint Strategy
+- **Mobile**: < 768px - Stacked layout with collapsible navigation
+- **Tablet**: 768px - 1024px - Adaptive sidebar with main content
+- **Desktop**: > 1024px - Full layout with dual-pane interface
+
+### Mobile Optimizations
+- Touch-friendly drag-and-drop with larger hit targets
+- Collapsible tree navigation for small screens
+- Optimized calendar view for mobile interaction
+- Progressive enhancement for advanced features
+
+## 🔍 State Management
+
+### Service-Based State
+```typescript
+// Example state service pattern
+@Injectable({ providedIn: 'root' })
+export class ScheduleStateService {
+  private scheduleSubject = new BehaviorSubject<Schedule | null>(null);
+  public schedule$ = this.scheduleSubject.asObservable();
+
+  setSchedule(schedule: Schedule): void {
+    this.scheduleSubject.next(schedule);
+  }
+}
+```
+
+### Reactive Patterns
+- **Observable Chains**: Complex data transformations with RxJS operators
+- **Error Boundaries**: Centralized error handling with user-friendly messaging
+- **Loading States**: Consistent loading indicators across all components
+- **Cache Management**: Intelligent caching with automatic invalidation
+
+## 🎯 Key Features Deep Dive
+
+### Drag-and-Drop Implementation
+```typescript
+// Advanced drag-drop with validation
+onDrop(event: CdkDragDrop<any[]>) {
+  if (this.isValidDrop(event)) {
+    this.treeDragDropService.handleLessonMove(
+      event.item.data,
+      event.container.data,
+      event.currentIndex
+    ).subscribe({
+      next: () => this.refreshTreeAndCalendar(),
+      error: (error) => this.handleMoveError(error)
+    });
+  }
+}
+```
+
+### Calendar Integration
+```typescript
+// Real-time calendar updates
+this.calendarEventLoader.loadEventsForCurrentView(
+  this.scheduleId,
+  this.activeDate,
+  this.viewMode
+).subscribe(events => {
+  this.calendarComponent.updateEvents(events);
+});
+```
+
+## 🔐 Security Considerations
+
+### Authentication
+- JWT token management with automatic refresh
+- Secure localStorage usage with fallback strategies
+- Route guards for protected resources
+- CSRF protection for state-changing operations
+
+### Data Validation
+- Client-side validation with server-side verification
+- Type-safe API responses with runtime validation
+- Sanitization of user inputs
+- Error message sanitization to prevent information leakage
+
+## 🤝 Contributing
+
+### Code Standards
+- Follow Angular style guide and conventions
+- Use TypeScript strict mode with comprehensive typing
+- Implement comprehensive error handling
+- Write reusable Cypress commands for test utilities
+
+### Development Workflow
+1. Create feature branch from `main`
+2. Implement changes with proper typing
+3. Add Cypress tests for new functionality
+4. Ensure all tests pass (`npm run test:master`)
+5. Submit pull request with detailed description
+
+## 📈 Performance Metrics
+
+### Bundle Size Optimization
+- Lazy loading reduces initial bundle size
+- Tree shaking eliminates unused code
+- Efficient imports from large libraries (Material, SyncFusion)
+- Strategic use of OnPush change detection
+
+### Runtime Performance
+- Virtual scrolling for large datasets
+- Debounced user inputs to reduce API calls
+- Efficient tree rendering with minimal DOM updates
+- Smart caching strategies for frequently accessed data
+
+## 🎨 Theming and Customization
+
+### Material Design Theming
+```scss
+// Custom theme configuration
+@use '@angular/material' as mat;
+
+$primary-palette: mat.define-palette(mat.$blue-palette, 600);
+$accent-palette: mat.define-palette(mat.$orange-palette, 500);
+$theme: mat.define-light-theme((
+  color: (
+    primary: $primary-palette,
+    accent: $accent-palette
+  )
+));
+```
+
+### SyncFusion Theming
+- Custom CSS variables for consistent branding
+- Dark mode support with theme switching
+- Responsive component sizing
+- Accessibility-compliant color contrasts
+
+## 📝 License
+
+This project is part of a portfolio demonstration showcasing modern Angular development practices, reactive programming patterns, and comprehensive testing strategies.
+
+## 🔗 Complete Solution
+
+This frontend is part of a full-stack educational management system:
+
+- **Frontend**: [LessonTree UI](https://github.com/stevewash123/LessonTree.UI) (this repository)
+- **Backend**: [LessonTree API](https://github.com/stevewash123/LessonTree.API) - .NET 8 Web API
+- **Integration**: RESTful API communication with reactive RxJS patterns
+- **Testing**: Cypress E2E tests (UI) + comprehensive unit tests (API)
+
+## 🎯 Future Enhancements
+
+- **Unit Testing**: Jest-based unit testing framework
+- **PWA Features**: Service workers and offline capability
+- **Internationalization**: Multi-language support with Angular i18n
+- **Advanced State Management**: NgRx for complex state scenarios
+- **Real-time Features**: WebSocket integration for live updates
+
+---
+
+*Built with ❤️ using Angular 19 and modern frontend development practices*
