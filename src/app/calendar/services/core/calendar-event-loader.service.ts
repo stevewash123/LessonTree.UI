@@ -115,12 +115,13 @@ export class CalendarEventLoaderService {
       });
     }
 
-    // Load from API using existing endpoint with courseId support
+    // Load from API - always get ALL events regardless of courseId
+    // (courseId is only used for cache invalidation, not filtering)
     return this.scheduleApiService.getScheduleEventsByDateRange(
       scheduleId,
       dateRange.start,
-      dateRange.end,
-      courseId
+      dateRange.end
+      // Don't pass courseId - we want all events from all periods
     ).pipe(
       map(events => ({
         events: events || [], // FIXED: Handle undefined response

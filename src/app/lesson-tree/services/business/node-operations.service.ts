@@ -5,7 +5,6 @@ import { Injectable } from '@angular/core';
 import { catchError, map, Observable, of, tap } from 'rxjs';
 import { ToastrService } from 'ngx-toastr';
 import { ApiService } from '../../../shared/services/api.service';
-import { CalendarAwareApiService } from '../../../shared/services/calendar-aware-api.service'; // ✅ NEW: Calendar-optimized API
 import { NotificationService } from '../../../shared/services/notification.service'; // ✅ NEW: Less intrusive notifications
 import { CourseDataService } from '../course-data/course-data.service';
 import { NodeDragModeService, DragMode } from '../state/node-drag-mode.service';
@@ -20,14 +19,13 @@ export class NodeOperationsService {
 
   constructor(
     private apiService: ApiService,
-    private calendarAwareApi: CalendarAwareApiService, // ✅ NEW: Calendar-optimized API
     private courseDataService: CourseDataService,
     private nodeDragModeService: NodeDragModeService,
     private toastr: ToastrService,
-    private notificationService: NotificationService, // ✅ NEW: Less intrusive notifications
+    private notificationService: NotificationService,
     private calendarRefresh: CalendarRefreshService
   ) {
-    console.log('[NodeOperationsService] Simplified sibling-based service initialized with calendar optimization');
+    console.log('[NodeOperationsService] Simplified sibling-based service initialized');
   }
 
   // Drag mode convenience methods
@@ -83,24 +81,24 @@ export class NodeOperationsService {
 
     const courseId = this.extractCourseId(node);
 
-    // ✅ NEW: Use calendar-aware API for optimized lesson moves
-    return this.calendarAwareApi.moveLessonOptimized(
+    // Use regular API for lesson moves (optimized endpoints were rolled back)
+    return this.apiService.moveLesson(
       node.id,
       targetSubTopicId,
       targetTopicId,
-      afterSiblingId || undefined  // Convert null to undefined for API
+      afterSiblingId || undefined,  // Convert null to undefined for API
+      undefined, // position
+      undefined  // relativeToType
     ).pipe(
       tap((result: any) => {
-        console.log('[NodeOperationsService] ✅ Calendar-optimized lesson move result:', {
+        console.log('[NodeOperationsService] ✅ Lesson move result:', {
           lessonId: node.id,
-          isOptimized: result.isOptimized,
-          hasPartialGeneration: result.hasPartialGeneration,
-          partialEventsGenerated: result.partialEventsGenerated
+          isSuccess: result.isSuccess
         });
-        this.handleApiSuccess(result, node, 'LESSON MOVE (OPTIMIZED)', courseId, event);
+        this.handleApiSuccess(result, node, 'LESSON MOVE', courseId, event);
       }),
-      map((result: any) => result && (result.isSuccess || result.isOptimized)), // Support both response formats
-      catchError(err => this.handleApiError(err, 'move lesson (optimized)'))
+      map((result: any) => result && result.isSuccess),
+      catchError(err => this.handleApiError(err, 'move lesson'))
     );
   }
 

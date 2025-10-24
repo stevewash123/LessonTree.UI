@@ -174,6 +174,12 @@ export class TreeDragDropService {
         console.log(`[TreeDragDropService] Lesson positioning in Topic ${targetSubTopic.topicId}, after SubTopic ${afterSiblingId}`);
         return this.performLessonMove(lesson, undefined, targetSubTopic.topicId, afterSiblingId);
       }
+
+      if (targetEntityType === 'Topic') {
+        const targetTopic = targetNode.original as Topic;
+        console.log(`[TreeDragDropService] Lesson moving INTO Topic ${targetTopic.id} (drop after topic = append to end)`);
+        return this.performLessonMove(lesson, undefined, targetTopic.id, null);
+      }
     }
 
     console.warn('[TreeDragDropService] Unsupported lesson drop scenario:', { dropPosition, targetType: targetEntityType });
