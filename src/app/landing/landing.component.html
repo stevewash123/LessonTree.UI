@@ -1,6 +1,70 @@
 <div class="container">
-    <h1 class="title">Welcome to LessonTree</h1> <!-- Fixed typo "LèssonTree" to "LessonTree" -->
+    <h1 class="title">Welcome to LessonTree</h1>
+
+    <!-- Loading notice for demo environment initialization -->
+    @if (loadingState.isLoading) {
+      <div class="loading-notice">
+        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+        <p class="loading-message">{{ loadingState.message }}</p>
+        @if (loadingState.showTimeout && loadingState.timeoutMessage) {
+          <p class="timeout-message">{{ loadingState.timeoutMessage }}</p>
+        }
+      </div>
+    }
+
     <img src="/assets/images/child_reading_apple_tree.jpg" alt="Kids under a tree" class="background-image">
+
+    <!-- Demo Environment Information Card -->
+    <mat-card class="demo-info-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>info</mat-icon>
+          Demo Environment
+        </mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>This is a demonstration of LessonTree with sample high school courses in:</p>
+        <ul>
+          <li>Algebra II</li>
+          <li>American History</li>
+          <li>Biology</li>
+          <li>English Literature</li>
+          <li>Chemistry</li>
+        </ul>
+
+        <!-- Guest Credentials -->
+        <div class="guest-credentials">
+          <h4>Guest Login Credentials:</h4>
+          <div class="credentials-display">
+            <span class="credential-label">Username:</span>
+            <span class="credential-value">{{ guestCredentials.username }}</span>
+          </div>
+          <div class="credentials-display">
+            <span class="credential-label">Password:</span>
+            <span class="credential-value">{{ guestCredentials.password }}</span>
+          </div>
+          <button mat-button color="accent" type="button" (click)="fillGuestCredentials()"
+                  class="fill-credentials-button">
+            <mat-icon>account_circle</mat-icon>
+            Use Guest Credentials
+          </button>
+        </div>
+
+        <!-- Reseed Button -->
+        <div class="reseed-section">
+          <button mat-raised-button color="warn" type="button"
+                  (click)="onReseedDemo()"
+                  [disabled]="isReseedingDemo || loadingState.isLoading"
+                  class="reseed-button">
+            <mat-icon>refresh</mat-icon>
+            {{ isReseedingDemo ? 'Resetting Demo Data...' : 'Reset Demo Data' }}
+          </button>
+          <p class="reseed-note">Demo data is automatically refreshed every 24 hours.</p>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Login Form -->
     <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
       <mat-form-field>
         <mat-label>Username</mat-label>
@@ -10,16 +74,22 @@
         <mat-label>Password</mat-label>
         <input matInput type="password" formControlName="password" required>
       </mat-form-field>
-      
+
       <!-- Error message display -->
       @if (errorMessage) {
         <div class="error-message">
           {{ errorMessage }}
         </div>
       }
-      
-      <button mat-raised-button color="primary" type="submit" [disabled]="loginForm.invalid || isLoading">
-        {{ isLoading ? 'Logging in...' : 'Login' }}
+
+      <button mat-raised-button color="primary" type="submit" [disabled]="isLoginDisabled">
+        @if (isLoading) {
+          Logging in...
+        } @else if (loadingState.isLoading) {
+          Please wait - Initializing...
+        } @else {
+          Login
+        }
       </button>
     </form>
   </div>

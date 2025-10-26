@@ -2,46 +2,141 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    height: 100vh;
+    justify-content: flex-start;
+    min-height: 100vh;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 20px;
+    gap: 20px;
   }
-  
+
   .title {
     font-size: 2rem;
     font-weight: bold;
     color: #333;
-    margin-bottom: 80px; /* Increased from 40px for more space above image */
-    z-index: 2; /* Above image */
+    text-align: center;
+    z-index: 2;
   }
-  
+
+  .loading-notice {
+    width: 100%;
+    max-width: 500px;
+    background-color: #e3f2fd;
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+    z-index: 2;
+  }
+
+  .loading-message {
+    margin: 8px 0;
+    color: #1976d2;
+    font-weight: 500;
+  }
+
+  .timeout-message {
+    margin: 8px 0;
+    color: #ff5722;
+    font-size: 0.9em;
+  }
+
   .background-image {
-    max-width: 80%; /* Removed width: 100% */
-    max-height: 34.5vh;
+    max-width: 60%;
+    max-height: 25vh;
     object-fit: cover;
-    position: relative; /* Changed from absolute for better control */
-    top: 20px; /* Added margin from top */
-    z-index: -1; /* Below title and form */
+    border-radius: 8px;
+    z-index: 1;
   }
-  
+
+  .demo-info-card {
+    max-width: 500px;
+    width: 100%;
+    z-index: 2;
+  }
+
+  .demo-info-card mat-card-header {
+    margin-bottom: 16px;
+  }
+
+  .demo-info-card mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .guest-credentials {
+    margin: 16px 0;
+    padding: 16px;
+    background-color: #f5f5f5;
+    border-radius: 8px;
+  }
+
+  .guest-credentials h4 {
+    margin: 0 0 12px 0;
+    color: #333;
+  }
+
+  .credentials-display {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+  }
+
+  .credential-label {
+    font-weight: 500;
+    color: #666;
+  }
+
+  .credential-value {
+    font-family: monospace;
+    background-color: #e8f5e8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #2e7d32;
+  }
+
+  .fill-credentials-button {
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .reseed-section {
+    margin: 16px 0;
+    padding: 16px;
+    background-color: #fff3e0;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .reseed-button {
+    margin-bottom: 8px;
+  }
+
+  .reseed-note {
+    margin: 8px 0 0 0;
+    font-size: 0.9em;
+    color: #666;
+  }
+
   .login-form {
     display: flex;
     flex-direction: column;
-    width: 300px;
+    width: 100%;
+    max-width: 300px;
     gap: 16px;
-    background-color: rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.95);
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    z-index: 1; /* Above image, below title */
-    margin-top: 40px; /* Space above form, below image/title */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    z-index: 2;
   }
-  
+
   mat-form-field {
     width: 100%;
   }
-  
+
   :host ::ng-deep .mat-mdc-form-field {
     .mat-mdc-form-field-flex {
       height: 48px;
@@ -55,7 +150,7 @@
       padding: 8px 0;
     }
   }
-  
+
   .error-message {
     color: #f44336;
     background-color: #ffebee;
@@ -67,7 +162,26 @@
     text-align: center;
     box-shadow: 0 1px 3px rgba(244, 67, 54, 0.1);
   }
-  
+
   button {
     margin-top: 16px;
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .container {
+      padding: 10px;
+    }
+
+    .title {
+      font-size: 1.5rem;
+    }
+
+    .demo-info-card {
+      max-width: 100%;
+    }
+
+    .background-image {
+      max-width: 80%;
+    }
   }
