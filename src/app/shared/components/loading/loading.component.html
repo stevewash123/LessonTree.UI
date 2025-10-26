@@ -1,0 +1,15 @@
+<div class="loading-overlay" *ngIf="show">
+    <div class="loading-container">
+        <div class="loading-content">
+            <mat-spinner diameter="60" strokeWidth="4"></mat-spinner>
+            <h2 class="loading-title">LessonTree</h2>
+            <p class="loading-message">{{ message }}</p>
+            <div class="loading-timeout" *ngIf="showTimeout">
+                <p class="timeout-message">{{ timeoutMessage }}</p>
+                <button class="retry-button" (click)="onRetry()">
+                    Try Again
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

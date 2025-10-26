@@ -141,6 +141,16 @@
         <span>Weekly Report</span>
       </button>
 
+      <!-- Demo Data Reset -->
+      <button mat-button
+              (click)="resetDemoData()"
+              class="nav-item demo-reset-item"
+              [disabled]="isResettingDemo"
+              matTooltip="Reset all demo data to fresh content">
+        <mat-icon>refresh</mat-icon>
+        <span>{{ isResettingDemo ? 'Resetting...' : 'Reset Demo Data' }}</span>
+      </button>
+
       <!-- Low Priority: Filter -->
       <button mat-button
               (click)="openCourseFilterDialog()"

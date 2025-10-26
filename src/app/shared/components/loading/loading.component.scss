@@ -1,0 +1,90 @@
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(3px);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.loading-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
+.loading-content {
+    text-align: center;
+    padding: 2rem;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    max-width: 400px;
+    min-width: 300px;
+}
+
+.loading-title {
+    margin: 1.5rem 0 1rem 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1976d2;
+    letter-spacing: 0.5px;
+}
+
+.loading-message {
+    margin: 1rem 0;
+    font-size: 1rem;
+    color: #666;
+    line-height: 1.5;
+}
+
+.loading-timeout {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+}
+
+.timeout-message {
+    color: #856404;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.retry-button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background 0.2s ease;
+
+    &:hover {
+        background: #1565c0;
+    }
+
+    &:active {
+        transform: translateY(1px);
+    }
+}
+
+mat-spinner {
+    margin: 0 auto 1rem auto;
+}
+
+::ng-deep .mat-mdc-progress-spinner .mdc-circular-progress__determinate-circle,
+::ng-deep .mat-mdc-progress-spinner .mdc-circular-progress__indeterminate-circle-graphic {
+    stroke: #1976d2 !important;
+}

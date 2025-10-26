@@ -1,1 +1,9 @@
+<app-loading
+    [show]="loadingState.isLoading"
+    [message]="loadingState.message"
+    [showTimeout]="loadingState.showTimeout"
+    [timeoutMessage]="loadingState.timeoutMessage"
+    (retry)="onRetry()">
+</app-loading>
+
 <router-outlet></router-outlet>

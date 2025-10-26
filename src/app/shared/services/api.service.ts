@@ -360,6 +360,17 @@ export class ApiService {
         );
     }
 
+    /** Reset demo data */
+    resetDemoData(): Observable<any> {
+        console.log('ApiService: POST resetDemoData', {
+            url: `${this.baseUrl}/admin/reset-demo-data`,
+            timestamp: new Date().toISOString()
+        });
+        return this.http.post<any>(`${this.baseUrl}/admin/reset-demo-data`, {}).pipe(
+            catchError(error => this.handleError(error))
+        );
+    }
+
     /** Create a new Note */
     createNote(note: Partial<Note>): Observable<Note> {
         const body = {

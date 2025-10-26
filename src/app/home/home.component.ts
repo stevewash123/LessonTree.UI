@@ -21,6 +21,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../shared/services/auth.service';
 import { ReportService } from '../shared/services/report.service';
+import { ApiService } from '../shared/services/api.service';
+import { LoadingService } from '../shared/services/loading.service';
 import { UserConfigComponent } from '../user-config/user-config.component';
 import { ToolbarControlsService } from '../shared/services/toolbar-controls.service';
 import { CourseFilterDialogComponent } from '../lesson-tree/course-filter/course-filter-dialog.component';
@@ -65,7 +67,16 @@ export class HomeComponent implements AfterViewInit {
     layoutModeExpanded = false;
 
 
-    constructor(public authService: AuthService, private reportService: ReportService, private router: Router) { }
+    // Loading state for demo reset
+    isResettingDemo = false;
+
+    constructor(
+        public authService: AuthService,
+        private reportService: ReportService,
+        private router: Router,
+        private apiService: ApiService,
+        private loadingService: LoadingService
+    ) { }
 
     ngAfterViewInit() {
         // Toolbar height calculation removed since we removed the toolbar
@@ -193,6 +204,43 @@ export class HomeComponent implements AfterViewInit {
         
         console.log('Generating weekly report for week starting:', weekStart);
         this.reportService.downloadWeeklyReport(weekStart);
+    }
+
+    resetDemoData() {
+        this.closeNavMenu();
+
+        if (this.isResettingDemo) {
+            return; // Prevent multiple simultaneous resets
+        }
+
+        if (!confirm('Reset all demo data? This will:\n\n• Clear all courses, lessons, and schedules\n• Reset to fresh demo content\n• Take 15-30 seconds to complete\n\nProceed?')) {
+            return;
+        }
+
+        this.isResettingDemo = true;
+        this.loadingService.startLoading('Resetting demo data... This may take up to 30 seconds.');
+
+        console.log('Starting demo data reset...');
+
+        this.apiService.resetDemoData().subscribe({
+            next: (response) => {
+                console.log('Demo data reset successful:', response);
+                this.loadingService.stopLoading();
+                this.isResettingDemo = false;
+
+                // Show success message and refresh the page to load new data
+                alert('✅ Demo data reset successfully!\n\n' + response.message + '\n\nThe page will now refresh to load the new data.');
+                window.location.reload();
+            },
+            error: (error) => {
+                console.error('Demo data reset failed:', error);
+                this.loadingService.stopLoading();
+                this.isResettingDemo = false;
+
+                const errorMessage = error.error?.message || 'An error occurred while resetting demo data.';
+                alert('❌ Demo data reset failed:\n\n' + errorMessage + '\n\nPlease try again in a few minutes.');
+            }
+        });
     }
 
     logout() {
