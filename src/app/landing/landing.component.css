@@ -21,7 +21,7 @@
 
   .loading-notice {
     width: 100%;
-    max-width: 500px;
+    max-width: 800px;
     background-color: #e3f2fd;
     border: 1px solid #2196f3;
     border-radius: 8px;
@@ -43,17 +43,29 @@
   }
 
   .background-image {
-    max-width: 60%;
-    max-height: 25vh;
+    max-width: 50%;
+    max-height: 20vh;
     object-fit: cover;
     border-radius: 8px;
     z-index: 1;
+    margin-bottom: 20px;
   }
 
-  .demo-info-card {
-    max-width: 500px;
+  /* Main three-column layout */
+  .main-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
     width: 100%;
+    max-width: 1200px;
+    gap: 20px;
     z-index: 2;
+  }
+
+  /* Left Panel: Demo Environment Info */
+  .left-panel {
+    flex: 1;
+    min-width: 300px;
   }
 
   .demo-info-card mat-card-header {
@@ -66,58 +78,12 @@
     gap: 8px;
   }
 
-  .guest-credentials {
-    margin: 16px 0;
-    padding: 16px;
-    background-color: #f5f5f5;
-    border-radius: 8px;
-  }
-
-  .guest-credentials h4 {
-    margin: 0 0 12px 0;
-    color: #333;
-  }
-
-  .credentials-display {
+  /* Center Panel: Login Form */
+  .center-panel {
+    flex: 0 0 300px;
     display: flex;
-    justify-content: space-between;
-    margin: 8px 0;
-  }
-
-  .credential-label {
-    font-weight: 500;
-    color: #666;
-  }
-
-  .credential-value {
-    font-family: monospace;
-    background-color: #e8f5e8;
-    padding: 2px 8px;
-    border-radius: 4px;
-    color: #2e7d32;
-  }
-
-  .fill-credentials-button {
-    margin-top: 12px;
-    width: 100%;
-  }
-
-  .reseed-section {
-    margin: 16px 0;
-    padding: 16px;
-    background-color: #fff3e0;
-    border-radius: 8px;
-    text-align: center;
-  }
-
-  .reseed-button {
-    margin-bottom: 8px;
-  }
-
-  .reseed-note {
-    margin: 8px 0 0 0;
-    font-size: 0.9em;
-    color: #666;
+    justify-content: center;
+    align-items: flex-start;
   }
 
   .login-form {
@@ -130,7 +96,79 @@
     padding: 20px;
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    z-index: 2;
+  }
+
+  /* Right Panel: Guest Credentials */
+  .right-panel {
+    flex: 1;
+    min-width: 300px;
+  }
+
+  .credentials-card mat-card-header {
+    margin-bottom: 16px;
+  }
+
+  .credentials-card mat-card-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .guest-credentials {
+    padding: 0;
+  }
+
+  .credentials-display {
+    display: flex;
+    justify-content: space-between;
+    margin: 8px 0;
+    align-items: center;
+  }
+
+  .credential-label {
+    font-weight: 500;
+    color: #666;
+  }
+
+  .credential-value {
+    font-family: monospace;
+    background-color: #e8f5e8;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #2e7d32;
+    font-size: 0.9em;
+  }
+
+  .fill-credentials-button {
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  /* Bottom Panel: Reseed Section */
+  .bottom-panel {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+  }
+
+  .reseed-section {
+    padding: 16px;
+    background-color: #fff3e0;
+    border-radius: 8px;
+    text-align: center;
+    width: 100%;
+  }
+
+  .reseed-button {
+    margin-bottom: 8px;
+  }
+
+  .reseed-note {
+    margin: 8px 0 0 0;
+    font-size: 0.9em;
+    color: #666;
   }
 
   mat-form-field {
@@ -168,6 +206,26 @@
   }
 
   /* Responsive design */
+  @media (max-width: 1024px) {
+    .main-layout {
+      flex-direction: column;
+      align-items: center;
+      max-width: 600px;
+    }
+
+    .left-panel, .right-panel {
+      min-width: 100%;
+      max-width: 600px;
+    }
+
+    .center-panel {
+      flex: none;
+      width: 100%;
+      max-width: 400px;
+      order: -1; /* Move login form to top on mobile */
+    }
+  }
+
   @media (max-width: 768px) {
     .container {
       padding: 10px;
@@ -177,11 +235,37 @@
       font-size: 1.5rem;
     }
 
-    .demo-info-card {
+    .background-image {
+      max-width: 80%;
+    }
+
+    .loading-notice {
       max-width: 100%;
     }
 
-    .background-image {
-      max-width: 80%;
+    .main-layout {
+      gap: 15px;
+    }
+
+    .left-panel, .right-panel, .center-panel {
+      min-width: 100%;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .container {
+      padding: 5px;
+    }
+
+    .title {
+      font-size: 1.3rem;
+    }
+
+    .main-layout {
+      gap: 10px;
+    }
+
+    .login-form {
+      padding: 15px;
     }
   }
