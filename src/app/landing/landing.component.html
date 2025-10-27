@@ -14,96 +14,59 @@
 
     <img src="/assets/images/child_reading_apple_tree.jpg" alt="Kids under a tree" class="background-image">
 
-    <!-- Main Content Layout: Three columns -->
-    <div class="main-layout">
-      <!-- Left Panel: Demo Environment Information -->
-      <mat-card class="left-panel demo-info-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>info</mat-icon>
-            Demo Environment
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <p>This is a demonstration of LessonTree with sample high school courses in:</p>
-          <ul>
-            <li>Algebra II</li>
-            <li>American History</li>
-            <li>Biology</li>
-            <li>English Literature</li>
-            <li>Chemistry</li>
-          </ul>
-        </mat-card-content>
-      </mat-card>
+    <!-- Simplified Layout -->
+    <div class="simple-layout">
+      <!-- Demo Information -->
+      <p class="demo-description">Demo includes high school courses: Algebra II, American History, Biology, English Literature, Chemistry</p>
 
-      <!-- Center Panel: Login Form -->
-      <div class="center-panel">
-        <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-          <mat-form-field>
-            <mat-label>Username</mat-label>
-            <input matInput formControlName="username" required>
-          </mat-form-field>
-          <mat-form-field>
-            <mat-label>Password</mat-label>
-            <input matInput type="password" formControlName="password" required>
-          </mat-form-field>
+      <!-- Login Form with Guest Credentials -->
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+        <mat-form-field>
+          <mat-label>Username</mat-label>
+          <input matInput formControlName="username" required>
+        </mat-form-field>
+        <mat-form-field>
+          <mat-label>Password</mat-label>
+          <input matInput type="password" formControlName="password" required>
+        </mat-form-field>
 
-          <!-- Error message display -->
-          @if (errorMessage) {
-            <div class="error-message">
-              {{ errorMessage }}
-            </div>
-          }
-
-          <button mat-raised-button color="primary" type="submit" [disabled]="isLoginDisabled">
-            @if (isLoading) {
-              Logging in...
-            } @else if (loadingState.isLoading) {
-              Please wait - Initializing...
-            } @else {
-              Login
-            }
+        <!-- Guest Credentials under the inputs -->
+        <div class="guest-credentials-inline">
+          <p class="guest-hint">Guest login: <strong>guest</strong> / <strong>Guest123!</strong></p>
+          <button mat-button color="accent" type="button" (click)="fillGuestCredentials()"
+                  class="inline-fill-button">
+            Use Guest Login
           </button>
-        </form>
-      </div>
+        </div>
 
-      <!-- Right Panel: Guest Credentials -->
-      <mat-card class="right-panel credentials-card">
-        <mat-card-header>
-          <mat-card-title>
-            <mat-icon>account_circle</mat-icon>
-            Guest Access
-          </mat-card-title>
-        </mat-card-header>
-        <mat-card-content>
-          <div class="guest-credentials">
-            <div class="credentials-display">
-              <span class="credential-label">Username:</span>
-              <span class="credential-value">{{ guestCredentials.username }}</span>
-            </div>
-            <div class="credentials-display">
-              <span class="credential-label">Password:</span>
-              <span class="credential-value">{{ guestCredentials.password }}</span>
-            </div>
-            <button mat-button color="accent" type="button" (click)="fillGuestCredentials()"
-                    class="fill-credentials-button">
-              <mat-icon>account_circle</mat-icon>
-              Use Guest Credentials
-            </button>
+        <!-- Error message display -->
+        @if (errorMessage) {
+          <div class="error-message">
+            {{ errorMessage }}
           </div>
-        </mat-card-content>
-      </mat-card>
+        }
+
+        <button mat-raised-button color="primary" type="submit" [disabled]="isLoginDisabled">
+          @if (isLoading) {
+            Logging in...
+          } @else if (loadingState.isLoading) {
+            Please wait - Initializing...
+          } @else {
+            Login
+          }
+        </button>
+      </form>
     </div>
 
     <!-- Bottom Panel: Reseed Button -->
     <div class="bottom-panel">
       <div class="reseed-section">
-        <button mat-raised-button color="warn" type="button"
+        <button mat-raised-button color="primary" type="button"
                 (click)="onReseedDemo()"
                 [disabled]="isReseedingDemo || loadingState.isLoading"
                 class="reseed-button">
           <mat-icon>refresh</mat-icon>
-          {{ isReseedingDemo ? 'Resetting Demo Data...' : 'Reset Demo Data' }}
+          {{ isReseedingDemo ? 'Refreshing Demo Data...' : 'Refresh Demo Data' }}
         </button>
         <p class="reseed-note">Demo data is automatically refreshed every 24 hours.</p>
       </div>

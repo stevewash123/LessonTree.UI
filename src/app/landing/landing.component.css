@@ -51,46 +51,29 @@
     margin-bottom: 20px;
   }
 
-  /* Main three-column layout */
-  .main-layout {
+  /* Simplified single-column layout */
+  .simple-layout {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: center;
     width: 100%;
-    max-width: 1200px;
+    max-width: 400px;
     gap: 20px;
     z-index: 2;
   }
 
-  /* Left Panel: Demo Environment Info */
-  .left-panel {
-    flex: 1;
-    min-width: 300px;
-  }
-
-  .demo-info-card mat-card-header {
-    margin-bottom: 16px;
-  }
-
-  .demo-info-card mat-card-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  /* Center Panel: Login Form */
-  .center-panel {
-    flex: 0 0 300px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+  .demo-description {
+    text-align: center;
+    color: #666;
+    font-size: 0.9em;
+    margin: 0;
+    line-height: 1.4;
   }
 
   .login-form {
     display: flex;
     flex-direction: column;
     width: 100%;
-    max-width: 300px;
     gap: 16px;
     background-color: rgba(255, 255, 255, 0.95);
     padding: 20px;
@@ -98,50 +81,33 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
-  /* Right Panel: Guest Credentials */
-  .right-panel {
-    flex: 1;
-    min-width: 300px;
-  }
-
-  .credentials-card mat-card-header {
-    margin-bottom: 16px;
-  }
-
-  .credentials-card mat-card-title {
+  .guest-credentials-inline {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 8px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
   }
 
-  .guest-credentials {
-    padding: 0;
-  }
-
-  .credentials-display {
-    display: flex;
-    justify-content: space-between;
-    margin: 8px 0;
-    align-items: center;
-  }
-
-  .credential-label {
-    font-weight: 500;
-    color: #666;
-  }
-
-  .credential-value {
-    font-family: monospace;
-    background-color: #e8f5e8;
-    padding: 4px 8px;
-    border-radius: 4px;
-    color: #2e7d32;
+  .guest-hint {
+    margin: 0;
     font-size: 0.9em;
+    color: #495057;
+    text-align: center;
   }
 
-  .fill-credentials-button {
-    margin-top: 12px;
-    width: 100%;
+  .guest-hint strong {
+    color: #2e7d32;
+    font-family: monospace;
+  }
+
+  .inline-fill-button {
+    padding: 4px 16px;
+    min-height: 32px;
+    font-size: 0.9em;
   }
 
   /* Bottom Panel: Reseed Section */
