@@ -2,7 +2,7 @@
 
 ## Repository Context
 - **This is the UI repository** - separate from API
-- **GitLab**: https://gitlab.com/stevewash123/lessontree-ui.git
+- **GitHub**: https://github.com/stevewash123/LessonTree.UI.git
 - **Working Directory**: `C:/Users/steve/LessonTree/LessonTree_UI/`
 - **Framework**: Angular with Angular Material + SyncFusion components
 - **TypeScript**: Strict null checks enabled - handle null/undefined explicitly

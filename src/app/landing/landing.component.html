@@ -30,14 +30,15 @@
           <input matInput type="password" formControlName="password" required>
         </mat-form-field>
 
-        <!-- Guest Credentials under the inputs -->
-        <div class="guest-credentials-inline">
-          <p class="guest-hint">Guest login: <strong>guest</strong> / <strong>Guest123!</strong></p>
-          <button mat-button color="accent" type="button" (click)="fillGuestCredentials()"
-                  class="inline-fill-button">
-            Use Guest Login
-          </button>
-        </div>
+        <!-- Guest Credentials Text Above Button -->
+        <p class="guest-credentials-text">Guest login: <strong>guest</strong> / <strong>Guest123!</strong></p>
+
+        <!-- Guest Login Button (styled like Refresh Demo Data button) -->
+        <button mat-raised-button color="primary" type="button" (click)="fillGuestCredentials()"
+                class="guest-login-button">
+          <mat-icon>person</mat-icon>
+          Login as Guest
+        </button>
 
         <!-- Error message display -->
         @if (errorMessage) {

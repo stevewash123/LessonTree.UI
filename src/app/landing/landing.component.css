@@ -81,33 +81,25 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 
-  .guest-credentials-inline {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 12px;
+  .guest-credentials-text {
+    margin: 0;
+    font-size: 0.9em;
+    color: #495057;
+    text-align: center;
+    padding: 8px 12px;
     background-color: #f8f9fa;
     border-radius: 6px;
     border: 1px solid #e9ecef;
   }
 
-  .guest-hint {
-    margin: 0;
-    font-size: 0.9em;
-    color: #495057;
-    text-align: center;
-  }
-
-  .guest-hint strong {
+  .guest-credentials-text strong {
     color: #2e7d32;
     font-family: monospace;
   }
 
-  .inline-fill-button {
-    padding: 4px 16px;
-    min-height: 32px;
-    font-size: 0.9em;
+  .guest-login-button {
+    width: 100%;
+    margin: 8px 0;
   }
 
   /* Bottom Panel: Reseed Section */
